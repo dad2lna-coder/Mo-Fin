@@ -136,6 +136,7 @@ class Media3PlayerBackend extends PlayerBackend
   bool _tracksKnown = false;
   Completer<void>? _tracksReadyCompleter;
   List<EmbeddedCaptionTrack> _embeddedCaptionTracks = const [];
+  List<NativeTextRendition> _nativeTextRenditions = const [];
   final StreamController<void> _tracksChangedController =
       StreamController<void>.broadcast();
 
@@ -317,6 +318,9 @@ class Media3PlayerBackend extends PlayerBackend
         );
         _embeddedCaptionTracks = EmbeddedCaptionTrack.listFromWire(
           map['closedCaptionTracks'],
+        );
+        _nativeTextRenditions = NativeTextRendition.listFromWire(
+          map['textRenditions'],
         );
         _requestedSubtitleRendererMode = _modeFromWire(
           map['subtitleRendererModeRequested'],
@@ -1080,6 +1084,7 @@ class Media3PlayerBackend extends PlayerBackend
     _tracksKnown = false;
     _textTrackCount = 0;
     _embeddedCaptionTracks = const [];
+    _nativeTextRenditions = const [];
     _tracksReadyCompleter = null;
     _discontinuityTimestamps.clear();
     _audioSinkErrorTimestamps.clear();
@@ -1188,8 +1193,16 @@ class Media3PlayerBackend extends PlayerBackend
       if (payload['audioTrackOrdinal'] is int)
         'audioTrackOrdinal': payload['audioTrackOrdinal'],
       'selectUndeterminedTextLanguage': false,
+      'selectNativeTextRendition':
+          payload['selectNativeTextRendition'] == true,
+      if (payload['nativeTextLanguage'] is String)
+        'directTextLanguage': payload['nativeTextLanguage'],
+      if (payload['credentialHost'] is String)
+        'credentialHost': payload['credentialHost'],
       'forceSubtitlesDisabledOnStart':
-          _prefs.get(UserPreferences.subtitleMode) == SubtitleMode.none,
+          payload['selectNativeTextRendition'] == true
+          ? false
+          : _prefs.get(UserPreferences.subtitleMode) == SubtitleMode.none,
       'audioDelayMs': (_audioDelaySeconds * 1000).round(),
       'subtitleDelayMs': (_subtitleDelaySeconds * 1000).round(),
       'volumeBoostLevel': _volumeBoostLevel,
@@ -1478,6 +1491,14 @@ class Media3PlayerBackend extends PlayerBackend
   @override
   Future<void> setEmbeddedCaptionTrack(int id) async {
     await _invoke<void>('setClosedCaptionTrack', {'id': id});
+  }
+
+  @override
+  List<NativeTextRendition> get nativeTextRenditions => _nativeTextRenditions;
+
+  @override
+  Future<void> setNativeTextRendition(String? id) async {
+    await _invoke<void>('setTextRendition', {'id': id});
   }
 
   @override

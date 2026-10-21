@@ -55,7 +55,6 @@ import androidx.media3.common.util.TimestampAdjuster
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.common.util.Util
 import androidx.media3.datasource.DefaultDataSource
-import androidx.media3.datasource.DefaultHttpDataSource
 import androidx.media3.decoder.av1.Dav1dLibrary
 import androidx.media3.decoder.av1.Libdav1dVideoRenderer
 import androidx.media3.decoder.ffmpeg.FfmpegLibrary
@@ -934,7 +933,8 @@ class Media3VideoView(
     private var ticker: Runnable? = null
     private var currentUrl: String? = null
     private var currentHeaders: Map<String, String> = emptyMap()
-    private lateinit var httpDataSourceFactory: DefaultHttpDataSource.Factory
+    private var credentialHost: String? = null
+    private lateinit var httpDataSourceFactory: PlaybackHttpDataSourceFactory
     private var requestedSubtitleRendererMode: SubtitleRendererMode = SubtitleRendererMode.NATIVE
     private var activeSubtitleRendererMode: SubtitleRendererMode = SubtitleRendererMode.NATIVE
     private var selectedSubtitleCodec: String? = null
@@ -944,6 +944,10 @@ class Media3VideoView(
     private var subtitleTrackEnabled = false
 
     private var pendingClosedCaptionId: Int? = null
+    private var pendingTextRenditionId: String? = null
+    private var autoSelectTextRendition = false
+    private var autoTextLanguage = "en"
+    private var textRenditionChosen = false
 
     private var pendingSubtitleIndex: Int? = null
     private var pendingSubtitleCodec: String? = null
@@ -1274,6 +1278,14 @@ class Media3VideoView(
                     pendingClosedCaptionId = null
                 }
             }
+            pendingTextRenditionId?.takeIf { subtitleRetime == null }?.let { id ->
+                if (selectTextRendition(id)) {
+                    applyTextRenditionSelection()
+                } else if (textRenditionOptions().any { it["id"] == id }) {
+                    pendingTextRenditionId = null
+                }
+            }
+            maybeAutoSelectTextRendition()
             pendingAudioIndex?.let { index ->
                 if (selectTrack(C.TRACK_TYPE_AUDIO, index) ||
                     index in 1..trackCount(C.TRACK_TYPE_AUDIO)
@@ -1972,12 +1984,10 @@ class Media3VideoView(
                     if (isLowRamDevice) TS_SEARCH_BYTES_LOW_RAM else TS_SEARCH_BYTES_DEFAULT,
             )
 
-        httpDataSourceFactory = DefaultHttpDataSource.Factory()
-            .setAllowCrossProtocolRedirects(true)
-            .setConnectTimeoutMs(120_000)
-            .setReadTimeoutMs(120_000)
+        httpDataSourceFactory = PlaybackHttpDataSourceFactory()
         bootDataSourceFactory = DefaultDataSource.Factory(context, httpDataSourceFactory)
             .setTransferListener(Media3TransferLog)
+        applyHttpHeaders()
         val assHandler = AssHandler(
             AssRenderType.OVERLAY_CANVAS,
             AssHandlerConfig(cacheSize = assCacheSizeMb()),
@@ -2125,7 +2135,7 @@ class Media3VideoView(
         player.release()
         recreateVideoView()
         player = createPlayer()
-        httpDataSourceFactory.setDefaultRequestProperties(currentHeaders)
+        applyHttpHeaders()
         Media3Bridge.emitEvent(
             mapOf(
                 "event" to "playerRebuilt",
@@ -2347,7 +2357,13 @@ class Media3VideoView(
                     result.success(null)
                 }
 
+                "setTextRendition" -> {
+                    handleSetTextRendition(call.arguments as? Map<*, *>)
+                    result.success(null)
+                }
+
                 "disableSubtitleTrack" -> {
+                    textRenditionChosen = true
                     trackSelector.parameters = trackSelector.parameters
                         .buildUpon()
                         .clearOverridesOfType(C.TRACK_TYPE_TEXT)
@@ -2365,6 +2381,7 @@ class Media3VideoView(
                     pendingSubtitleIsBitmap = null
                     pendingExternalSubtitleUrl = null
                     pendingClosedCaptionId = null
+                    pendingTextRenditionId = null
 
                     applyTrackSelectorForCurrentSource()
                     clearAssSubtitleScript()
@@ -2528,7 +2545,12 @@ class Media3VideoView(
                     handleSetClosedCaptionTrack(args as? Map<*, *>)
                 }
 
+                "setTextRendition" -> {
+                    handleSetTextRendition(args as? Map<*, *>)
+                }
+
                 "disableSubtitleTrack" -> {
+                    textRenditionChosen = true
                     trackSelector.parameters = trackSelector.parameters
                         .buildUpon()
                         .clearOverridesOfType(C.TRACK_TYPE_TEXT)
@@ -2545,6 +2567,7 @@ class Media3VideoView(
                     pendingSubtitleIsBitmap = null
                     pendingExternalSubtitleUrl = null
                     pendingClosedCaptionId = null
+                    pendingTextRenditionId = null
                     applyTrackSelectorForCurrentSource()
                     clearAssSubtitleScript()
                     refreshSubtitleRendererMode()
@@ -2668,7 +2691,8 @@ class Media3VideoView(
             }
             ?.toMap()
             ?: emptyMap()
-        httpDataSourceFactory.setDefaultRequestProperties(currentHeaders)
+        credentialHost = args["credentialHost"]?.toString()?.trim()?.takeIf { it.isNotEmpty() }
+        applyHttpHeaders()
 
         resetTrackSelectionsForNewSource()
         externalSubtitleConfigurations.clear()
@@ -2678,7 +2702,14 @@ class Media3VideoView(
         selectedSubtitleIsBitmap = false
         selectedExternalSubtitleUrl = null
         val forceSubtitlesDisabledOnStart = args["forceSubtitlesDisabledOnStart"] as? Boolean ?: false
-        subtitleTrackEnabled = !forceSubtitlesDisabledOnStart
+        autoSelectTextRendition = args["selectNativeTextRendition"] as? Boolean ?: false
+        autoTextLanguage = normalizeLanguageCode(args["directTextLanguage"]?.toString()) ?: "en"
+        textRenditionChosen = false
+        pendingTextRenditionId = null
+        // A direct lineup asks for captions even when the viewer's subtitle
+        // mode is off. Pluto marks the rendition DEFAULT=NO, so enabling the
+        // text type is not enough: maybeAutoSelectTextRendition overrides it.
+        subtitleTrackEnabled = autoSelectTextRendition || !forceSubtitlesDisabledOnStart
         pendingSubtitleIndex = null
         pendingSubtitleCodec = null
         pendingSubtitleIsExternal = null
@@ -2691,6 +2722,7 @@ class Media3VideoView(
             ?.toInt()
             ?.takeIf { it > 0 }
         pendingClosedCaptionId = null
+        pendingTextRenditionId = null
         firstFrameRendered = false
         firstFrameCover.visibility = View.VISIBLE
         if (letterboxCrop != null) {
@@ -2741,6 +2773,28 @@ class Media3VideoView(
         }
         firstFrameRendered = true
         firstFrameCover.visibility = View.GONE
+    }
+
+    private fun applyHttpHeaders() {
+        if (!::httpDataSourceFactory.isInitialized) return
+        val host = credentialHost?.takeIf { it.isNotBlank() }
+        httpDataSourceFactory.credentialHost = host
+        if (host == null) {
+            httpDataSourceFactory.authorization = null
+            httpDataSourceFactory.setDefaultRequestProperties(currentHeaders)
+            return
+        }
+        var authorization: String? = null
+        val rest = LinkedHashMap<String, String>()
+        for ((name, value) in currentHeaders) {
+            if (name.equals("Authorization", ignoreCase = true)) {
+                authorization = value
+            } else {
+                rest[name] = value
+            }
+        }
+        httpDataSourceFactory.authorization = authorization
+        httpDataSourceFactory.setDefaultRequestProperties(rest)
     }
 
     private fun resetTrackSelectionsForNewSource() {
@@ -4922,6 +4976,8 @@ class Media3VideoView(
         val isBitmap = args?.get("isBitmapSubtitle") as? Boolean ?: false
         val externalUrl = args?.get("externalSubtitleUrl")?.toString()
 
+        textRenditionChosen = true
+        pendingTextRenditionId = null
         pendingClosedCaptionId = null
         pendingSubtitleIndex = index
         pendingSubtitleCodec = codec
@@ -4960,6 +5016,8 @@ class Media3VideoView(
     private fun handleSetClosedCaptionTrack(args: Map<*, *>?) {
         val id = (args?.get("id") as? Number)?.toInt() ?: 0
 
+        textRenditionChosen = true
+        pendingTextRenditionId = null
         pendingSubtitleIndex = null
         pendingSubtitleCodec = null
         pendingSubtitleIsExternal = null
@@ -4989,6 +5047,118 @@ class Media3VideoView(
         subtitleTrackEnabled = true
         applyTrackSelectorForCurrentSource()
         refreshSubtitleRendererMode()
+    }
+
+    // An empty id clears the text override without disabling the type, so a
+    // following closed-caption selection can still apply. A real id is a
+    // group key plus an in-group index, never a flattened position.
+    private fun handleSetTextRendition(args: Map<*, *>?) {
+        val id = args?.get("id")?.toString()?.takeIf { it.isNotBlank() }
+        textRenditionChosen = true
+        pendingSubtitleIndex = null
+        pendingSubtitleCodec = null
+        pendingSubtitleIsExternal = null
+        pendingSubtitleIsBitmap = null
+        pendingExternalSubtitleUrl = null
+        pendingClosedCaptionId = null
+        if (id == null) {
+            pendingTextRenditionId = null
+            clearTextOverride()
+            return
+        }
+        pendingTextRenditionId = id
+        if (selectTextRendition(id)) {
+            applyTextRenditionSelection()
+        }
+    }
+
+    private fun selectTextRendition(id: String): Boolean {
+        val parsed = TextRenditionIds.parse(id) ?: return false
+        for (group in player.currentTracks.groups) {
+            if (group.type != C.TRACK_TYPE_TEXT) continue
+            val mediaTrackGroup = group.mediaTrackGroup
+            if (TextRenditionIds.groupKey(mediaTrackGroup) != parsed.first) continue
+            val index = parsed.second
+            if (index < 0 || index >= group.length) return false
+            if (isClosedCaptionTrack(group.getTrackFormat(index))) return false
+            if (!group.isTrackSupported(index)) return false
+            return applyTrackOverride(
+                C.TRACK_TYPE_TEXT,
+                TrackEntry(mediaTrackGroup, index, supported = true),
+            )
+        }
+        return false
+    }
+
+    private fun applyTextRenditionSelection() {
+        pendingTextRenditionId = null
+        selectedSubtitleCodec = null
+        selectedSubtitleIsExternal = false
+        selectedSubtitleIsBitmap = false
+        selectedExternalSubtitleUrl = null
+        subtitleTrackEnabled = true
+        applyTrackSelectorForCurrentSource()
+        refreshSubtitleRendererMode()
+    }
+
+    private fun clearTextOverride() {
+        trackSelector.parameters = trackSelector.parameters
+            .buildUpon()
+            .clearOverridesOfType(C.TRACK_TYPE_TEXT)
+            .build()
+        emitTracksChanged()
+        emitState()
+    }
+
+    // Pluto's rendition is DEFAULT=NO, so a text track that is merely enabled
+    // stays unselected. Prefer the requested language, then the first CEA-608
+    // service, and only once per source so a later choice is left alone.
+    private fun maybeAutoSelectTextRendition() {
+        if (!autoSelectTextRendition || textRenditionChosen || subtitleRetime != null) return
+        if (player.currentTracks.isTypeSelected(C.TRACK_TYPE_TEXT)) {
+            textRenditionChosen = true
+            return
+        }
+        val renditions = textRenditionOptions()
+        val chosen = TextRenditionIds.choose(
+            renditions.map { option ->
+                (option["id"]?.toString() ?: "") to (option["language"]?.toString() ?: "")
+            },
+            autoTextLanguage,
+        )
+        if (chosen != null) {
+            textRenditionChosen = true
+            if (selectTextRendition(chosen)) applyTextRenditionSelection()
+            return
+        }
+        if (collectClosedCaptionTracks().isNotEmpty()) {
+            textRenditionChosen = true
+            if (selectClosedCaptionTrack(1)) applyClosedCaptionSelection()
+        }
+    }
+
+    private fun textRenditionOptions(): List<Map<String, Any?>> {
+        val options = mutableListOf<Map<String, Any?>>()
+        for (group in player.currentTracks.groups) {
+            if (group.type != C.TRACK_TYPE_TEXT) continue
+            val mediaTrackGroup = group.mediaTrackGroup
+            for (index in 0 until group.length) {
+                val format = group.getTrackFormat(index)
+                if (isClosedCaptionTrack(format)) continue
+                options.add(
+                    mapOf(
+                        "id" to TextRenditionIds.id(mediaTrackGroup, index),
+                        "label" to formatTrackLabel(format, C.TRACK_TYPE_TEXT, index + 1),
+                        "language" to (format.language ?: ""),
+                        "mimeType" to (format.sampleMimeType ?: ""),
+                        "groupId" to TextRenditionIds.groupKey(mediaTrackGroup),
+                        "trackIndex" to index,
+                        "selected" to group.isTrackSelected(index),
+                    ),
+                )
+            }
+        }
+        return options
     }
 
     private fun selectTextTrack(oneBasedIndex: Int, externalUrl: String?): Boolean {
@@ -5222,6 +5392,7 @@ class Media3VideoView(
                 "audioTrackCount" to trackCount(C.TRACK_TYPE_AUDIO),
                 "textTrackCount" to trackCount(C.TRACK_TYPE_TEXT),
                 "closedCaptionTracks" to closedCaptionTrackOptions(),
+                "textRenditions" to textRenditionOptions(),
                 "subtitleRendererMode" to activeSubtitleRendererMode.wireValue,
                 "subtitleRendererModeRequested" to requestedSubtitleRendererMode.wireValue,
             ),

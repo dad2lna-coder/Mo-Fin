@@ -364,8 +364,10 @@ class AppleTvBackend implements PlayerBackend {
             _prefs.get(UserPreferences.defaultAudioLanguage),
       ),
       'preferredTextLanguage': _normalizeTrackLanguagePref(
-        payload['preferredTextLanguage']?.toString() ??
-            _prefs.get(UserPreferences.defaultSubtitleLanguage),
+        payload['selectNativeTextRendition'] == true
+            ? payload['nativeTextLanguage']?.toString()
+            : payload['preferredTextLanguage']?.toString() ??
+                  _prefs.get(UserPreferences.defaultSubtitleLanguage),
       ),
       'speed': _playbackSpeed,
       'volume': _volume,
@@ -373,7 +375,10 @@ class AppleTvBackend implements PlayerBackend {
       'subtitleDelayMs': (_subtitleDelaySeconds * 1000).round(),
       'subtitleRendererMode': _modeToWire(_requestedSubtitleRendererMode),
       'forceSubtitlesDisabledOnStart':
-          !audioOnly && _prefs.get(UserPreferences.subtitleMode) == SubtitleMode.none,
+          payload['selectNativeTextRendition'] == true
+          ? false
+          : !audioOnly &&
+                _prefs.get(UserPreferences.subtitleMode) == SubtitleMode.none,
     });
   }
 
@@ -754,6 +759,12 @@ class AppleTvBackend implements PlayerBackend {
     _pendingEmbeddedSubtitle = null;
     unawaited(_invoke<void>('setSubtitleTrack', pending));
   }
+
+  @override
+  List<NativeTextRendition> get nativeTextRenditions => const [];
+
+  @override
+  Future<void> setNativeTextRendition(String? id) async {}
 
   @override
   Future<void> disableSubtitleTrack() async {

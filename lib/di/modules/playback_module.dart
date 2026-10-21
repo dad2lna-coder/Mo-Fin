@@ -20,6 +20,7 @@ import '../../data/services/media_server_client_factory.dart';
 import '../../data/services/offline_playback_tracker.dart';
 import '../../data/services/remove_watched_planner.dart';
 import '../../data/services/remove_watched_service.dart';
+import '../../direct_iptv/direct_iptv_resolver.dart';
 import '../../playback/local_aware_player_service.dart';
 import '../../playback/local_first_media_stream_resolver.dart';
 
@@ -803,15 +804,18 @@ void setActiveStreamResolver(MediaServerClient client) {
 
   // Local-first: completed downloads play from disk instead of streaming,
   // with progress mirrored to the downloads DB (and to the server when
-  // reachable).
-  final resolver = LocalFirstMediaStreamResolver(
-    inner: serverResolver,
-    offline: _getIt<OfflineStreamResolver>(),
-    restoreSubtitles: (itemId) async {
-      if (_getIt.isRegistered<DownloadService>()) {
-        await _getIt<DownloadService>().restoreMissingSubtitles(itemId);
-      }
-    },
+  // reachable). Direct IPTV is outside both: those items never ask the
+  // server tuner, and they are not missing downloads.
+  final resolver = DirectIptvMediaStreamResolver(
+    LocalFirstMediaStreamResolver(
+      inner: serverResolver,
+      offline: _getIt<OfflineStreamResolver>(),
+      restoreSubtitles: (itemId) async {
+        if (_getIt.isRegistered<DownloadService>()) {
+          await _getIt<DownloadService>().restoreMissingSubtitles(itemId);
+        }
+      },
+    ),
   );
   final service = LocalAwarePlayerService(
     serverService,

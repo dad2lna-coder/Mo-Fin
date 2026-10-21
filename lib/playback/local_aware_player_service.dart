@@ -48,6 +48,7 @@ class LocalAwarePlayerService implements PlayerService {
     int? audioStreamIndex,
     int? subtitleStreamIndex,
   }) async {
+    if (resolution.bypassServerPlayback) return;
     if (!resolution.isLocalMedia) {
       return _inner.onPlaybackStart(
         mediaItem,
@@ -79,6 +80,7 @@ class LocalAwarePlayerService implements PlayerService {
     int? volumeLevel,
     bool? isMuted,
   }) async {
+    if (resolution.bypassServerPlayback) return;
     if (!resolution.isLocalMedia) {
       return _inner.onPlaybackProgress(
         mediaItem,
@@ -113,6 +115,7 @@ class LocalAwarePlayerService implements PlayerService {
     Duration position, {
     bool releaseLiveStream = true,
   }) async {
+    if (resolution.bypassServerPlayback) return;
     try {
       if (!resolution.isLocalMedia) {
         return await _inner.onPlaybackStop(
@@ -142,7 +145,7 @@ class LocalAwarePlayerService implements PlayerService {
 
   @override
   Future<void> stopTranscoding(StreamResolutionResult resolution) async {
-    if (resolution.isLocalMedia) return;
+    if (resolution.bypassServerPlayback || resolution.isLocalMedia) return;
     return _inner.stopTranscoding(resolution);
   }
 

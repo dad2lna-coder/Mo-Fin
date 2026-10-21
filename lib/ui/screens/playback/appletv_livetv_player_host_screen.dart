@@ -10,11 +10,15 @@ import 'package:server_core/server_core.dart';
 import '../../../playback/subtitle_style.dart';
 import '../../../data/models/aggregated_item.dart';
 import '../../../data/viewmodels/live_tv_guide_view_model.dart';
+import '../../../direct_iptv/direct_guide.dart';
+import '../../../direct_iptv/direct_iptv_catalog.dart';
+import '../../../direct_iptv/direct_iptv_playback.dart';
 import '../../../playback/appletv_backend.dart';
 import '../../../playback/appletv_preview_player.dart';
 import '../../../preference/user_preferences.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../../util/play_method_label.dart';
+import '../livetv/direct_channel_strip.dart';
 import '../livetv/live_tv_guide_screen.dart';
 import '../../screensaver/screensaver_controller.dart';
 import '../../theme/app_theme_controller.dart';
@@ -238,7 +242,11 @@ class _AppleTvLiveTvPlayerHostScreenState
     _switching = true;
     try {
       _currentIndex = index;
-      _readSchedule();
+      if (isDirectIptvItem(widget.channels[index].rawData)) {
+        _readDirectSchedule();
+      } else {
+        _readSchedule();
+      }
       _pushMetadata();
       await _playCurrentChannel();
     } finally {
@@ -247,6 +255,20 @@ class _AppleTvLiveTvPlayerHostScreenState
   }
 
   Future<void> _enterGuideMode() async {
+    if (isDirectIptvItem(_currentChannel.rawData)) {
+      if (!mounted || widget.channels.length < 2) return;
+      final selectedId = await Navigator.of(context).push<String>(
+        MaterialPageRoute(
+          builder: (_) => DirectChannelListPage(
+            channels: widget.channels,
+            currentChannelId: _currentChannel.id,
+          ),
+        ),
+      );
+      if (!mounted || selectedId == null) return;
+      await _switchChannel(selectedId);
+      return;
+    }
     if (_inGuide || _switching || _exiting) return;
     _inGuide = true;
 
@@ -314,6 +336,10 @@ class _AppleTvLiveTvPlayerHostScreenState
 
   void _warmSchedule() {
     if (widget.channels.isEmpty) return;
+    if (isDirectIptvItem(_currentChannel.rawData)) {
+      _readDirectSchedule();
+      return;
+    }
     var prewarm = _carouselPrewarm;
     if (prewarm == null) {
       prewarm = ChannelCarouselPrewarm(_client);
@@ -327,6 +353,20 @@ class _AppleTvLiveTvPlayerHostScreenState
     if (!mounted) return;
     _readSchedule();
     _pushMetadata();
+  }
+
+  void _readDirectSchedule() {
+    if (!GetIt.instance.isRegistered<DirectIptvCatalog>()) return;
+    final catalog = GetIt.instance<DirectIptvCatalog>();
+    final currentId = _currentChannel.id;
+    for (final channel in widget.channels) {
+      final direct = catalog.programOnNow(channel.id);
+      if (direct == null) continue;
+      final program = guideProgramFromDirect(direct);
+      _nowPlayingByChannel[channel.id] = program;
+      if (channel.id == currentId) _currentProgram = program;
+    }
+    if (mounted) setState(() {});
   }
 
   /// Reads what is airing now out of the loaded schedule. Nothing is fetched
@@ -349,6 +389,8 @@ class _AppleTvLiveTvPlayerHostScreenState
   }
 
   String _buildLogoUrl(GuideChannel channel) {
+    final direct = channel.rawData['LogoUrl']?.toString();
+    if (direct != null && direct.isNotEmpty) return direct;
     final tag = channel.imageTag;
     if (tag == null || tag.isEmpty) return '';
     try {

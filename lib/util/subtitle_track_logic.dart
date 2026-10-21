@@ -311,37 +311,74 @@ int computeSubtitleDialogSelectedIndex(
   return displayStreams.indexWhere((s) => s['IsDefault'] == true) + 1;
 }
 
-/// Where a row of a subtitle menu points when the menu offers both the
-/// server's subtitle streams and the captions the player found inside the
-/// video. Row 0 is off, the streams follow, and the captions come last so
-/// their arrival part way through a channel can't renumber the streams a
-/// viewer already picked from.
+/// Where a row of a subtitle menu points when the menu offers the server's
+/// subtitle streams, HLS text renditions the player found, and the captions
+/// inside the video. Row 0 is off. Streams stay first so a rendition or
+/// caption that shows up later cannot renumber a stream the viewer already
+/// picked. Renditions sit between the streams and the captions.
 ///
-/// Both positions are null for the off row and for a row past the end.
-({int? streamPosition, int? captionPosition}) subtitleMenuRowTarget({
+/// [renditionCount] defaults to 0 so a menu that has not grown a rendition
+/// row still addresses captions the way it used to.
+///
+/// Every position is null for the off row and for a row past the end.
+({int? streamPosition, int? captionPosition, int? renditionPosition})
+subtitleMenuRowTarget({
   required int row,
   required int streamCount,
   required int captionCount,
+  int renditionCount = 0,
 }) {
-  if (row <= 0) return (streamPosition: null, captionPosition: null);
+  if (row <= 0) {
+    return (
+      streamPosition: null,
+      captionPosition: null,
+      renditionPosition: null,
+    );
+  }
   if (row <= streamCount) {
-    return (streamPosition: row - 1, captionPosition: null);
+    return (
+      streamPosition: row - 1,
+      captionPosition: null,
+      renditionPosition: null,
+    );
   }
-  final captionPosition = row - streamCount - 1;
+  final afterStreams = row - streamCount - 1;
+  if (afterStreams < renditionCount) {
+    return (
+      streamPosition: null,
+      captionPosition: null,
+      renditionPosition: afterStreams,
+    );
+  }
+  final captionPosition = afterStreams - renditionCount;
   if (captionPosition >= captionCount) {
-    return (streamPosition: null, captionPosition: null);
+    return (
+      streamPosition: null,
+      captionPosition: null,
+      renditionPosition: null,
+    );
   }
-  return (streamPosition: null, captionPosition: captionPosition);
+  return (
+    streamPosition: null,
+    captionPosition: captionPosition,
+    renditionPosition: null,
+  );
 }
 
-/// The row to mark as selected, given whichever of the two is active. A
-/// caption wins when both are set, since selecting one turns the other off.
+/// The row to mark as selected, given whichever of the three is active. A
+/// rendition wins over a caption, and a caption wins over a stream, since
+/// selecting one turns the others off.
 int subtitleMenuSelectedRow({
   required int streamPosition,
   required int captionPosition,
   required int streamCount,
+  int renditionPosition = -1,
+  int renditionCount = 0,
 }) {
-  if (captionPosition >= 0) return streamCount + captionPosition + 1;
+  if (renditionPosition >= 0) return streamCount + renditionPosition + 1;
+  if (captionPosition >= 0) {
+    return streamCount + renditionCount + captionPosition + 1;
+  }
   if (streamPosition >= 0) return streamPosition + 1;
   return 0;
 }

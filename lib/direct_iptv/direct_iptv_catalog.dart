@@ -1,0 +1,340 @@
+import 'dart:async';
+import 'dart:convert';
+
+import 'package:flutter/foundation.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
+import 'direct_iptv_client.dart';
+import 'models.dart';
+import 'playlist_parse.dart';
+import 'snapshot_store_stub.dart'
+    if (dart.library.io) 'snapshot_store_io.dart';
+
+/// Saved Dispatcharr and raw M3U accounts, plus the cached lineup for each.
+///
+/// Source records, including the password or token, live in
+/// [SharedPreferences]. The parsed lineup is a separate snapshot so a large
+/// guide is not rewritten into preferences. Refresh runs the parsers in an
+/// isolate.
+class DirectIptvCatalog extends ChangeNotifier {
+  static const prefsKey = 'moonfin.direct_iptv.sources';
+
+  DirectIptvCatalog({
+    SharedPreferences? preferences,
+    DirectIptvTransport? transport,
+    DirectIptvSnapshotStore? store,
+  }) : _preferences = preferences,
+       _transport = transport ?? HttpDirectIptvTransport(),
+       _store = store ?? createDirectIptvSnapshotStore();
+
+  SharedPreferences? _preferences;
+  final DirectIptvTransport _transport;
+  final DirectIptvSnapshotStore _store;
+
+  final List<DirectIptvSource> _sources = [];
+  final Map<String, DirectIptvSnapshot> _snapshots = {};
+  final Map<String, List<DirectProgram>> _programsByChannel = {};
+  final Map<String, String> _errors = {};
+  final Set<String> _refreshing = {};
+  final Map<String, int> _generation = {};
+  final Map<String, DateTime> _refusedUntil = {};
+  Future<void>? _loadFuture;
+  bool _loaded = false;
+
+  List<DirectIptvSource> get sources => List.unmodifiable(_sources);
+  bool get loaded => _loaded;
+
+  DirectIptvSnapshot? snapshotFor(String sourceId) => _snapshots[sourceId];
+  String? errorFor(String sourceId) => _errors[sourceId];
+  bool isRefreshing(String sourceId) => _refreshing.contains(sourceId);
+
+  DirectIptvSource? sourceById(String id) {
+    for (final source in _sources) {
+      if (source.id == id) return source;
+    }
+    return null;
+  }
+
+  Future<void> ensureLoaded() {
+    return _loadFuture ??= _load();
+  }
+
+  Future<void> _load() async {
+    _preferences ??= await SharedPreferences.getInstance();
+    final raw = _preferences!.getString(prefsKey);
+    if (raw != null && raw.isNotEmpty) {
+      try {
+        final decoded = jsonDecode(raw);
+        if (decoded is List) {
+          _sources
+            ..clear()
+            ..addAll(
+              decoded.whereType<Map>().map(
+                (entry) => DirectIptvSource.fromJson(
+                  Map<String, dynamic>.from(entry),
+                ),
+              ),
+            );
+        }
+      } catch (_) {}
+    }
+    for (final source in _sources) {
+      final snapshot = await _store.read(source.id);
+      if (snapshot != null) _remember(snapshot);
+    }
+    _loaded = true;
+    notifyListeners();
+  }
+
+  Future<void> upsert(DirectIptvSource source) async {
+    await ensureLoaded();
+    final index = _sources.indexWhere((item) => item.id == source.id);
+    if (index < 0) {
+      _sources.add(source);
+    } else {
+      _sources[index] = source;
+    }
+    await _persistSources();
+    notifyListeners();
+    if (source.enabled) await refresh(source.id, force: true);
+  }
+
+  Future<void> delete(String id) async {
+    await ensureLoaded();
+    _sources.removeWhere((source) => source.id == id);
+    _snapshots.remove(id);
+    _errors.remove(id);
+    _refusedUntil.remove(id);
+    _programsByChannel.removeWhere(
+      (channelId, _) => channelId.startsWith('direct:$id:'),
+    );
+    await _persistSources();
+    await _store.delete(id);
+    notifyListeners();
+  }
+
+  Future<void> refreshStale() async {
+    await ensureLoaded();
+    final now = DateTime.now();
+    for (final source in List<DirectIptvSource>.of(_sources)) {
+      if (!source.enabled) continue;
+      final snapshot = _snapshots[source.id];
+      final stale =
+          snapshot == null ||
+          now.difference(snapshot.fetchedAt) >= source.refreshInterval;
+      if (stale) await refresh(source.id);
+    }
+  }
+
+  Future<void> refresh(String sourceId, {bool force = false}) async {
+    await ensureLoaded();
+    final source = sourceById(sourceId);
+    if (source == null || !source.enabled) return;
+    if (!force) {
+      final refused = _refusedUntil[sourceId];
+      if (refused != null && DateTime.now().isBefore(refused)) return;
+      final snapshot = _snapshots[sourceId];
+      final fresh =
+          snapshot != null &&
+          DateTime.now().difference(snapshot.fetchedAt) < source.refreshInterval;
+      if (fresh) return;
+    }
+
+    final generation = (_generation[sourceId] ?? 0) + 1;
+    _generation[sourceId] = generation;
+    _refreshing.add(sourceId);
+    _errors.remove(sourceId);
+    notifyListeners();
+    try {
+      final built = await _fetch(source);
+      if (_generation[sourceId] != generation) return;
+      _refusedUntil.remove(sourceId);
+      _remember(built);
+      await _store.write(built);
+      if (built.channels.isEmpty) {
+        _errors[sourceId] = 'The playlist has no channels';
+      }
+    } on DirectIptvException catch (error) {
+      if (_generation[sourceId] == generation) {
+        if (error is DirectIptvRejected) {
+          _refusedUntil[sourceId] = DateTime.now().add(source.refreshInterval);
+        }
+        _errors[sourceId] = error.message;
+      }
+    } on FormatException {
+      if (_generation[sourceId] == generation) {
+        _errors[sourceId] = 'The base URL is not a valid address';
+      }
+    } on TimeoutException {
+      if (_generation[sourceId] == generation) {
+        _errors[sourceId] = 'The server took too long to answer';
+      }
+    } catch (_) {
+      if (_generation[sourceId] == generation) {
+        _errors[sourceId] = 'Could not reach the server';
+      }
+    } finally {
+      if (_generation[sourceId] == generation) {
+        _refreshing.remove(sourceId);
+        notifyListeners();
+      }
+    }
+  }
+
+  Future<DirectIptvSnapshot> _fetch(DirectIptvSource source) async {
+    final base = source.baseUrl.trim();
+    if (base.isEmpty) {
+      throw const DirectIptvException('A base URL is required');
+    }
+    final headers = authHeaders(source);
+    final fetchedAt = DateTime.now().toUtc();
+    if (source.kind == DirectIptvKind.pluto) {
+      final guide = await _openGuide(source, headers);
+      if (guide == null) {
+        throw const DirectIptvException('A guide address is required');
+      }
+      return assembleSnapshot(
+        source: source,
+        m3u: '',
+        epg: null,
+        programmes: guide.programmes,
+        xmlChannels: guide.channels,
+        fetchedAt: fetchedAt,
+      );
+    }
+
+    final m3uUri = resolveSourceUri(base, source.effectiveM3uPath);
+    final m3u = await _transport.get(m3uUri, headers);
+    _throwIfRefused(m3u.statusCode, 'playlist');
+    if (m3u.statusCode == 401) {
+      throw const DirectIptvException(
+        'The playlist rejected the username, password, or token',
+      );
+    }
+    if (m3u.statusCode < 200 || m3u.statusCode >= 300) {
+      throw DirectIptvException('Playlist request failed (${m3u.statusCode})');
+    }
+    if (!m3u.body.contains('#EXTM3U') && !m3u.body.contains('#EXTINF')) {
+      throw const DirectIptvException('The playlist response was not an M3U');
+    }
+
+    final guide = await _openGuide(source, headers);
+    return assembleSnapshot(
+      source: source,
+      m3u: m3u.body,
+      epg: null,
+      programmes: guide?.programmes ?? const [],
+      fetchedAt: fetchedAt,
+    );
+  }
+
+  Future<XmltvScan?> _openGuide(
+    DirectIptvSource source,
+    Map<String, String> headers,
+  ) async {
+    final base = source.baseUrl.trim();
+    final Uri? uri;
+    if (source.usesBaseAsGuide) {
+      uri = resolveSourceUri(base, '');
+    } else if (source.effectiveEpgPath.isNotEmpty) {
+      uri = resolveSourceUri(base, source.effectiveEpgPath);
+    } else {
+      uri = null;
+    }
+    if (uri == null) {
+      if (source.kind == DirectIptvKind.pluto) {
+        throw const DirectIptvException('A guide address is required');
+      }
+      return null;
+    }
+    final opened = await _transport.open(
+      uri,
+      headers,
+      timeout: const Duration(seconds: 45),
+    );
+    if (opened.statusCode == 403 || opened.statusCode == 429) {
+      await _drain(opened);
+      _throwIfRefused(opened.statusCode, 'guide');
+    }
+    if (opened.statusCode == 401) {
+      await _drain(opened);
+      throw const DirectIptvException(
+        'The guide rejected the username, password, or token',
+      );
+    }
+    if (opened.statusCode < 200 || opened.statusCode >= 300) {
+      await _drain(opened);
+      throw DirectIptvException('Guide request failed (${opened.statusCode})');
+    }
+    final scan = XmltvScan(now: DateTime.now());
+    try {
+      var chunks = 0;
+      await for (final chunk in opened.bytes.transform(utf8.decoder)) {
+        scan.add(chunk);
+        if (++chunks % 32 == 0) {
+          await Future<void>.delayed(Duration.zero);
+        }
+      }
+    } finally {
+      scan.close();
+    }
+    return scan;
+  }
+
+  Future<void> _drain(DirectIptvByteSource source) async {
+    try {
+      await source.bytes.drain<void>();
+    } catch (_) {}
+  }
+
+  void _throwIfRefused(int statusCode, String document) {
+    if (statusCode != 403 && statusCode != 429) return;
+    final reason = statusCode == 429
+        ? 'The $document asked us to slow down (429). Refresh is paused.'
+        : 'The $document refused the request (403). Refresh is paused.';
+    throw DirectIptvRejected(statusCode, reason);
+  }
+
+  void _remember(DirectIptvSnapshot snapshot) {
+    _snapshots[snapshot.sourceId] = snapshot;
+    _programsByChannel.removeWhere(
+      (channelId, _) => channelId.startsWith('direct:${snapshot.sourceId}:'),
+    );
+    for (final program in snapshot.programs) {
+      (_programsByChannel[program.channelKey] ??= []).add(program);
+    }
+    for (final programs in _programsByChannel.values) {
+      programs.sort((a, b) => a.start.compareTo(b.start));
+    }
+  }
+
+  DirectProgram? programOnNow(String channelId, [DateTime? at]) {
+    final moment = at ?? DateTime.now();
+    for (final program in _programsByChannel[channelId] ?? const []) {
+      if (program.airsAt(moment)) return program;
+    }
+    return null;
+  }
+
+  DirectProgram? upNext(String channelId, [DateTime? at]) {
+    final moment = at ?? DateTime.now();
+    final programs = _programsByChannel[channelId] ?? const <DirectProgram>[];
+    final current = programOnNow(channelId, moment);
+    if (current != null) {
+      final index = programs.indexWhere((program) => program.id == current.id);
+      if (index >= 0 && index + 1 < programs.length) return programs[index + 1];
+    }
+    for (final program in programs) {
+      if (program.start.isAfter(moment)) return program;
+    }
+    return null;
+  }
+
+  Future<void> _persistSources() async {
+    _preferences ??= await SharedPreferences.getInstance();
+    await _preferences!.setString(
+      prefsKey,
+      jsonEncode(_sources.map((source) => source.toJson()).toList()),
+    );
+  }
+}

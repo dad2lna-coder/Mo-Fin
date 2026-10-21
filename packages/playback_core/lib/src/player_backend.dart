@@ -61,6 +61,90 @@ class EmbeddedCaptionTrack {
   }
 }
 
+/// A text rendition the player found in the stream itself, such as an HLS
+/// `#EXT-X-MEDIA:TYPE=SUBTITLES` playlist. Unlike [EmbeddedCaptionTrack], the
+/// id is a string the native player minted from the group and the index
+/// inside that group. A position in a flattened list is not stable.
+class NativeTextRendition {
+  const NativeTextRendition({
+    required this.id,
+    required this.label,
+    this.language,
+    this.mimeType,
+    this.selected = false,
+  });
+
+  final String id;
+  final String label;
+  final String? language;
+  final String? mimeType;
+  final bool selected;
+
+  static List<NativeTextRendition> listFromWire(dynamic value) {
+    if (value is! List) return const [];
+    final tracks = <NativeTextRendition>[];
+    for (final entry in value) {
+      if (entry is! Map) continue;
+      final id = entry['id']?.toString() ?? '';
+      if (id.isEmpty) continue;
+      final label = entry['label']?.toString() ?? '';
+      final language = entry['language']?.toString() ?? '';
+      final mimeType = entry['mimeType']?.toString() ?? '';
+      tracks.add(
+        NativeTextRendition(
+          id: id,
+          label: label.isEmpty ? 'Subtitles' : label,
+          language: language.isEmpty ? null : language,
+          mimeType: mimeType.isEmpty ? null : mimeType,
+          selected: entry['selected'] == true,
+        ),
+      );
+    }
+    return List.unmodifiable(tracks);
+  }
+}
+
+/// `${groupKey.length}:$groupKey:$trackIndex`. The length prefix keeps a key
+/// that itself contains colons, which HLS group ids do. The native player
+/// builds the same string and selects by parsing it back, not by position.
+String textRenditionId(String groupKey, int trackIndex) =>
+    '${groupKey.length}:$groupKey:$trackIndex';
+
+({String groupKey, int trackIndex})? parseTextRenditionId(String id) {
+  final separator = id.indexOf(':');
+  if (separator <= 0) return null;
+  final length = int.tryParse(id.substring(0, separator));
+  if (length == null || length < 0) return null;
+  final keyStart = separator + 1;
+  final keyEnd = keyStart + length;
+  if (keyEnd >= id.length || id.codeUnitAt(keyEnd) != 0x3A) return null;
+  final key = id.substring(keyStart, keyEnd);
+  final index = int.tryParse(id.substring(keyEnd + 1));
+  if (index == null || index < 0) return null;
+  return (groupKey: key, trackIndex: index);
+}
+
+bool textRenditionLanguageMatches(String? track, String preferred) {
+  if (track == null || track.isEmpty || preferred.isEmpty) return false;
+  final left = track.trim().toLowerCase();
+  final right = preferred.trim().toLowerCase();
+  if (left == 'und' || right == 'und') return false;
+  return left == right || left.startsWith(right) || right.startsWith(left);
+}
+
+/// The rendition [preferred] names, or null when none of them match. `en`
+/// matches `eng` and `en-us`. CEA-608 is not in this list.
+NativeTextRendition? chooseNativeTextRendition(
+  List<NativeTextRendition> tracks,
+  String preferred,
+) {
+  final language = preferred.trim().isEmpty ? 'en' : preferred.trim();
+  for (final track in tracks) {
+    if (textRenditionLanguageMatches(track.language, language)) return track;
+  }
+  return null;
+}
+
 /// Whether the chosen external subtitle is still being prepared, retries
 /// included. False also covers a canceled or failed load, so it doesn't mean
 /// the subtitle arrived, and it never waits for a cue to show. Backends opt in
@@ -184,6 +268,15 @@ abstract class PlayerBackend {
   /// Turns on one of [embeddedCaptionTracks]. Turning captions back off goes
   /// through [disableSubtitleTrack], the same as any other subtitle.
   Future<void> setEmbeddedCaptionTrack(int id) async {}
+
+  /// Text renditions the player found in the container or HLS master, which
+  /// are not CEA-608 captions and not server subtitle streams.
+  List<NativeTextRendition> get nativeTextRenditions => const [];
+
+  /// Selects one of [nativeTextRenditions]. A null or empty id clears that
+  /// override without disabling text, so a caption track can be chosen next.
+  /// Turning captions off still goes through [disableSubtitleTrack].
+  Future<void> setNativeTextRendition(String? id) async {}
 
   /// Picks a live stream back up after the player ran out of media, returning
   /// whether it could. A live source has no end, so reaching one means the

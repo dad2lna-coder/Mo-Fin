@@ -796,6 +796,9 @@ class PlaybackManager implements AudioOwnable {
     bool audioLike = false,
     String? secondarySubtitleUrl,
     String? secondarySubtitleCodec,
+    bool selectNativeTextRendition = false,
+    String? nativeTextLanguage,
+    String? credentialHost,
   }) {
     // Music and audiobooks are audio whatever their streams say. Media3 only
     // plays audio with no view when the payload says audio, so a stray video
@@ -938,6 +941,11 @@ class PlaybackManager implements AudioOwnable {
       },
       if (selectedExternalSubtitleUrl != null)
         'selectedExternalSubtitleUrl': selectedExternalSubtitleUrl,
+      if (selectNativeTextRendition) 'selectNativeTextRendition': true,
+      if (nativeTextLanguage != null && nativeTextLanguage.isNotEmpty)
+        'nativeTextLanguage': nativeTextLanguage,
+      if (credentialHost != null && credentialHost.isNotEmpty)
+        'credentialHost': credentialHost,
     };
   }
 
@@ -2798,6 +2806,9 @@ class PlaybackManager implements AudioOwnable {
         secondarySubtitleCodec: _secondarySubtitleStreamIndex != null
             ? _subtitleCodecForStream(_secondarySubtitleStreamIndex!)
             : null,
+        selectNativeTextRendition: resolution.selectNativeTextRendition,
+        nativeTextLanguage: resolution.nativeTextLanguage,
+        credentialHost: resolution.credentialHost,
       );
       await _arbiter?.acquire(AudioProducer.mainPlayback);
       if (sessionToken != _playbackSessionToken) {

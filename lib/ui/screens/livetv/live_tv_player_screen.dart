@@ -19,6 +19,10 @@ import '../../../playback/system_volume.dart';
 import '../../../data/models/aggregated_item.dart';
 import '../../../data/models/live_tv_recording_state.dart';
 import '../../../data/viewmodels/live_tv_guide_view_model.dart';
+import '../../../direct_iptv/direct_guide.dart';
+import '../../../direct_iptv/direct_iptv_catalog.dart';
+import '../../../direct_iptv/direct_iptv_playback.dart';
+import '../../../direct_iptv/models.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../../playback/html_video_backend.dart';
 import '../../../playback/media_kit_player_backend.dart';
@@ -39,6 +43,7 @@ import '../../widgets/playback/stream_info_dialog.dart';
 import '../../widgets/track_selector_dialog.dart';
 import '../../widgets/live_tv/channel_carousel_overlay.dart';
 import '../../widgets/live_tv/live_tv_recording_dialog.dart';
+import 'direct_channel_strip.dart';
 import '../../widgets/emby_premiere_dialog.dart';
 import '../../util/error_message.dart';
 import 'channel_tune_observer.dart';
@@ -188,7 +193,9 @@ class _LiveTvPlayerScreenState extends State<LiveTvPlayerScreen>
   // no stream index to hang off, and the id only means anything to the backend
   // that reported it.
   int? _captionTrackId;
+  String? _textRenditionId;
   bool _captionTrackApplied = false;
+  bool _textRenditionApplied = false;
   StreamSubscription<void>? _tracksChangedSub;
 
   final _overlayFocus = FocusNode();
@@ -748,10 +755,13 @@ class _LiveTvPlayerScreenState extends State<LiveTvPlayerScreen>
 
   GuideChannel get _currentChannel => widget.channels[_currentIndex];
 
+  bool get _isDirectChannel => isDirectIptvItem(_currentChannel.rawData);
+
   Future<bool> _playCurrentChannel() async {
     // A channel change starts a new stream, so whatever caption choice is
     // remembered has to be put back once this one reports its own captions.
     _captionTrackApplied = false;
+    _textRenditionApplied = false;
     // The old channel is no longer up, and until the new one is, a failure
     // belongs to the tune below and nothing else. Left set, the persistent
     // listener claims the same failure first and the viewer gets told twice.
@@ -930,6 +940,7 @@ class _LiveTvPlayerScreenState extends State<LiveTvPlayerScreen>
   }
 
   Future<bool> _fetchCurrentProgram({bool withRecording = true}) async {
+    if (_isDirectChannel) return _applyDirectProgram();
     final channelId = _currentChannel.id;
     final revision = ++_programRequestRevision;
     try {
@@ -1037,7 +1048,29 @@ class _LiveTvPlayerScreenState extends State<LiveTvPlayerScreen>
     }
   }
 
+  bool _applyDirectProgram() {
+    final channelId = _currentChannel.id;
+    final revision = ++_programRequestRevision;
+    DirectProgram? program;
+    if (GetIt.instance.isRegistered<DirectIptvCatalog>()) {
+      program = GetIt.instance<DirectIptvCatalog>().programOnNow(channelId);
+    }
+    if (!mounted ||
+        _currentChannel.id != channelId ||
+        revision != _programRequestRevision) {
+      return false;
+    }
+    setState(() {
+      _recordingState = null;
+      _currentProgram = program == null
+          ? null
+          : guideProgramFromDirect(program);
+    });
+    return program != null;
+  }
+
   bool get _canRecordCurrentProgram {
+    if (_isDirectChannel) return false;
     final program = _currentProgram;
     final now = DateTime.now();
     return program != null &&
@@ -1137,6 +1170,7 @@ class _LiveTvPlayerScreenState extends State<LiveTvPlayerScreen>
   }
 
   Future<void> _refreshRecordingStatus() async {
+    if (_isDirectChannel) return;
     if (_recordingRefreshInProgress) return;
     final program = _currentProgram;
     if (program == null) return;
@@ -1271,9 +1305,19 @@ class _LiveTvPlayerScreenState extends State<LiveTvPlayerScreen>
   }
 
   void _warmChannelCarousel() {
+    if (_isDirectChannel) return;
     if (!PlatformDetection.isTV || widget.channels.length < 2) return;
     final prewarm = _carouselPrewarm ??= ChannelCarouselPrewarm(_client);
     prewarm.tuned(widget.channels, _currentChannel.id);
+  }
+
+  void _showDirectChannelStrip() {
+    if (_isCarouselOpen || widget.channels.length < 2) return;
+    _hideTimer?.cancel();
+    setState(() {
+      _isCarouselOpen = true;
+      _infoVisible = false;
+    });
   }
 
   void _showChannelCarousel() {
@@ -1492,10 +1536,15 @@ class _LiveTvPlayerScreenState extends State<LiveTvPlayerScreen>
   }
 
   bool get _hasSubtitleChoices =>
-      _streamsOfType('Subtitle').isNotEmpty || _captionTracks.isNotEmpty;
+      _streamsOfType('Subtitle').isNotEmpty ||
+      _captionTracks.isNotEmpty ||
+      _textRenditions.isNotEmpty;
 
   List<EmbeddedCaptionTrack> get _captionTracks =>
       _manager.backend?.embeddedCaptionTracks ?? const [];
+
+  List<NativeTextRendition> get _textRenditions =>
+      _manager.backend?.nativeTextRenditions ?? const [];
 
   void _listenForPlayerTrackChanges() {
     _tracksChangedSub?.cancel();
@@ -1509,6 +1558,15 @@ class _LiveTvPlayerScreenState extends State<LiveTvPlayerScreen>
   /// drops every track selection with it.
   void _onPlayerTracksChanged() {
     if (!mounted) return;
+    final renditions = _textRenditions;
+    if (renditions.isEmpty) {
+      _textRenditionApplied = false;
+    } else if (!_textRenditionApplied &&
+        _textRenditionId != null &&
+        renditions.any((track) => track.id == _textRenditionId)) {
+      _textRenditionApplied = true;
+      unawaited(_manager.backend?.setNativeTextRendition(_textRenditionId));
+    }
     final tracks = _captionTracks;
     if (tracks.isEmpty) {
       _captionTrackApplied = false;
@@ -1582,12 +1640,16 @@ class _LiveTvPlayerScreenState extends State<LiveTvPlayerScreen>
   void _showSubtitleSelector() {
     final l10n = AppLocalizations.of(context);
     final streams = _streamsOfType('Subtitle');
+    final renditions = _textRenditions;
     final captions = _captionTracks;
 
     final current = _manager.subtitleStreamIndex;
     final selectedStream = current == null || current < 0
         ? -1
         : streams.indexWhere((s) => s['Index'] == current);
+    final selectedRendition = _textRenditionId == null
+        ? renditions.indexWhere((track) => track.selected)
+        : renditions.indexWhere((track) => track.id == _textRenditionId);
     final selectedCaption = captions.indexWhere(
       (track) => track.id == _captionTrackId,
     );
@@ -1599,6 +1661,14 @@ class _LiveTvPlayerScreenState extends State<LiveTvPlayerScreen>
         TrackOption(
           label: _streamLabel(streams[i], '${l10n.subtitleTrack} ${i + 1}'),
           subtitle: codec.isEmpty ? null : codec,
+        ),
+      );
+    }
+    for (final track in renditions) {
+      options.add(
+        TrackOption(
+          label: track.label,
+          subtitle: track.language ?? track.mimeType,
         ),
       );
     }
@@ -1620,6 +1690,8 @@ class _LiveTvPlayerScreenState extends State<LiveTvPlayerScreen>
           streamPosition: selectedStream,
           captionPosition: selectedCaption,
           streamCount: streams.length,
+          renditionPosition: selectedRendition,
+          renditionCount: renditions.length,
         ),
       );
       _suppressBackNavigation();
@@ -1629,9 +1701,21 @@ class _LiveTvPlayerScreenState extends State<LiveTvPlayerScreen>
         row: result,
         streamCount: streams.length,
         captionCount: captions.length,
+        renditionCount: renditions.length,
       );
       _captionTrackId = null;
       _captionTrackApplied = false;
+      _textRenditionId = null;
+      _textRenditionApplied = false;
+
+      final renditionPosition = target.renditionPosition;
+      if (renditionPosition != null) {
+        final track = renditions[renditionPosition];
+        _textRenditionId = track.id;
+        _textRenditionApplied = true;
+        unawaited(_manager.backend?.setNativeTextRendition(track.id));
+        return;
+      }
 
       final captionPosition = target.captionPosition;
       if (captionPosition != null) {
@@ -1886,6 +1970,10 @@ class _LiveTvPlayerScreenState extends State<LiveTvPlayerScreen>
   // the single existing video surface can be shrunk into the mini-player box
   // and shown for BOTH the media_kit and Media3 engines. See [_buildVideoSurface].
   Future<void> _showChannelPicker() async {
+    if (_isDirectChannel) {
+      _showDirectChannelStrip();
+      return;
+    }
     if (_isGuidePickerOpen) return;
     _hideTimer?.cancel();
     _suppressBackNavigation();
@@ -2255,6 +2343,16 @@ class _LiveTvPlayerScreenState extends State<LiveTvPlayerScreen>
   }
 
   Widget _buildChannelCarouselOverlay() {
+    if (_isDirectChannel) {
+      return Positioned.fill(
+        child: DirectChannelStrip(
+          channels: widget.channels,
+          currentChannelId: _currentChannel.id,
+          onChannelSelected: _onCarouselChannelSelected,
+          onDismiss: () => _dismissChannelCarousel(),
+        ),
+      );
+    }
     return Positioned.fill(
       child: ChannelCarouselOverlay(
         client: _client,

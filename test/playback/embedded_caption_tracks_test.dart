@@ -97,6 +97,45 @@ void main() {
       expect(target.captionPosition, 0);
     });
 
+    test('renditions sit between streams and captions', () {
+      final rendition = subtitleMenuRowTarget(
+        row: 3,
+        streamCount: 2,
+        captionCount: 1,
+        renditionCount: 1,
+      );
+      expect(rendition.renditionPosition, 0);
+      expect(rendition.captionPosition, isNull);
+
+      final caption = subtitleMenuRowTarget(
+        row: 4,
+        streamCount: 2,
+        captionCount: 1,
+        renditionCount: 1,
+      );
+      expect(caption.captionPosition, 0);
+      expect(caption.renditionPosition, isNull);
+
+      expect(
+        subtitleMenuSelectedRow(
+          streamPosition: -1,
+          captionPosition: 0,
+          streamCount: 2,
+          renditionCount: 1,
+        ),
+        4,
+      );
+      expect(
+        subtitleMenuSelectedRow(
+          streamPosition: -1,
+          captionPosition: -1,
+          streamCount: 2,
+          renditionPosition: 0,
+        ),
+        3,
+      );
+    });
+
     test('a row past the end is off rather than a wrong track', () {
       final target = subtitleMenuRowTarget(
         row: 4,

@@ -318,8 +318,13 @@ class AetherBackend implements PlayerBackend, SubtitleLoadingBackend {
           (payload['normalizationGainDb'] as num?)?.toDouble(),
       'speed': _playbackSpeed,
       'forceSubtitlesDisabledOnStart':
-          payload['mediaType']?.toString() != 'audio' &&
-          _prefs.get(UserPreferences.subtitleMode) == SubtitleMode.none,
+          payload['selectNativeTextRendition'] == true
+          ? false
+          : payload['mediaType']?.toString() != 'audio' &&
+                _prefs.get(UserPreferences.subtitleMode) == SubtitleMode.none,
+      'selectNativeTextRendition': payload['selectNativeTextRendition'] == true,
+      if (payload['nativeTextLanguage'] is String)
+        'preferredTextLanguage': payload['nativeTextLanguage'],
       'dolbyVisionBaseLayerOnly': needsBaseLayerOnlyForDolbyVisionAv1(payload),
       'externalSubtitles': payload['externalSubtitles'] ?? const [],
     });
@@ -577,6 +582,12 @@ class AetherBackend implements PlayerBackend, SubtitleLoadingBackend {
     _pendingEmbeddedSubtitle = null;
     unawaited(_invoke<void>('setSubtitleTrack', pending));
   }
+
+  @override
+  List<NativeTextRendition> get nativeTextRenditions => const [];
+
+  @override
+  Future<void> setNativeTextRendition(String? id) async {}
 
   @override
   Future<void> disableSubtitleTrack() async {

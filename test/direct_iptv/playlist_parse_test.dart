@@ -1,0 +1,216 @@
+import 'package:flutter_test/flutter_test.dart';
+import 'package:moonfin/direct_iptv/models.dart';
+import 'package:moonfin/direct_iptv/playlist_parse.dart';
+
+void main() {
+  test('m3u keeps channel number, group, logo, and sidecar urls', () {
+    const playlist = '''
+#EXTM3U
+#EXTINF:-1 tvg-id="pluto-news" tvg-chno="5" tvg-name="News" tvg-logo="https://cdn/news.png" group-title="News" tvg-cc-url="https://cdn/news.vtt" tvg-cc-lang="en",News Channel
+https://dispatch/stream/5.ts
+#EXTINF:-1 tvg-id="quoted" group-title="Kids",A, B
+#EXTVLCOPT:sub-file=https://cdn/extra.srt
+#EXTSUB:https://cdn/extra.ass
+https://dispatch/stream/7.ts
+''';
+
+    final channels = parseM3u(playlist);
+
+    expect(channels, hasLength(2));
+    expect(channels.first.tvgId, 'pluto-news');
+    expect(channels.first.number, '5');
+    expect(channels.first.group, 'News');
+    expect(channels.first.logoUrl, 'https://cdn/news.png');
+    expect(channels.first.name, 'News Channel');
+    expect(channels.first.subtitles.single.url, 'https://cdn/news.vtt');
+    expect(channels.first.subtitles.single.language, 'en');
+    expect(channels.first.subtitles.single.codec, 'vtt');
+    expect(channels.last.name, 'A, B');
+    expect(
+      channels.last.subtitles.map((track) => track.url),
+      ['https://cdn/extra.srt', 'https://cdn/extra.ass'],
+    );
+    expect(channels.last.subtitles.map((track) => track.codec), ['srt', 'ass']);
+  });
+
+  test('xmltv times and entities match a channel by tvg-id', () {
+    const amp = '&' 'amp;';
+    final start = parseXmltvTime('20261021120000 -0500')!;
+    expect(start.toUtc(), DateTime.utc(2026, 10, 21, 17));
+    expect(
+      parseXmltvTime('20261021120000 +00:00')!.toUtc(),
+      DateTime.utc(2026, 10, 21, 12),
+    );
+
+    final xml =
+        '<tv><programme start="20261021120000 +0000" stop="20261021130000 +0000" channel="pluto-news">'
+        '<title>Noon News</title><sub-title>The hour</sub-title>'
+        '<desc>Today $amp tomorrow</desc><category>News</category></programme>'
+        '<programme start="20261021130000 +0000" stop="20261021140000 +0000" channel="other">'
+        '<title>Skip</title></programme></tv>';
+    final programmes = parseXmltv(xml);
+    expect(programmes, hasLength(2));
+    expect(programmes.first.overview, 'Today & tomorrow');
+    expect(programmes.first.episodeTitle, 'The hour');
+    expect(programmes.first.categories, ['News']);
+
+    final source = DirectIptvSource(
+      id: 'src',
+      name: 'Dispatcharr',
+      kind: DirectIptvKind.dispatcharr,
+      baseUrl: 'http://dispatch.test',
+    );
+    final snapshot = assembleSnapshot(
+      source: source,
+      m3u: '#EXTM3U\n#EXTINF:-1 tvg-id="pluto-news" tvg-logo="logos/news.png",News\n/stream/5.ts\n',
+      epg: xml,
+      fetchedAt: DateTime.utc(2026, 10, 21, 12),
+    );
+    expect(snapshot.channels.single.id, 'direct:src:pluto-news');
+    expect(snapshot.channels.single.streamUrl, 'http://dispatch.test/stream/5.ts');
+    expect(snapshot.channels.single.logoUrl, 'http://dispatch.test/logos/news.png');
+    expect(snapshot.programs, hasLength(1));
+    expect(snapshot.programs.single.title, 'Noon News');
+    expect(snapshot.programs.single.channelKey, 'direct:src:pluto-news');
+    expect(source.effectiveM3uPath, '/output/m3u/');
+    expect(source.effectiveEpgPath, '/output/epg/');
+    expect(
+      source.copyWith(epgPath: '-').effectiveEpgPath,
+      isEmpty,
+    );
+  });
+
+  test('a relative rendition resolves against the url after the redirect', () {
+    const relative = 'subtitle/en/playlist.m3u8?s=1';
+    const master = '''
+#EXTM3U
+#EXT-X-MEDIA:TYPE=SUBTITLES,GROUP-ID="subs",NAME="English",LANGUAGE="en",DEFAULT=NO,URI="$relative"
+#EXT-X-STREAM-INF:BANDWIDTH=1000
+index.m3u8
+''';
+    final requested = Uri.parse('https://jmp2.uk/plu-abc.m3u8');
+    final redirected = Uri.parse(
+      'https://stitcher.pluto.tv/v1/channel/abc/master.m3u8',
+    );
+    expect(requested.resolve(relative).host, 'jmp2.uk');
+
+    final tracks = hlsSubtitleTracks(master, redirected);
+    expect(tracks.single.url, redirected.resolve(relative).toString());
+    expect(tracks.single.url, isNot(startsWith('https://jmp2.uk/')));
+    expect(tracks.single.language, 'en');
+    expect(tracks.single.title, 'English');
+  });
+
+  test('xmltv scan keeps a window and a tag split across chunks', () {
+    final now = DateTime.utc(2026, 10, 21, 18);
+    final keptStart = DateTime.utc(2026, 10, 21, 17, 30);
+    final keptStop = DateTime.utc(2026, 10, 21, 18, 30);
+    final oldStart = DateTime.utc(2026, 10, 21, 1);
+    final oldStop = DateTime.utc(2026, 10, 21, 2);
+    String stamp(DateTime time) {
+      String two(int value) => value.toString().padLeft(2, '0');
+      return '${time.year}${two(time.month)}${two(time.day)}'
+          '${two(time.hour)}${two(time.minute)}${two(time.second)} +0000';
+    }
+
+    final xml =
+        '<tv><channel id="plu-news"><display-name>News</display-name>'
+        '<icon src="https://cdn/news.png"/></channel>'
+        '<programme start="${stamp(oldStart)}" stop="${stamp(oldStop)}" channel="plu-news">'
+        '<title>Old</title></programme>'
+        '<programme start="${stamp(keptStart)}" stop="${stamp(keptStop)}" channel="plu-news">'
+        '<title>Now</title></programme></tv>';
+    final scan = XmltvScan(now: now);
+    for (var i = 0; i < xml.length; i += 17) {
+      final end = i + 17 < xml.length ? i + 17 : xml.length;
+      scan.add(xml.substring(i, end));
+    }
+    scan.close();
+    expect(scan.channels.single.id, 'plu-news');
+    expect(scan.channels.single.name, 'News');
+    expect(scan.channels.single.iconUrl, 'https://cdn/news.png');
+    expect(scan.programmes.single.title, 'Now');
+    expect(plutoStreamUrl('plu-news'), 'https://jmp2.uk/plu-news.m3u8');
+    expect(plutoStreamUrl('news'), 'https://jmp2.uk/plu-news.m3u8');
+
+    final source = DirectIptvSource(
+      id: 'src',
+      name: 'Pluto',
+      kind: DirectIptvKind.pluto,
+      baseUrl: 'https://example.test/us.xml',
+    );
+    final snapshot = assembleSnapshot(
+      source: source,
+      m3u: '',
+      epg: null,
+      programmes: scan.programmes,
+      xmlChannels: scan.channels,
+      fetchedAt: now,
+    );
+    expect(snapshot.channels.single.streamUrl, 'https://jmp2.uk/plu-news.m3u8');
+    expect(snapshot.channels.single.logoUrl, 'https://cdn/news.png');
+    expect(snapshot.programs.single.title, 'Now');
+    expect(source.effectiveM3uPath, isEmpty);
+    expect(source.usesBaseAsGuide, isTrue);
+  });
+
+  test('playback headers omit credentials for a different host', () {
+    final kept = headersForPlayback(
+      headers: {'Authorization': 'Bearer tok', 'User-Agent': 'Moonfin'},
+      streamUri: Uri.parse('https://dispatch.test/live.m3u8'),
+      credentialHost: 'dispatch.test',
+    );
+    expect(kept['Authorization'], 'Bearer tok');
+
+    final stripped = headersForPlayback(
+      headers: {'Authorization': 'Bearer tok', 'User-Agent': 'Moonfin'},
+      streamUri: Uri.parse('https://stitcher.pluto.tv/master.m3u8'),
+      credentialHost: 'dispatch.test',
+    );
+    expect(stripped.containsKey('Authorization'), isFalse);
+    expect(stripped['User-Agent'], 'Moonfin');
+
+    final child = headersForPlayback(
+      headers: {'Authorization': 'Basic abc'},
+      streamUri: Uri.parse('https://edge.dispatch.test/live'),
+      credentialHost: 'dispatch.test',
+    );
+    expect(child['Authorization'], 'Basic abc');
+  });
+
+  test('a token is sent as a bearer and otherwise basic auth is used', () {
+    final token = authHeaders(
+      const DirectIptvSource(
+        id: 'a',
+        name: 'A',
+        kind: DirectIptvKind.m3u,
+        baseUrl: 'https://example.test/list.m3u',
+        username: 'user',
+        password: 'secret',
+        token: 'tok',
+      ),
+    );
+    expect(token['Authorization'], 'Bearer tok');
+
+    final basic = authHeaders(
+      const DirectIptvSource(
+        id: 'a',
+        name: 'A',
+        kind: DirectIptvKind.m3u,
+        baseUrl: 'https://example.test/list.m3u',
+        username: 'user',
+        password: 'secret',
+      ),
+    );
+    expect(basic['Authorization'], 'Basic dXNlcjpzZWNyZXQ=');
+    expect(
+      const DirectIptvSource(
+        id: 'a',
+        name: 'A',
+        kind: DirectIptvKind.m3u,
+        baseUrl: 'https://example.test/list.m3u',
+      ).effectiveM3uPath,
+      isEmpty,
+    );
+  });
+}

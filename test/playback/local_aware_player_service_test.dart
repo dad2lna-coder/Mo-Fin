@@ -99,4 +99,21 @@ void main() {
 
     expect(events, ['reported', 'stopped episode-1']);
   });
+
+  test('a direct iptv stop is not reported to the server', () async {
+    final player = service();
+    final resolution = _resolution(local: false);
+    final direct = StreamResolutionResult(
+      streamUrl: resolution.streamUrl,
+      mediaSourceId: resolution.mediaSourceId,
+      playMethod: resolution.playMethod,
+      bypassServerPlayback: true,
+    );
+    await player.onPlaybackStart(item, direct);
+    await player.onPlaybackProgress(item, direct, Duration.zero);
+    await player.onPlaybackStop(item, direct, Duration.zero);
+    await player.stopTranscoding(direct);
+
+    expect(events, isEmpty);
+  });
 }

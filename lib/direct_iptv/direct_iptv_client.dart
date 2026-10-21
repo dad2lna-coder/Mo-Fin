@@ -1,0 +1,89 @@
+import 'dart:convert';
+
+import 'package:http/http.dart' as http;
+
+class DirectIptvHttpResult {
+  final int statusCode;
+  final String body;
+
+  const DirectIptvHttpResult(this.statusCode, this.body);
+}
+
+/// A response whose body is still a stream. [statusCode] is known before
+/// the body is read, so a 403 or 429 can be drained instead of buffered.
+class DirectIptvByteSource {
+  final int statusCode;
+  final Stream<List<int>> bytes;
+
+  /// The URL after redirects. Relative HLS renditions have to be resolved
+  /// against this, not the URL that was requested.
+  final Uri finalUrl;
+
+  const DirectIptvByteSource({
+    required this.statusCode,
+    required this.bytes,
+    required this.finalUrl,
+  });
+}
+
+/// Small GET wrapper so tests can answer without the network.
+abstract class DirectIptvTransport {
+  Future<DirectIptvHttpResult> get(
+    Uri url,
+    Map<String, String> headers, {
+    Duration timeout = const Duration(seconds: 20),
+  });
+
+  /// Default reads [get] and chunks the body, which is enough for tests.
+  /// The HTTP client overrides this and does not buffer first.
+  Future<DirectIptvByteSource> open(
+    Uri url,
+    Map<String, String> headers, {
+    Duration timeout = const Duration(seconds: 45),
+  }) async {
+    final result = await get(url, headers, timeout: timeout);
+    return DirectIptvByteSource(
+      statusCode: result.statusCode,
+      bytes: Stream<List<int>>.value(utf8.encode(result.body)),
+      finalUrl: url,
+    );
+  }
+}
+
+class HttpDirectIptvTransport implements DirectIptvTransport {
+  final http.Client _client;
+
+  HttpDirectIptvTransport([http.Client? client]) : _client = client ?? http.Client();
+
+  @override
+  Future<DirectIptvHttpResult> get(
+    Uri url,
+    Map<String, String> headers, {
+    Duration timeout = const Duration(seconds: 20),
+  }) async {
+    final response = await _client.get(url, headers: headers).timeout(timeout);
+    return DirectIptvHttpResult(response.statusCode, response.body);
+  }
+
+  @override
+  Future<DirectIptvByteSource> open(
+    Uri url,
+    Map<String, String> headers, {
+    Duration timeout = const Duration(seconds: 45),
+  }) async {
+    final request = http.Request('GET', url)..headers.addAll(headers);
+    final streamed = await _client.send(request).timeout(timeout);
+    final Uri finalUrl;
+    final Object response = streamed;
+    if (response is http.BaseResponseWithUrl) {
+      finalUrl = response.url;
+    } else {
+      finalUrl = streamed.request?.url ?? url;
+    }
+    return DirectIptvByteSource(
+      statusCode: streamed.statusCode,
+      bytes: streamed.stream,
+      finalUrl: finalUrl,
+    );
+  }
+}

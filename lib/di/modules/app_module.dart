@@ -6,6 +6,7 @@ import 'package:jellyfin_preference/jellyfin_preference.dart';
 import 'package:playback_core/playback_core.dart';
 import 'package:server_core/server_core.dart';
 
+import '../../direct_iptv/direct_iptv_catalog.dart';
 import '../../auth/models/user.dart';
 import '../../auth/repositories/session_repository.dart';
 import '../../auth/repositories/user_repository.dart';
@@ -181,6 +182,11 @@ void registerAppModule() {
     service.dispose();
   });
   _getIt.registerLazySingleton(() => SetupWizardGate(_getIt<UserPreferences>()));
+  _getIt.registerLazySingleton<DirectIptvCatalog>(() {
+    final catalog = DirectIptvCatalog();
+    unawaited(catalog.ensureLoaded().then((_) => catalog.refreshStale()));
+    return catalog;
+  });
   _getIt.registerLazySingleton(() => const NativeCastChannel());
   _getIt.registerLazySingleton(() => const NativeDlnaChannel());
   _getIt.registerLazySingleton(() => const NativeAirPlayChannel());

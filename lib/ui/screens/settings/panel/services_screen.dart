@@ -75,6 +75,16 @@ class _ServicesScreenState extends State<_ServicesScreen> {
               onTap: () =>
                   context.pushSettingsScreen(const SeerrConfigScreen()),
             ),
+            _TvSettingsListTile(
+              leading: const Icon(Icons.satellite_alt),
+              title: const Text('Direct IPTV'),
+              subtitle: const Text(
+                'Dispatcharr or an M3U playlist, played without the server tuner',
+              ),
+              onTap: () => context.pushSettingsScreen(
+                const DirectIptvSettingsScreen(),
+              ),
+            ),
             if (achievements.available)
               _TvSettingsListTile(
                 leading: const Icon(

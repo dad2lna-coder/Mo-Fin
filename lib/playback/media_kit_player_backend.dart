@@ -204,6 +204,11 @@ class MediaKitPlayerBackend extends PlayerBackend
   String? _appliedCustomMpvConfPath;
   DateTime? _appliedCustomMpvConfMtime;
   bool _desktopRenderQualityApplied = false;
+
+  /// `slang` and `sub-auto` before a direct stream asked for its own text
+  /// rendition. Restored on the next item so a movie does not inherit it.
+  String? _savedSlang;
+  String? _savedSubAuto;
   static final Map<String, _ParsedMpvConfCacheEntry> _parsedMpvConfCache =
       <String, _ParsedMpvConfCacheEntry>{};
 
@@ -381,6 +386,32 @@ class MediaKitPlayerBackend extends PlayerBackend
       return text;
     } catch (_) {
       return null;
+    }
+  }
+
+  /// Pluto and other HLS masters mark the WebVTT rendition off. `sid=auto`
+  /// only picks it when `slang` matches and `sub-auto` is fuzzy. The previous
+  /// values go back on the next item that does not ask for this.
+  Future<void> _applyNativeTextRendition(
+    NativePlayer native,
+    Map payload,
+  ) async {
+    final select = payload['selectNativeTextRendition'] == true;
+    final language = payload['nativeTextLanguage']?.toString().trim() ?? '';
+    if (select && language.isNotEmpty) {
+      _savedSlang ??= await _tryNativeGetProperty(native, 'slang');
+      _savedSubAuto ??= await _tryNativeGetProperty(native, 'sub-auto');
+      await _nativeSetProperty(native, 'slang', language);
+      await _nativeSetProperty(native, 'sub-auto', 'fuzzy');
+      return;
+    }
+    if (_savedSlang != null) {
+      await _nativeSetProperty(native, 'slang', _savedSlang!);
+      _savedSlang = null;
+    }
+    if (_savedSubAuto != null) {
+      await _nativeSetProperty(native, 'sub-auto', _savedSubAuto!);
+      _savedSubAuto = null;
     }
   }
 
@@ -784,7 +815,15 @@ class MediaKitPlayerBackend extends PlayerBackend
       payload['selectedExternalSubtitleUrl'] as String?,
     );
     final subtitleGeneration = _subtitleSelectionGeneration;
-    final media = Media(url);
+    final rawHeaders = payload['headers'];
+    final httpHeaders = rawHeaders is Map
+        ? rawHeaders.map(
+            (key, value) => MapEntry(key.toString(), value.toString()),
+          )
+        : null;
+    final media = httpHeaders == null || httpHeaders.isEmpty
+        ? Media(url)
+        : Media(url, httpHeaders: httpHeaders);
     _currentUrl = media.uri;
     _isStale = true;
     _embeddedCaptionTracks = const [];
@@ -813,6 +852,7 @@ class MediaKitPlayerBackend extends PlayerBackend
 
     if (_player.platform is NativePlayer) {
       final native = _player.platform as NativePlayer;
+      await _applyNativeTextRendition(native, payload);
       await _nativeSetProperty(native, 'sid', 'auto');
       await _nativeSetProperty(native, 'secondary-sid', 'no');
       await _nativeSetProperty(native, 'sub-visibility', 'yes');

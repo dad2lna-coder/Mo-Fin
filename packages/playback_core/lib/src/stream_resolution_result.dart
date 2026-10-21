@@ -67,6 +67,22 @@ class StreamResolutionResult {
   /// store rather than a server stream URL.
   final bool isLocalMedia;
 
+  /// The stream is not a server session. Progress, start, and stop are not
+  /// reported, and a transcode is never requested for it.
+  final bool bypassServerPlayback;
+
+  /// Ask the player to turn on a text rendition it discovers itself. Direct
+  /// IPTV uses this because a Pluto rendition is marked not-default, so the
+  /// player will not pick it from the language preference alone.
+  final bool selectNativeTextRendition;
+
+  /// Language for [selectNativeTextRendition], such as `en`.
+  final String? nativeTextLanguage;
+
+  /// Host that may receive Authorization. Other hosts, including redirects,
+  /// must not.
+  final String? credentialHost;
+
   const StreamResolutionResult({
     required this.streamUrl,
     required this.mediaSourceId,
@@ -89,6 +105,10 @@ class StreamResolutionResult {
     this.directPlayRequested,
     this.sourceBitrate,
     this.isLocalMedia = false,
+    this.bypassServerPlayback = false,
+    this.selectNativeTextRendition = false,
+    this.nativeTextLanguage,
+    this.credentialHost,
   });
 
   /// What the server said it would send, read off the transcode URL.
