@@ -1,0 +1,1565 @@
+import AVFoundation
+import AetherEngine
+import Combine
+import Foundation
+import MediaPlayer
+import QuartzCore
+#if canImport(UIKit)
+import UIKit
+#elseif canImport(AppKit)
+import AppKit
+#endif
+
+/// Playback wrapper backed by AetherEngine. Reproduces the polled member
+/// surface the previous mpv wrapper exposed, so `AppleTvVideoChannel`
+/// (0.25 s state timer) and `AppleTvPlayerViewController` (OSD timer) keep
+/// reading the same `@Published` properties.
+///
+/// Lifecycle: the wrapper is per-presentation (the channel drops it on
+/// dismiss). The engine is app-lifetime. `shutdown()` is the only place the
+/// display criteria are reset. Plain `stop()` keeps the panel mode so
+/// episode to episode playback doesn't bounce through SDR.
+@MainActor
+final class AetherPlayerWrapper: NSObject, ObservableObject {
+
+    // MARK: - Polled contract (names match the previous wrapper)
+
+    @Published var state: PlayerState = .idle
+    @Published var position: Float = 0
+    @Published var currentTime: TimeInterval = 0
+    @Published var duration: TimeInterval = 0
+    @Published var bufferProgress: Float = 0
+    @Published var audioTracks: [PlayerTrack] = []
+    @Published var subtitleTracks: [PlayerTrack] = []
+    /// Broadcast captions the engine found inside the video, offered
+    /// separately from the server-declared subtitle streams. A PlayerTrack id
+    /// here is a 1-based position in this list, not a subtitle ordinal.
+    @Published var closedCaptionTracks: [PlayerTrack] = []
+    @Published var currentAudioTrackIndex: Int32 = -1
+    @Published var currentSubtitleTrackIndex: Int32 = -1
+    @Published var rate: Float = 1.0
+    /// Where a live stream can be rewound within, on the same clock as
+    /// `currentTime`. Nil when it keeps nothing to go back to.
+    @Published var seekableLiveRange: ClosedRange<Double>?
+    @Published internal(set) var zoomMode: ZoomMode = .fit
+
+    private(set) var videoView: PlatformView?
+
+    var isPlaying: Bool { state == .playing }
+
+    /// True while the engine downloads and decodes the chosen external subtitle.
+    var isSubtitleLoading: Bool { Self._sharedEngine?.isLoadingSubtitles ?? false }
+
+    let nowPlaying = NowPlayingController()
+
+    /// Remote transport commands (Siri Remote, Control Center, AirPods stem)
+    /// forwarded to Flutter so PlaybackManager stays the transport authority.
+    var onNowPlayingCommand: (([String: Any]) -> Void)?
+
+    /// Structured playback errors for the Dart transcode-fallback machinery.
+    /// Payloads: `{"event": "playerError", "kind": ..., "recoverable": ...,
+    /// "message": ...}`.
+    var onPlayerError: (([String: Any]) -> Void)?
+
+    // MARK: - Engine
+
+    /// One engine for the app's lifetime. It owns the audio-session
+    /// declaration, the loopback server, and the display-criteria controller,
+    /// so re-creating it per playback would re-handshake all three.
+    private static var _sharedEngine: AetherEngine?
+    static func sharedEngine() -> AetherEngine? {
+        if let engine = _sharedEngine { return engine }
+        _sharedEngine = try? AetherEngine()
+        return _sharedEngine
+    }
+
+    private let playerView = AetherPlayerView()
+    let subtitleOverlay = SubtitleOverlay()
+    private var cancellables = Set<AnyCancellable>()
+    private var surfaceAttachedContinuations: [CheckedContinuation<Void, Never>] = []
+    private var audioSessionActive = false
+    private var isAudioOnlySession = false
+    #if os(iOS) || os(tvOS)
+        private var audioNowPlayingInfo: [String: Any] = [:]
+        private var audioArtworkURL: String?
+        private var audioArtwork: MPMediaItemArtwork?
+        private var pendingAudioMetadata: [String: Any]?
+    #endif
+    private var isLiveSession = false
+    private var forceSubtitlesDisabledOnStart = false
+    private var didEmitLoadError = false
+    private var didEmitAudioDrop = false
+    private var lastErrorMessage: String?
+    private var lastPhase: PlaybackPhase = .idle
+    private var sawPlaybackThisLoad = false
+    private var lastClockAdvanceAt = CACurrentMediaTime()
+    private var stallCheckTimer: Timer?
+
+    /// Ties the load watchdog and the load's own continuation to the load
+    /// that started them, so neither acts after a newer load has taken over.
+    private var loadGeneration: UInt64 = 0
+    private static let loadWatchdogNanoseconds: UInt64 = 30_000_000_000
+
+    /// The engine probes a live source for up to 50 MB or 60 s of it, spent at
+    /// the wire rate on a tuner, so a channel carrying a stream FFmpeg can
+    /// never identify (a DVB data carousel, say) outlives the watchdog above
+    /// and fails every time instead of ever starting. These bound the probe to
+    /// land well inside it, whichever is reached first.
+    ///
+    /// Deliberately not tighter. A transport stream declares its video, audio
+    /// and teletext in the PMT so those resolve almost at once, but an
+    /// over-tight budget drops whatever resolves late rather than failing, and
+    /// a channel quietly missing a subtitle track is worse than a slow start.
+    private static let liveProbeBytes: Int64 = 8 * 1024 * 1024
+    private static let liveProbeMicroseconds: Int64 = 10 * 1_000_000
+
+    private var baseSubtitlePosition: Int = 100
+
+    // Track mapping: Dart speaks 1-based per-type ordinals while the engine
+    // speaks TrackInfo.id, the FFmpeg stream index (synthetic 100000+ for
+    // externals).
+    private var audioTable: [TrackInfo] = []
+    private var subtitleTable: [TrackInfo] = []
+    private var closedCaptionTable: [TrackInfo] = []
+    private var externalSubIDsByURL: [String: Int] = [:]
+
+    // ASS rendering (only active when a libass build is linked).
+    private let assRenderer = AssRenderer()
+    private var assConfiguredForTrackID: Int?
+    private var assConfiguredHeader: String?
+    private var assSeenCueIDs = Set<Int>()
+
+    // ASS render cadence: engine.clock.$sourceTime arrives on the engine's
+    // 100 ms AVPlayer time observer, which drives a scrub bar, so rendering on
+    // that tick alone leaves animated ASS (\move, \fad, \k) stepping. A
+    // display-rate ticker renders and the engine tick only re-anchors it.
+    #if canImport(UIKit)
+        private var assDisplayLink: CADisplayLink?
+    #elseif canImport(AppKit)
+        private var assDisplayLink: Timer?
+    #endif
+    private var lastKnownSourceTime: Double = 0
+    private var lastKnownSourceTimeHostTime: CFTimeInterval = 0
+
+    /// Video gets a Now Playing session bound to its AVPlayer. On iOS the
+    /// shared centers stay with `audio_service`, but they can't win Now Playing
+    /// back once Picture in Picture or another app has taken it.
+    private static var drivesNowPlaying: Bool {
+        #if os(iOS) || os(tvOS)
+            return true
+        #else
+            return false
+        #endif
+    }
+
+    override init() {
+        super.init()
+        #if os(iOS) || os(tvOS)
+            // On iOS the handlers only ever land on a session, the video
+            // player's or the engine's music one, never the shared center.
+            wireNowPlaying()
+        #endif
+        subscribeToEngine()
+        observeForegroundReturn()
+    }
+
+    // MARK: - Background teardown recovery
+
+    private var foregroundObserver: NSObjectProtocol?
+
+    /// The engine tears the video pipeline down when the app is suspended
+    /// without PiP or background playback keeping it alive, and by its own
+    /// contract the host reloads and repauses on foreground return. Without
+    /// this the picture comes back black and play does nothing until the
+    /// player is reopened. macOS never suspends the app this way, so there is
+    /// nothing to observe there.
+    private func observeForegroundReturn() {
+        #if canImport(UIKit)
+            foregroundObserver = NotificationCenter.default.addObserver(
+                forName: UIApplication.didBecomeActiveNotification,
+                object: nil, queue: .main
+            ) { [weak self] _ in
+                // Queued as a task so the engine's own activation handler,
+                // which registered first, has already run by the time this
+                // executes.
+                Task { @MainActor in
+                    await self?.reloadAfterBackgroundTeardownIfNeeded()
+                }
+            }
+        #endif
+    }
+
+    private func stopObservingForegroundReturn() {
+        if let observer = foregroundObserver {
+            NotificationCenter.default.removeObserver(observer)
+            foregroundObserver = nil
+        }
+    }
+
+    private func reloadAfterBackgroundTeardownIfNeeded() async {
+        guard !isAudioOnlySession else { return }
+        // The teardown leaves the session paused with no backend, which is
+        // the one state an ordinary pause never produces.
+        guard state == .paused else { return }
+        guard let engine = Self.sharedEngine(),
+            engine.playbackBackend == .none
+        else { return }
+        do {
+            try await engine.reloadAtCurrentPosition()
+            engine.pause()
+        } catch {
+            // Every recovery downstream re-resolves against the server, which
+            // the manager refuses for local media, so a recoverable failure
+            // here is dropped and the player spins on.
+            onPlayerError?([
+                "event": "playerError",
+                "kind": "backgroundReload",
+                "recoverable": false,
+                "message": "Reload after background return failed: \(error)",
+            ])
+        }
+    }
+
+    // MARK: - Engine subscriptions
+
+    private func subscribeToEngine() {
+        guard let engine = Self.sharedEngine() else { return }
+
+        engine.$playbackPhase
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] phase in self?.applyPhase(phase) }
+            .store(in: &cancellables)
+
+        // A stall reports nothing new while the buffer drains under it, so
+        // buffering changes re-check it.
+        engine.$isBuffering
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] _ in self?.applyStalledState() }
+            .store(in: &cancellables)
+
+        engine.$duration
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] value in
+                guard let self else { return }
+                self.duration = self.isLiveSession ? 0 : value
+            }
+            .store(in: &cancellables)
+
+        engine.clock.$currentTime
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] value in
+                guard let self else { return }
+                if value != self.currentTime {
+                    self.lastClockAdvanceAt = CACurrentMediaTime()
+                }
+                self.currentTime = value
+                self.position =
+                    self.duration > 0 ? Float(value / self.duration) : 0
+            }
+            .store(in: &cancellables)
+
+        engine.clock.$seekableLiveRange
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] range in self?.seekableLiveRange = range }
+            .store(in: &cancellables)
+
+        engine.clock.$bufferedPosition
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] value in
+                guard let self else { return }
+                self.bufferProgress =
+                    self.duration > 0
+                    ? Float(min(max(value / self.duration, 0), 1)) : 0
+            }
+            .store(in: &cancellables)
+
+        // Subtitle cues are rendered against the source clock: cue PTS are
+        // raw source timestamps, and `currentTime` holds the seek target
+        // while `sourceTime` tracks the rendered frame.
+        engine.clock.$sourceTime
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] value in self?.tickSubtitles(at: value) }
+            .store(in: &cancellables)
+
+        engine.$audioTracks
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] tracks in self?.rebuildAudioTable(tracks) }
+            .store(in: &cancellables)
+
+        engine.$subtitleTracks
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] tracks in self?.rebuildSubtitleTable(tracks) }
+            .store(in: &cancellables)
+
+        engine.$activeAudioTrackIndex
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] id in
+                guard let self else { return }
+                self.currentAudioTrackIndex = self.ordinal(for: id, in: self.audioTable)
+            }
+            .store(in: &cancellables)
+
+        engine.$activeSubtitleTrackIndex
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] id in
+                guard let self else { return }
+                self.currentSubtitleTrackIndex = self.ordinal(for: id, in: self.subtitleTable)
+                self.subtitleOverlay.keepsVideoComposited = id != nil
+                self.resetAssState()
+            }
+            .store(in: &cancellables)
+
+        engine.$subtitleCues
+            .combineLatest(engine.$sidecarASSHeader)
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self, weak engine] _ in
+                guard let engine else { return }
+                // Sidecar decoding publishes cues before their ASS header. Read
+                // the current pair after delivery, including when a track switch
+                // has superseded a queued publication.
+                self?.applySubtitleCues(engine.subtitleCues)
+            }
+            .store(in: &cancellables)
+
+        // Rebind Now Playing on EVERY player republish: the engine swaps
+        // AVPlayer instances on internal reloads (audio switch, AirPlay,
+        // recovery) and a stale MPNowPlayingSession binding reintroduces the
+        // tvOS 26 info-center race.
+        engine.$currentAVPlayer
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] player in
+                guard let self, Self.drivesNowPlaying, !self.isAudioOnlySession else {
+                    return
+                }
+                self.nowPlaying.attach(player: player)
+            }
+            .store(in: &cancellables)
+
+        engine.liveSourceReset
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] in
+                self?.emitError(kind: "live_source_reset", recoverable: true, message: "Live source reset")
+            }
+            .store(in: &cancellables)
+
+        // When the engine can't deliver the audio it keeps playing without
+        // sound instead of failing, so the transcode has to be asked for here.
+        engine.$audioDelivery
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] delivery in
+                guard let self, delivery == .droppedNoPipeline,
+                    !self.didEmitLoadError, !self.didEmitAudioDrop
+                else { return }
+                self.didEmitAudioDrop = true
+                self.emitError(
+                    kind: "unsupported_audio", recoverable: true,
+                    message: "The audio track couldn't be played")
+            }
+            .store(in: &cancellables)
+    }
+
+    private func applyPhase(_ phase: PlaybackPhase) {
+        lastPhase = phase
+        switch phase {
+        case .idle:
+            state = .idle
+            sawPlaybackThisLoad = false
+        case .loading:
+            state = .opening
+            sawPlaybackThisLoad = false
+        case .playing:
+            state = .playing
+            sawPlaybackThisLoad = true
+        case .paused: state = .paused
+        case .seeking: state = .buffering(bufferProgress)
+        case .rebuffering:
+            state = .buffering(bufferProgress)
+            sawPlaybackThisLoad = true
+        case .stalled: applyStalledState()
+        case .ended: state = .ended
+        case .error(let message):
+            state = .error
+            lastErrorMessage = message
+            if !didEmitLoadError {
+                let info = Self.sharedEngine()?.errorInfo
+                let kind = Self.classifySessionError(
+                    engineKind: info?.kind.rawValue, underlyingDomain: info?.underlyingDomain)
+                emitError(kind: kind, recoverable: true, message: message)
+            }
+        }
+        updateStallCheckTimer()
+        if Self.drivesNowPlaying, isPlaying || state == .paused {
+            nowPlaying.updatePlaybackState(
+                isPlaying: isPlaying, elapsed: currentTime, duration: duration, rate: rate)
+        }
+    }
+
+    /// A stall means the engine lost its connection to the server, not that
+    /// the picture stopped. On the native path AVPlayer keeps playing what it
+    /// already has, so the stall only counts as buffering once AVPlayer waits
+    /// or the clock stops moving. The software and audio paths report no
+    /// buffering of their own, and nothing is playing before the first frame,
+    /// so both still treat the stall itself as buffering.
+    nonisolated static func stalledState(
+        isNativePath: Bool,
+        sawPlayback: Bool,
+        isSeeking: Bool,
+        isPlaying: Bool,
+        isPaused: Bool,
+        isBuffering: Bool,
+        secondsSinceClockAdvanced: Double,
+        bufferProgress: Float
+    ) -> PlayerState {
+        let buffering = PlayerState.buffering(bufferProgress)
+        guard isNativePath, sawPlayback, !isSeeking else { return buffering }
+        if isPaused { return .paused }
+        guard isPlaying else { return buffering }
+        let frozen = secondsSinceClockAdvanced >= stalledClockFreezeSeconds
+        return isBuffering || frozen ? buffering : .playing
+    }
+
+    /// Ten times the native clock's tick, so a moving picture never trips it.
+    private nonisolated static let stalledClockFreezeSeconds: Double = 1
+
+    private func applyStalledState() {
+        guard case .stalled = lastPhase, let engine = Self.sharedEngine() else { return }
+        let next = Self.stalledState(
+            isNativePath: engine.playbackBackend == .native,
+            sawPlayback: sawPlaybackThisLoad,
+            isSeeking: engine.isSeeking || engine.state == .seeking,
+            isPlaying: engine.state == .playing,
+            isPaused: engine.state == .paused,
+            isBuffering: engine.isBuffering,
+            secondsSinceClockAdvanced: CACurrentMediaTime() - lastClockAdvanceAt,
+            bufferProgress: bufferProgress)
+        if next != state { state = next }
+    }
+
+    /// A frozen clock publishes nothing, so a native stall re-checks it.
+    private func updateStallCheckTimer() {
+        guard case .stalled = lastPhase, Self.sharedEngine()?.playbackBackend == .native else {
+            stallCheckTimer?.invalidate()
+            stallCheckTimer = nil
+            return
+        }
+        guard stallCheckTimer == nil else { return }
+        stallCheckTimer = Timer.scheduledTimer(withTimeInterval: 0.5, repeats: true) {
+            [weak self] _ in
+            Task { @MainActor in self?.applyStalledState() }
+        }
+    }
+
+    private func resetStallTracking() {
+        lastPhase = .idle
+        sawPlaybackThisLoad = false
+        stallCheckTimer?.invalidate()
+        stallCheckTimer = nil
+    }
+
+    // MARK: - Now Playing
+
+    private func wireNowPlaying() {
+        nowPlaying.onPlay = { [weak self] in
+            self?.onNowPlayingCommand?(["event": "play"])
+        }
+        nowPlaying.onPause = { [weak self] in
+            self?.onNowPlayingCommand?(["event": "pause"])
+        }
+        nowPlaying.onToggle = { [weak self] in
+            guard let self else { return }
+            self.onNowPlayingCommand?(["event": self.isPlaying ? "pause" : "play"])
+        }
+        nowPlaying.onSeek = { [weak self] seconds in
+            self?.onNowPlayingCommand?([
+                "event": "seek",
+                "positionMs": Int((seconds * 1000).rounded()),
+            ])
+        }
+        nowPlaying.onSkip = { [weak self] delta in
+            guard let self else { return }
+            let target = max(0, self.currentTime + delta)
+            self.onNowPlayingCommand?([
+                "event": "seek",
+                "positionMs": Int((target * 1000).rounded()),
+                "isForwardSkip": delta > 0,
+            ])
+        }
+        nowPlaying.onNext = { [weak self] in
+            self?.onNowPlayingCommand?(["event": "next"])
+        }
+        nowPlaying.onPrevious = { [weak self] in
+            self?.onNowPlayingCommand?(["event": "previous"])
+        }
+        nowPlaying.registerCommands()
+    }
+
+    /// Populate the system Now Playing card from the UI metadata Flutter
+    /// pushes for the on-screen overlay. In audio-only mode the engine's own
+    /// audio host owns the Now Playing session, so route through it instead of
+    /// creating a competing session.
+    func applyNowPlayingMetadata(_ args: [String: Any]) {
+        let title = (args["topTitle"] as? String) ?? ""
+        let subtitle = (args["topSubtitle"] as? String) ?? ""
+        let logo = args["logoUrl"] as? String
+        // The engine's music session only exists on iOS and tvOS.
+        #if os(iOS) || os(tvOS)
+            nowPlaying.setQueueCapabilities(
+                hasNext: (args["hasNext"] as? Bool) ?? false,
+                hasPrevious: (args["hasPrevious"] as? Bool) ?? false)
+            if isAudioOnlySession {
+                var info: [String: Any] = [
+                    MPMediaItemPropertyTitle: title,
+                    MPMediaItemPropertyArtist: subtitle,
+                    MPMediaItemPropertyAlbumTitle: subtitle,
+                    MPNowPlayingInfoPropertyMediaType:
+                        MPNowPlayingInfoMediaType.audio.rawValue,
+                ]
+                if duration > 0 {
+                    info[MPMediaItemPropertyPlaybackDuration] = duration
+                }
+                audioNowPlayingInfo = info
+                loadAudioArtwork(logo)
+                publishAudioNowPlaying()
+                return
+            }
+            // Flutter sends the first song's info before its play(audioOnly:),
+            // so hold it until the music session opens. Info that comes in
+            // while a video plays belongs to that video.
+            switch state {
+            case .idle, .stopped, .ended, .error: pendingAudioMetadata = args
+            default: break
+            }
+        #endif
+        guard Self.drivesNowPlaying else { return }
+        nowPlaying.updateMetadata(
+            title: title,
+            subtitle: subtitle,
+            durationSeconds: duration,
+            artworkURL: (logo?.isEmpty ?? true) ? nil : logo)
+        nowPlaying.updatePlaybackState(
+            isPlaying: isPlaying, elapsed: currentTime, duration: duration, rate: rate)
+    }
+
+    #if os(iOS) || os(tvOS)
+        private func publishAudioNowPlaying() {
+            var info = audioNowPlayingInfo
+            info[MPMediaItemPropertyArtwork] = audioArtwork
+            Self.sharedEngine()?.setAudioNowPlayingInfo(info)
+        }
+
+        private func loadAudioArtwork(_ logo: String?) {
+            let wanted = logo?.isEmpty == false ? logo : nil
+            guard wanted != audioArtworkURL else { return }
+            audioArtworkURL = wanted
+            audioArtwork = nil
+            guard let urlString = wanted, let url = URL(string: urlString) else { return }
+            Task { [weak self] in
+                guard let (data, _) = try? await MoonfinURLSession.shared.data(from: url),
+                    let artwork = Self.audioArtwork(from: data),
+                    let self, self.audioArtworkURL == urlString
+                else { return }
+                self.audioArtwork = artwork
+                self.publishAudioNowPlaying()
+            }
+        }
+
+        // The engine's session asks for the bitmap from its own queue, so the
+        // image is decoded up front and the artwork built off the main actor.
+        nonisolated private static func audioArtwork(from data: Data) -> MPMediaItemArtwork? {
+            guard let image = UIImage(data: data)?.preparingForDisplay() else { return nil }
+            return MPMediaItemArtwork(boundsSize: image.size) { _ in image }
+        }
+    #endif
+
+    // MARK: - Surface
+
+    func attachVideoView(_ view: PlatformView) {
+        // Hold the outgoing view until the store is done: its deinit calls
+        // detachVideoView, which reads videoView, and releasing it inside the
+        // assignment would overlap that read with the write (a Swift
+        // exclusivity violation, fatal at runtime).
+        let previous = videoView
+        videoView = view
+        withExtendedLifetime(previous) {}
+        playerView.frame = view.bounds
+        subtitleOverlay.frame = view.bounds
+        #if canImport(UIKit)
+            playerView.autoresizingMask = [.flexibleWidth, .flexibleHeight]
+            view.insertSubview(playerView, at: 0)
+            subtitleOverlay.autoresizingMask = [.flexibleWidth, .flexibleHeight]
+            view.insertSubview(subtitleOverlay, aboveSubview: playerView)
+        #elseif canImport(AppKit)
+            playerView.autoresizingMask = [.width, .height]
+            view.addSubview(playerView, positioned: .below, relativeTo: nil)
+            subtitleOverlay.autoresizingMask = [.width, .height]
+            view.addSubview(subtitleOverlay, positioned: .above, relativeTo: playerView)
+        #endif
+        subtitleOverlay.videoRectProvider = { [weak self] in
+            self?.currentVideoRect() ?? .zero
+        }
+        Self.sharedEngine()?.bind(view: playerView)
+        if view.window != nil {
+            resumeSurfaceWaiters()
+        }
+    }
+
+    /// The video rect AVPlayerLayer measures, letterbox included. Empty before
+    /// the first frame and on the software path, which has no equivalent.
+    private func currentVideoRect() -> CGRect {
+        let root: CALayer? = playerView.layer
+        guard let root, let rect = Self.firstPlayerLayer(in: root)?.videoRect,
+            !rect.isEmpty
+        else { return .zero }
+        #if canImport(UIKit)
+            return rect
+        #else
+            // The overlay measures from the top while a layer-backed NSView
+            // measures from the bottom, so the box has to be flipped to line up.
+            return CGRect(
+                x: rect.minX, y: playerView.bounds.height - rect.maxY,
+                width: rect.width, height: rect.height)
+        #endif
+    }
+
+    /// Searched for rather than read off a known sublayer, so moving where the
+    /// engine hosts it cannot quietly stop finding it.
+    private static func firstPlayerLayer(in layer: CALayer) -> AVPlayerLayer? {
+        if let playerLayer = layer as? AVPlayerLayer { return playerLayer }
+        for sublayer in layer.sublayers ?? [] {
+            if let found = firstPlayerLayer(in: sublayer) { return found }
+        }
+        return nil
+    }
+
+    func notifySurfaceReady() {
+        resumeSurfaceWaiters()
+    }
+
+    /// Platform-view lifecycle (iOS): the Flutter view is disposed on route
+    /// pop while playback may continue (background audio, PiP). Remove the
+    /// render subviews but keep the engine binding, the next attach re-hosts
+    /// the same playerView. No-op if another view has attached since.
+    func detachVideoView(from view: PlatformView) {
+        guard videoView === view else { return }
+        playerView.removeFromSuperview()
+        subtitleOverlay.removeFromSuperview()
+        subtitleOverlay.videoRectProvider = nil
+        videoView = nil
+    }
+
+    /// The engine-bound render view. PiP introspects it for the active
+    /// AVPlayerLayer.
+    var renderView: PlatformView { playerView }
+
+    private func resumeSurfaceWaiters() {
+        for continuation in surfaceAttachedContinuations {
+            continuation.resume()
+        }
+        surfaceAttachedContinuations.removeAll()
+    }
+
+    /// Seconds to wait for a hosted render surface before loading anyway.
+    private static let surfaceWaitTimeout: Double = 2
+
+    /// Waits for the render view to be in a window so the first frame has
+    /// somewhere to land. Bounded, because the surface only signals again on a
+    /// fresh attach: a view briefly out of its window with no re-attach coming
+    /// would park the load forever on a black screen. Loading without it is
+    /// recoverable, since the engine binds the view whenever it turns up.
+    private func waitForSurface() async {
+        if videoView?.window != nil { return }
+        Task { @MainActor [weak self] in
+            try? await Task.sleep(
+                nanoseconds: UInt64(Self.surfaceWaitTimeout * 1_000_000_000))
+            self?.resumeSurfaceWaiters()
+        }
+        await withCheckedContinuation { continuation in
+            if videoView?.window != nil {
+                continuation.resume()
+            } else {
+                surfaceAttachedContinuations.append(continuation)
+            }
+        }
+    }
+
+    // MARK: - Playback
+
+    struct SourceConfiguration {
+        var headers: [String: String] = [:]
+        var isLive = false
+        var autoPlay = true
+        var audioStreamIndex: Int32?
+        var audioBridgeLossless = false
+        var dolbyVisionBaseLayerOnly = false
+
+        /// Sidecars the host wants listed. They ride the load rather than
+        /// arriving after it, because the engine clears its external registry
+        /// when a load begins and only re-seats what the load itself declared.
+        var externalSubtitles: [ExternalSubtitleTrack] = []
+    }
+
+    /// Reads the sidecars out of a `setSource` payload. Anything without a
+    /// usable url is dropped rather than sent on as a track that can't open.
+    nonisolated static func externalSubtitleTracks(from raw: Any?) -> [ExternalSubtitleTrack] {
+        guard let entries = raw as? [[String: Any]] else { return [] }
+        return entries.compactMap { entry in
+            func text(_ key: String) -> String? {
+                guard let value = entry[key] as? String, !value.isEmpty else { return nil }
+                return value
+            }
+            guard let urlString = text("url"),
+                let url = urlString.hasPrefix("/")
+                    ? URL(fileURLWithPath: urlString) : URL(string: urlString)
+            else { return nil }
+            return ExternalSubtitleTrack(
+                url: url,
+                name: text("title"),
+                language: text("language"),
+                isForced: (entry["isForced"] as? Bool) ?? false,
+                isDefault: (entry["isDefault"] as? Bool) ?? false,
+                formatHint: text("codec"))
+        }
+    }
+
+    private var sourceConfiguration = SourceConfiguration()
+
+    /// Urls handed to the engine with the load. A later add of the same file
+    /// would list it a second time and shift every ordinal after it.
+    private var declaredSubtitleURLs: Set<String> = []
+
+    func configureSource(_ configuration: SourceConfiguration) {
+        sourceConfiguration = configuration
+    }
+
+    func setForceSubtitlesDisabledOnStart(_ force: Bool) {
+        forceSubtitlesDisabledOnStart = force
+    }
+
+    func play(streamUrl: String, startPosition: TimeInterval = 0, audioOnly: Bool = false) async {
+        let url: URL
+        if streamUrl.hasPrefix("/") {
+            url = URL(fileURLWithPath: streamUrl)
+        } else if let parsed = URL(string: streamUrl) {
+            url = parsed
+        } else {
+            emitError(kind: "unsupported_container", recoverable: false, message: "Invalid URL")
+            state = .error
+            return
+        }
+        await play(url: url, startPosition: startPosition, audioOnly: audioOnly)
+    }
+
+    func play(url: URL, startPosition: TimeInterval = 0, audioOnly: Bool = false) async {
+        guard let engine = Self.sharedEngine() else {
+            emitError(
+                kind: "engine_unavailable", recoverable: false,
+                message: "Playback engine unavailable")
+            state = .error
+            return
+        }
+        // A load from a healthy or just ended session goes straight to
+        // engine.load, whose internal supersede keeps the AVPlayer instance
+        // and current item alive across the seam for PiP and Control Center.
+        // The states below have no session worth keeping: a fresh engine, a
+        // load that never finished, or a failure. Resetting first is what a
+        // stop before play has always done, and skipping it here is what left
+        // the first tap of a session spinning while the second tap worked.
+        if state == .idle || state == .opening || state == .error {
+            engine.stop(resetDisplayCriteria: false)
+        }
+        isAudioOnlySession = audioOnly
+        #if os(iOS) || os(tvOS)
+            if audioOnly, let pending = pendingAudioMetadata {
+                applyNowPlayingMetadata(pending)
+            }
+            pendingAudioMetadata = nil
+        #endif
+        isLiveSession = sourceConfiguration.isLive
+        didEmitLoadError = false
+        didEmitAudioDrop = false
+        resetStallTracking()
+        resetAssState()
+        subtitleOverlay.clear()
+        externalSubIDsByURL.removeAll()
+        declaredSubtitleURLs = Set(
+            sourceConfiguration.externalSubtitles.map { $0.url.absoluteString })
+        state = .opening
+        loadGeneration &+= 1
+        let generation = loadGeneration
+
+        if !audioOnly {
+            await waitForSurface()
+        }
+        activateAudioSession()
+
+        let isRemotePlaylist = url.path.lowercased().hasSuffix(".m3u8")
+        #if canImport(Libass)
+            let preserveASS = true
+        #else
+            let preserveASS = false
+        #endif
+        let options = LoadOptions(
+            httpHeaders: sourceConfiguration.headers,
+            dolbyVisionHandling: sourceConfiguration.dolbyVisionBaseLayerOnly
+                ? .baseLayerOnly : .automatic,
+            matchContentEnabled: displayCriteriaMatchingEnabled(),
+            panelIsInHDRMode: panelIsInHDRMode(),
+            audioBridgeMode: sourceConfiguration.audioBridgeLossless ? .lossless : .surroundCompat,
+            isLive: isLiveSession,
+            audioOnly: audioOnly,
+            dvrWindowSeconds: isLiveSession && !isRemotePlaylist ? 1800 : nil,
+            liveJoinProfile: .fastZap,
+            nativeRemoteHLS: isLiveSession && isRemotePlaylist,
+            preserveASSMarkup: preserveASS,
+            probesize: isLiveSession ? Self.liveProbeBytes : nil,
+            maxAnalyzeDuration: isLiveSession ? Self.liveProbeMicroseconds : nil,
+            externalSubtitles: sourceConfiguration.externalSubtitles,
+            autoplay: sourceConfiguration.autoPlay
+        )
+
+        // Nothing else bounds the open. A load wedged on the network keeps
+        // the wrapper at opening, which the state poll reports as buffering
+        // forever, and the host shows a spinner with no way out.
+        let watchdog = Task { [weak self] in
+            try? await Task.sleep(nanoseconds: Self.loadWatchdogNanoseconds)
+            guard !Task.isCancelled, let self, self.loadGeneration == generation,
+                self.state == .opening
+            else { return }
+            self.didEmitLoadError = true
+            self.state = .error
+            Self.sharedEngine()?.stop(resetDisplayCriteria: false)
+            self.emitError(
+                kind: "startup_timeout", recoverable: false,
+                message: "The stream did not start in time")
+        }
+        defer { watchdog.cancel() }
+
+        do {
+            _ = try await engine.load(
+                url: url,
+                startPosition: startPosition > 0 ? startPosition : nil,
+                options: options,
+                audioSourceStreamIndex: sourceConfiguration.audioStreamIndex)
+            // A load that outlived its watchdog or was superseded finished
+            // against an engine that has already been stopped or reloaded.
+            guard loadGeneration == generation, !didEmitLoadError else { return }
+            #if os(iOS) || os(tvOS)
+                // The engine opens its music session during the load, so it
+                // can only be adopted once the load returns.
+                if audioOnly {
+                    nowPlaying.adopt(session: engine.audioNowPlayingSession)
+                } else {
+                    #if os(iOS)
+                        // A load into the same AVPlayer keeps its session, which
+                        // another app may have taken in the meantime.
+                        nowPlaying.reclaim()
+                    #endif
+                }
+                nowPlaying.setIntervalSkipsEnabled(!audioOnly)
+            #endif
+            seatDeclaredSubtitles(engine)
+            if forceSubtitlesDisabledOnStart {
+                engine.clearSubtitle()
+            }
+        } catch {
+            guard loadGeneration == generation, !didEmitLoadError else { return }
+            declaredSubtitleURLs.removeAll()
+            didEmitLoadError = true
+            state = .error
+            let (kind, message) = Self.classifyLoadError(error)
+            emitError(kind: kind, recoverable: true, message: message)
+        }
+    }
+
+    static func classifyLoadError(_ error: Error) -> (kind: String, message: String) {
+        let message = (error as? LocalizedError)?.errorDescription ?? String(describing: error)
+        // A transport failure is not a container the engine cannot read, and
+        // labeling it as one sends the host into a transcode retry that meets
+        // the same network and fails the same way.
+        var cursor: NSError? = error as NSError
+        while let current = cursor {
+            if current.domain == NSURLErrorDomain {
+                return ("network", message)
+            }
+            cursor = current.userInfo[NSUnderlyingErrorKey] as? NSError
+        }
+        if let engineError = error as? AetherEngineError {
+            switch engineError {
+            case .dolbyVisionUnplayableOnSoftwarePath:
+                return ("unsupported_video", message)
+            case .noAudioStream:
+                return ("unsupported_audio", message)
+            case .noVideoStream, .hlsPlaylistOnRawLivePath:
+                return ("unsupported_container", message)
+            // Both come from a reload rather than a load, so neither reaches
+            // this classifier. They are here because the switch has to be
+            // exhaustive.
+            case .loadIdentityNotCorrectable, .sessionNotReloadable:
+                return ("unsupported_container", message)
+            }
+        }
+        let description = String(describing: error)
+        if description.contains("unsupportedCodec") || description.contains("unsupportedDVProfile") {
+            return ("unsupported_video", message)
+        }
+        return ("unsupported_container", message)
+    }
+
+    /// Engine error kinds where the connection failed, not the stream.
+    private nonisolated static let transportErrorKinds: Set<String> = [
+        PlaybackErrorKind.vodSourceFailed.rawValue,
+        PlaybackErrorKind.sourceRateLimited.rawValue,
+        PlaybackErrorKind.sourceCertificateRejected.rawValue,
+        PlaybackErrorKind.liveSourceUnavailable.rawValue,
+    ]
+
+    /// A mid-play failure only carries a message, so the engine's `errorInfo`
+    /// is the only way to tell a dropped connection from a stream it can't
+    /// play. Only the second is worth a server transcode.
+    nonisolated static func classifySessionError(
+        engineKind: String?, underlyingDomain: String?
+    ) -> String {
+        if underlyingDomain == NSURLErrorDomain { return "network" }
+        if let engineKind, transportErrorKinds.contains(engineKind) { return "network" }
+        return "unsupported_container"
+    }
+
+    private func emitError(kind: String, recoverable: Bool, message: String) {
+        onPlayerError?([
+            "event": "playerError",
+            "kind": kind,
+            "recoverable": recoverable,
+            "message": message,
+        ])
+    }
+
+    func pause() {
+        Self.sharedEngine()?.pause()
+    }
+
+    func resume() {
+        Self.sharedEngine()?.play()
+    }
+
+    /// Stops playback but keeps the panel's display mode: queue advance and
+    /// Dart-initiated stops go through here so back to back DV episodes don't bounce
+    /// through SDR.
+    func stop() {
+        Self.sharedEngine()?.stop(resetDisplayCriteria: false)
+        resetStallTracking()
+        state = .stopped
+        subtitleOverlay.clear()
+        resetAssState()
+    }
+
+    /// Full teardown on dismiss: resets display criteria, releases the view
+    /// binding and the audio session. The engine itself stays alive.
+    func shutdown() {
+        stopObservingForegroundReturn()
+        guard let engine = Self.sharedEngine() else { return }
+        engine.stop(resetDisplayCriteria: true)
+        cancellables.removeAll()
+        resetStallTracking()
+        engine.unbind(view: playerView)
+        subtitleOverlay.clear()
+        resetAssState()
+        nowPlaying.teardown()
+        deactivateAudioSession()
+        state = .stopped
+    }
+
+    func seek(to seconds: TimeInterval) {
+        Task { await Self.sharedEngine()?.seek(to: seconds) }
+    }
+
+    func seekToLiveEdge() {
+        Task { await Self.sharedEngine()?.seekToLiveEdge() }
+    }
+
+    func seekBy(_ delta: TimeInterval) {
+        seek(to: max(0, currentTime + delta))
+    }
+
+    func seekToPosition(_ pos: Float) {
+        guard duration > 0 else { return }
+        seek(to: Double(pos) * duration)
+    }
+
+    func setRate(_ newRate: Float) {
+        guard let engine = Self.sharedEngine() else { return }
+        let clamped = min(max(newRate, 0), engine.maxSupportedRate)
+        engine.setRate(clamped)
+        rate = clamped == 0 ? rate : clamped
+    }
+
+    // MARK: - Volume / ReplayGain
+
+    private var userVolume: Float = 1
+    private var replayGainScalar: Float = 1
+
+    /// 0.0 to 1.0. On iOS the Dart side pins this to 1.0 and drives the
+    /// system volume instead. It still participates so ReplayGain composes.
+    func setUserVolume(_ volume: Float) {
+        userVolume = min(max(volume, 0), 1)
+        applyVolume()
+    }
+
+    /// ReplayGain from the server (`normalizationGainDb`). Negative gains map
+    /// exactly and positive gains clamp at unity, since there is no pre-amp
+    /// headroom on the AVPlayer path. Pass nil to reset.
+    func setReplayGainDb(_ db: Double?) {
+        if let db {
+            replayGainScalar = Float(min(1.0, pow(10.0, db / 20.0)))
+        } else {
+            replayGainScalar = 1
+        }
+        applyVolume()
+    }
+
+    private func applyVolume() {
+        Self.sharedEngine()?.volume = userVolume * replayGainScalar
+    }
+
+    // MARK: - Tracks
+
+    private func rebuildAudioTable(_ tracks: [TrackInfo]) {
+        audioTable = tracks
+        audioTracks = tracks.enumerated().map { index, info in
+            PlayerTrack(
+                id: Int32(index + 1),
+                name: info.name,
+                language: info.language,
+                title: info.isAtmos ? "\(info.name) (Atmos)" : nil,
+                isDefault: info.isDefault,
+                isForced: info.isForced,
+                codec: info.codec,
+                isExternal: info.isExternal,
+                externalFilename: nil)
+        }
+        if let engine = Self.sharedEngine() {
+            currentAudioTrackIndex = ordinal(for: engine.activeAudioTrackIndex, in: audioTable)
+        }
+    }
+
+    /// True for the in-band CEA-608/708 caption tracks the engine discovers
+    /// inside the video. The engine has the same check but doesn't expose it.
+    private static func isClosedCaptionCodec(_ codec: String?) -> Bool {
+        guard let c = codec?.lowercased() else { return false }
+        return c == "eia_608" || c == "eia_708" || c == "cea708" || c == "cea_708"
+    }
+
+    private func rebuildSubtitleTable(_ allTracks: [TrackInfo]) {
+        // The engine reports broadcast captions in the same list as the
+        // demuxed subtitle streams. They have no place in the server's stream
+        // list, so they are kept out of the positions that list is matched
+        // against and offered separately through closedCaptionTracks.
+        let tracks = allTracks.filter { !Self.isClosedCaptionCodec($0.codec) }
+        closedCaptionTable = allTracks.filter { Self.isClosedCaptionCodec($0.codec) }
+        closedCaptionTracks = closedCaptionTable.enumerated().map { index, info in
+            PlayerTrack(
+                id: Int32(index + 1),
+                name: info.name.isEmpty ? "CC\(index + 1)" : info.name,
+                language: info.language,
+                codec: info.codec)
+        }
+        subtitleTable = tracks
+        subtitleTracks = tracks.enumerated().map { index, info in
+            PlayerTrack(
+                id: Int32(index + 1),
+                name: info.name,
+                language: info.language,
+                title: nil,
+                isDefault: info.isDefault,
+                isForced: info.isForced,
+                codec: info.codec,
+                isExternal: info.isExternal,
+                externalFilename: externalFilename(forTrackID: info.id))
+        }
+        if let engine = Self.sharedEngine() {
+            currentSubtitleTrackIndex = ordinal(
+                for: engine.activeSubtitleTrackIndex, in: subtitleTable)
+        }
+    }
+
+    private func externalFilename(forTrackID id: Int) -> String? {
+        externalSubIDsByURL.first { $0.value == id }?.key
+    }
+
+    private func ordinal(for trackID: Int?, in table: [TrackInfo]) -> Int32 {
+        guard let trackID, let index = table.firstIndex(where: { $0.id == trackID }) else {
+            return -1
+        }
+        return Int32(index + 1)
+    }
+
+    func setAudioTrack(_ trackIndex: Int32) {
+        let index = Int(trackIndex) - 1
+        guard index >= 0, index < audioTable.count else { return }
+        Self.sharedEngine()?.selectAudioTrack(index: audioTable[index].id)
+    }
+
+    func setSubtitleTrack(_ trackIndex: Int32) {
+        selectSubtitleTrack(trackIndex, externalUrl: nil)
+    }
+
+    func selectSubtitleTrack(_ trackIndex: Int32, externalUrl: String?) {
+        guard let engine = Self.sharedEngine() else { return }
+        if trackIndex < 0 {
+            disableSubtitles()
+            return
+        }
+        resetAssState()
+        if let externalUrl, let id = externalSubIDsByURL[externalUrl] {
+            logSubtitleSelection(requested: trackIndex, route: "urlMap", resolvedID: id)
+            engine.selectSubtitleTrack(index: id)
+            return
+        }
+        if let externalUrl,
+            let match = subtitleTable.first(where: { info in
+                info.isExternal
+                    && externalFilename(forTrackID: info.id)?.hasSuffix(
+                        URL(string: externalUrl)?.lastPathComponent ?? externalUrl) == true
+            })
+        {
+            logSubtitleSelection(requested: trackIndex, route: "filename", resolvedID: match.id)
+            engine.selectSubtitleTrack(index: match.id)
+            return
+        }
+        let index = Int(trackIndex) - 1
+        guard index >= 0, index < subtitleTable.count else {
+            logSubtitleSelection(requested: trackIndex, route: "ordinal", resolvedID: nil)
+            return
+        }
+        logSubtitleSelection(
+            requested: trackIndex, route: "ordinal", resolvedID: subtitleTable[index].id)
+        engine.selectSubtitleTrack(index: subtitleTable[index].id)
+    }
+
+    private func hostLog(_ line: String) {
+        EngineLog.emit("[AetherPlayerWrapper] \(line)", category: .engine)
+    }
+
+    /// The ordinal route indexes into a table rebuilt from an engine publisher, so a report needs
+    /// the id that actually went out next to the list it came from.
+    private func logSubtitleSelection(requested: Int32, route: String, resolvedID: Int?) {
+        let table = subtitleTable
+            .map { "\($0.id)\($0.isExternal ? "x" : "e")" }
+            .joined(separator: ",")
+        var resolved = "none"
+        if let resolvedID {
+            let external = subtitleTable.first { $0.id == resolvedID }?.isExternal
+            resolved =
+                "id=\(resolvedID) external=\(external.map { $0 ? "true" : "false" } ?? "unknown")"
+        }
+        hostLog(
+            "selectSubtitleTrack requested=\(requested) route=\(route) \(resolved) table=[\(table)]")
+    }
+
+    /// Turns on one of `closedCaptionTracks` by its 1-based position. Turning
+    /// captions back off goes through `disableSubtitles`, the same as any
+    /// other subtitle.
+    func setClosedCaptionTrack(_ id: Int32) {
+        guard let engine = Self.sharedEngine() else { return }
+        let index = Int(id) - 1
+        guard index >= 0, index < closedCaptionTable.count else { return }
+        resetAssState()
+        engine.selectSubtitleTrack(index: closedCaptionTable[index].id)
+    }
+
+    func disableSubtitles() {
+        Self.sharedEngine()?.clearSubtitle()
+        subtitleOverlay.clear()
+        resetAssState()
+    }
+
+    /// Learns the ids the engine gave the declared sidecars. Reading them back
+    /// beats deriving them, because the id space is the engine's to assign.
+    private func seatDeclaredSubtitles(_ engine: AetherEngine) {
+        let declared = sourceConfiguration.externalSubtitles
+        guard !declared.isEmpty else { return }
+        let seated = engine.subtitleTracks.filter { $0.isExternal }
+        guard seated.count == declared.count else {
+            hostLog(
+                "declared subtitles not seated (declared=\(declared.count) "
+                    + "seated=\(seated.count))")
+            declaredSubtitleURLs.removeAll()
+            // With none seated the runtime path is the only way back to a
+            // subtitle. A partial listing can't be paired to its urls, and adding
+            // everything again would list the seated ones twice.
+            if seated.isEmpty {
+                for track in declared {
+                    addSubtitle(url: track.url, title: track.name, language: track.language)
+                }
+            }
+            return
+        }
+        for (track, info) in zip(declared, seated) {
+            externalSubIDsByURL[track.url.absoluteString] = info.id
+        }
+    }
+
+    func addSubtitle(url: URL) {
+        addSubtitle(url: url, title: nil, language: nil)
+    }
+
+    func addSubtitle(url: URL, title: String?, language: String?) {
+        guard let engine = Self.sharedEngine() else { return }
+        guard !declaredSubtitleURLs.contains(url.absoluteString) else { return }
+        let track = engine.addExternalSubtitleTrack(
+            ExternalSubtitleTrack(url: url, name: title, language: language))
+        externalSubIDsByURL[url.absoluteString] = track.id
+        hostLog(
+            "addExternalSubtitleTrack id=\(track.id) file=\(url.lastPathComponent) "
+                + "tableCount=\(subtitleTable.count)")
+    }
+
+    // MARK: - Subtitles (cues, ASS, style)
+
+    private func applySubtitleCues(_ cues: [SubtitleCue]) {
+        guard let engine = Self.sharedEngine() else { return }
+        let activeTrack = subtitleTable.first { $0.id == engine.activeSubtitleTrackIndex }
+
+        #if canImport(Libass)
+            if let track = activeTrack,
+                let header = track.isExternal ? engine.sidecarASSHeader : track.assHeader,
+                configureAssIfNeeded(for: track, header: header, engine: engine)
+            {
+                subtitleOverlay.setEvents([])
+                for cue in cues where !assSeenCueIDs.contains(cue.id) {
+                    assSeenCueIDs.insert(cue.id)
+                    if let line = cue.text {
+                        assRenderer.processEvent(
+                            line,
+                            startMs: Int64((cue.startTime * 1000).rounded()),
+                            durationMs: Int64(
+                                (max(0, cue.endTime - cue.startTime) * 1000).rounded()))
+                    }
+                }
+                return
+            }
+        #endif
+
+        resetAssState()
+        let events = cues.map { cue -> SubtitleEvent in
+            switch cue.body {
+            case .text(let text):
+                return SubtitleEvent(
+                    startTime: cue.startTime, endTime: cue.endTime,
+                    text: plainTextFromAssMarkup(text),
+                    bitmap: nil, bitmapWidth: 0, bitmapHeight: 0)
+            case .richText(let runs):
+                return SubtitleEvent(
+                    startTime: cue.startTime, endTime: cue.endTime,
+                    text: plainTextFromAssMarkup(runs.map(\.text).joined()),
+                    bitmap: nil, bitmapWidth: 0, bitmapHeight: 0)
+            case .image(let image):
+                return SubtitleEvent(
+                    startTime: cue.startTime, endTime: cue.endTime, text: nil,
+                    bitmap: image.cgImage,
+                    bitmapWidth: image.cgImage.width, bitmapHeight: image.cgImage.height,
+                    normalizedRect: image.position,
+                    canvasSize: image.canvasSize == .zero ? nil : image.canvasSize)
+            }
+        }
+        subtitleOverlay.setEvents(events)
+    }
+
+    private func tickSubtitles(at sourceTime: Double) {
+        subtitleOverlay.update(currentTime: sourceTime)
+        #if canImport(Libass)
+            lastKnownSourceTime = sourceTime
+            lastKnownSourceTimeHostTime = CACurrentMediaTime()
+            if assConfiguredForTrackID != nil {
+                renderAss(atSeconds: extrapolatedAssSeconds())
+            }
+        #endif
+    }
+
+    #if canImport(Libass)
+        /// Extrapolates past the last engine tick using wall-clock elapsed
+        /// time, scaled by the rate so a second of wall clock is not taken for
+        /// a second of source. Frozen while not playing.
+        private func extrapolatedAssSeconds() -> Double {
+            let base = lastKnownSourceTime - subtitleOverlay.delaySeconds
+            guard isPlaying else { return base }
+            let elapsed = CACurrentMediaTime() - lastKnownSourceTimeHostTime
+            guard elapsed > 0 else { return base }
+            return base + elapsed * Double(rate)
+        }
+    #endif
+
+    #if canImport(Libass)
+        private func configureAssIfNeeded(
+            for track: TrackInfo, header: String, engine: AetherEngine
+        ) -> Bool {
+            if assConfiguredForTrackID == track.id && assConfiguredHeader == header {
+                return true
+            }
+            resetAssState()
+            let attachments = engine.fontAttachments.map { ($0.filename, $0.data) }
+            let fontsDir = SubtitleFontLocator.materializeFontsDirectory(attachments: attachments)
+            guard assRenderer.configure(
+                header: header.data(using: .utf8),
+                fontsDir: fontsDir
+            ) else { return false }
+            assConfiguredForTrackID = track.id
+            assConfiguredHeader = header
+            startAssDisplayLinkIfNeeded()
+            return true
+        }
+
+        /// Drives libass at display rate. See comment on `assDisplayLink`.
+        private func startAssDisplayLinkIfNeeded() {
+            guard assDisplayLink == nil else { return }
+            #if canImport(UIKit)
+                let link = CADisplayLink(
+                    target: AssTickProxy(owner: self),
+                    selector: #selector(AssTickProxy.tick))
+                link.add(to: .main, forMode: .common)
+                assDisplayLink = link
+            #elseif canImport(AppKit)
+                let timer = Timer(timeInterval: 1.0 / 60.0, repeats: true) { [weak self] _ in
+                    self?.handleAssDisplayLinkTick()
+                }
+                RunLoop.main.add(timer, forMode: .common)
+                assDisplayLink = timer
+            #endif
+        }
+
+        private func stopAssDisplayLink() {
+            assDisplayLink?.invalidate()
+            assDisplayLink = nil
+        }
+
+        fileprivate func handleAssDisplayLinkTick() {
+            guard assConfiguredForTrackID != nil else { return }
+            // Paused, the extrapolation is frozen and the engine tick still
+            // draws, seeks included, so there is no gap left to fill.
+            guard isPlaying else { return }
+            renderAss(atSeconds: extrapolatedAssSeconds())
+        }
+
+        private func renderAss(atSeconds seconds: Double) {
+            guard let view = videoView else { return }
+            #if canImport(UIKit)
+                let scale = view.window?.screen.scale ?? 1
+            #else
+                let scale = view.window?.screen?.backingScaleFactor ?? 1
+            #endif
+            let canvas = subtitleOverlay.assCanvas
+            assRenderer.setFrameSize(
+                width: Int32(canvas.width * scale),
+                height: Int32(canvas.height * scale))
+            switch assRenderer.render(atTimeMs: Int64((seconds * 1000).rounded())) {
+            case .unchanged:
+                break
+            case .cleared:
+                subtitleOverlay.showAssImage(nil)
+            case .image(let image):
+                subtitleOverlay.showAssImage(image)
+            }
+        }
+    #endif
+
+    private func resetAssState() {
+        #if canImport(Libass)
+            assRenderer.reset()
+            stopAssDisplayLink()
+        #endif
+        assConfiguredForTrackID = nil
+        assConfiguredHeader = nil
+        assSeenCueIDs.removeAll()
+        subtitleOverlay.showAssImage(nil)
+    }
+
+    func applySubtitleStyle(
+        textColor: Int?, backgroundColor: Int?, strokeColor: Int?,
+        fontSize: Double?, fontWeight: Int?, verticalOffset: Double?
+    ) {
+        subtitleOverlay.applyStyle(
+            textColor: textColor, backgroundColor: backgroundColor,
+            strokeColor: strokeColor, fontSize: fontSize,
+            fontWeight: fontWeight, verticalOffset: verticalOffset)
+        if let verticalOffset {
+            baseSubtitlePosition = 100 - Int((verticalOffset * 60).rounded())
+        }
+    }
+
+    /// mpv-style sub-pos (40…100). The OSD raise path passes min(base, 70)
+    /// while transport controls are visible.
+    func setSubtitlePosition(_ pos: Int) {
+        subtitleOverlay.setSubtitlePosition(basePosition: pos)
+    }
+
+    var baseSubtitlePos: Int { baseSubtitlePosition }
+
+    func setSubtitleDelay(_ interval: TimeInterval) {
+        subtitleOverlay.delaySeconds = interval
+    }
+
+    /// No audio-delay control exists on the AVFoundation path.
+    func setAudioDelay(_ interval: TimeInterval) {}
+
+    // MARK: - Zoom
+
+    func setZoomMode(_ mode: ZoomMode) {
+        zoomMode = mode
+        guard let engine = Self.sharedEngine() else { return }
+        switch mode {
+        case .fit: engine.videoGravity = .resizeAspect
+        case .zoomToFill: engine.videoGravity = .resizeAspectFill
+        case .stretch: engine.videoGravity = .resize
+        }
+    }
+
+    func cycleZoomMode() {
+        setZoomMode(zoomMode.next)
+    }
+
+    // MARK: - Audio session
+
+    private func activateAudioSession() {
+        // macOS has no AVAudioSession, audio routing is system managed.
+        #if os(iOS) || os(tvOS)
+            guard !audioSessionActive else { return }
+            do {
+                try AVAudioSession.sharedInstance().setActive(true)
+                audioSessionActive = true
+            } catch {
+                // Non-fatal: the engine's AVPlayer host can still activate.
+            }
+        #endif
+    }
+
+    private func deactivateAudioSession() {
+        #if os(iOS) || os(tvOS)
+            guard audioSessionActive else { return }
+            audioSessionActive = false
+            try? AVAudioSession.sharedInstance().setActive(
+                false, options: .notifyOthersOnDeactivation)
+        #endif
+    }
+
+    // MARK: - Display criteria inputs
+
+    private func displayCriteriaMatchingEnabled() -> Bool {
+        #if os(tvOS)
+            guard
+                let windowScene = UIApplication.shared.connectedScenes
+                    .compactMap({ $0 as? UIWindowScene }).first,
+                let window = windowScene.windows.first(where: { $0.isKeyWindow })
+                    ?? windowScene.windows.first
+            else { return false }
+            return window.avDisplayManager.isDisplayCriteriaMatchingEnabled
+        #else
+            // Display-criteria matching is a tvOS concept. iOS panels manage
+            // EDR themselves.
+            return false
+        #endif
+    }
+
+    private func panelIsInHDRMode() -> Bool {
+        #if canImport(UIKit)
+            return UIScreen.main.potentialEDRHeadroom > 1.0
+                && UIScreen.main.currentEDRHeadroom > 1.0
+        #else
+            guard let screen = NSScreen.main else { return false }
+            return screen.maximumPotentialExtendedDynamicRangeColorComponentValue > 1.0
+                && screen.maximumExtendedDynamicRangeColorComponentValue > 1.0
+        #endif
+    }
+
+    // MARK: - Telemetry
+
+    func dynamicRangeTelemetrySnapshot() -> [String: String] {
+        guard let engine = Self.sharedEngine() else { return [:] }
+        var snapshot: [String: String] = [
+            "engine": "AetherEngine",
+            "backend": String(describing: engine.playbackBackend),
+            "source_format": Self.videoFormatLabel(engine.sourceVideoFormat),
+            "output_format": Self.outputFormatLabel(
+                source: engine.sourceVideoFormat, presented: engine.videoFormat),
+            "is_live": isLiveSession ? "yes" : "no",
+        ]
+        if let profile = engine.sourceDVProfile {
+            snapshot["dv_profile"] = profile == 7 ? "P7 converted to P8.1" : "P\(profile)"
+        }
+        if let fps = engine.sourceVideoFrameRate {
+            snapshot["source_fps"] = String(format: "%.3f", fps)
+        }
+        if engine.sourceVideoBitrate > 0 {
+            snapshot["source_bitrate"] = String(
+                format: "%.1f Mbps", Double(engine.sourceVideoBitrate) / 1_000_000)
+        }
+        if let decoder = engine.activeVideoDecoder {
+            snapshot["video_decoder"] = decoder
+        }
+        if let decoder = engine.activeAudioDecoder {
+            snapshot["audio_decoder"] = decoder
+        }
+        if let telemetry = engine.diagnostics.liveTelemetry {
+            let mirror = Mirror(reflecting: telemetry)
+            for child in mirror.children {
+                guard let label = child.label else { continue }
+                snapshot["telemetry_\(label)"] = "\(child.value)"
+            }
+        }
+        if let item = engine.currentAVPlayer?.currentItem,
+            let access = item.accessLog()?.events.last
+        {
+            snapshot["indicated_bitrate"] = String(
+                format: "%.1f Mbps", access.indicatedBitrate / 1_000_000)
+            snapshot["observed_bitrate"] = String(
+                format: "%.1f Mbps", access.observedBitrateStandardDeviation.isNaN
+                    ? access.indicatedBitrate / 1_000_000
+                    : access.averageVideoBitrate / 1_000_000)
+            snapshot["dropped_frames"] = "\(access.numberOfDroppedVideoFrames)"
+            snapshot["stalls"] = "\(access.numberOfStalls)"
+        }
+        if let message = lastErrorMessage {
+            snapshot["last_error"] = message
+        }
+        return snapshot
+    }
+
+    private static func videoFormatLabel(_ format: VideoFormat) -> String {
+        switch format {
+        case .sdr: return "SDR"
+        case .hdr10: return "HDR10"
+        case .hdr10Plus: return "HDR10+"
+        case .dolbyVision: return "Dolby Vision"
+        case .hlg: return "HLG"
+        }
+    }
+
+    /// tvOS has no reliable way to tell an app the TV is in HDR. The screen's EDR
+    /// headroom can stay at 1.0 while the TV shows HDR or Dolby Vision, so an HDR
+    /// source the engine couldn't confirm on a display that takes HDR isn't called SDR.
+    private static func outputFormatLabel(source: VideoFormat, presented: VideoFormat) -> String {
+        #if os(tvOS)
+            if presented == .sdr, source != .sdr, AetherEngine.displayCapabilities.supportsHDR {
+                return "Not reported by tvOS"
+            }
+        #endif
+        return videoFormatLabel(presented)
+    }
+}
+
+#if canImport(UIKit) && canImport(Libass)
+    /// CADisplayLink retains its target, so it gets a proxy instead of the
+    /// wrapper. A link outliving its stop would otherwise hold the wrapper
+    /// alive and rendering.
+    private final class AssTickProxy: NSObject {
+        private weak var owner: AetherPlayerWrapper?
+
+        init(owner: AetherPlayerWrapper) {
+            self.owner = owner
+        }
+
+        @objc func tick() {
+            MainActor.assumeIsolated {
+                owner?.handleAssDisplayLinkTick()
+            }
+        }
+    }
+#endif

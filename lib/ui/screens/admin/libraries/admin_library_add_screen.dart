@@ -1,0 +1,525 @@
+import 'dart:async';
+
+import 'package:flutter/material.dart';
+import 'package:moonfin_design/moonfin_design.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:get_it/get_it.dart';
+import 'package:go_router/go_router.dart';
+import 'package:server_core/server_core.dart';
+
+import '../../../../l10n/app_localizations.dart';
+import '../../../util/error_message.dart';
+import '../providers/admin_user_providers.dart';
+import '../widgets/admin_form_styles.dart';
+import '../widgets/filesystem_browser.dart';
+import 'library_options_defaults.dart';
+import 'library_options_form.dart';
+
+class AdminLibraryAddScreen extends ConsumerStatefulWidget {
+  const AdminLibraryAddScreen({super.key});
+
+  @override
+  ConsumerState<AdminLibraryAddScreen> createState() =>
+      _AdminLibraryAddScreenState();
+}
+
+class _AdminLibraryAddScreenState
+    extends ConsumerState<AdminLibraryAddScreen> {
+  int _step = 0;
+  String? _collectionType;
+  final _nameController = TextEditingController();
+  final List<String> _paths = [];
+  bool _saving = false;
+
+  /// The new library's options, null while the chosen type's are loading.
+  Map<String, dynamic>? _options;
+  Map<String, dynamic> _available = const {};
+  List<Map<String, dynamic>> _cultures = const [];
+  List<Map<String, dynamic>> _countries = const [];
+
+  /// Drops a load for a type the admin has since changed.
+  int _optionsLoad = 0;
+
+  /// Photos go in `homevideos` because the server has no `photos` library
+  /// type to create.
+  static const _collectionTypes = <String, IconData>{
+    'movies': Icons.movie,
+    'tvshows': Icons.tv,
+    'music': Icons.music_note,
+    'musicvideos': Icons.music_video,
+    'books': Icons.book,
+    'homevideos': Icons.videocam,
+    'mixed': Icons.folder,
+  };
+
+  String _collectionTypeLabel(String type, AppLocalizations l10n) {
+    switch (type) {
+      case 'movies':
+        return l10n.movies;
+      case 'tvshows':
+        return l10n.tvShows;
+      case 'music':
+        return l10n.music;
+      case 'musicvideos':
+        return l10n.musicVideos;
+      case 'books':
+        return l10n.books;
+      case 'homevideos':
+        return l10n.homeVideosAndPhotos;
+      case 'mixed':
+        return l10n.mixedMoviesAndShows;
+      default:
+        return type;
+    }
+  }
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    super.dispose();
+  }
+
+  void _selectType(String type) {
+    final l10n = AppLocalizations.of(context);
+    if (type != _collectionType || _options == null) {
+      unawaited(_loadOptions(type));
+    }
+    setState(() {
+      _collectionType = type;
+      final label = _collectionTypeLabel(type, l10n);
+      if (_nameController.text.isEmpty) {
+        _nameController.text = label;
+      }
+      _step = 1;
+    });
+  }
+
+  /// Reloads AvailableOptions for each type picked and starts from the
+  /// untouched defaults.
+  Future<void> _loadOptions(String type) async {
+    final load = ++_optionsLoad;
+    setState(() => _options = null);
+    final client = GetIt.instance<MediaServerClient>();
+    // A failed lookup still creates the library, only without provider lists.
+    final available = await client.adminLibraryApi
+        .getAvailableLibraryOptions(type == 'mixed' ? null : type)
+        .catchError((_) => <String, dynamic>{});
+    if (_cultures.isEmpty) {
+      _cultures = await client.adminSystemApi
+          .getCultures()
+          .catchError((_) => <Map<String, dynamic>>[]);
+    }
+    if (_countries.isEmpty) {
+      _countries = await client.adminSystemApi
+          .getCountries()
+          .catchError((_) => <Map<String, dynamic>>[]);
+    }
+    if (!mounted || load != _optionsLoad) return;
+    setState(() {
+      _available = available;
+      _options = newLibraryOptions(available);
+    });
+  }
+
+  void _addPath(String path) {
+    if (!_paths.contains(path)) {
+      setState(() => _paths.add(path));
+    }
+  }
+
+  void _removePath(int index) {
+    setState(() => _paths.removeAt(index));
+  }
+
+  Future<void> _create() async {
+    final l10n = AppLocalizations.of(context);
+    final name = _nameController.text.trim();
+    if (name.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(l10n.adminLibraryNameRequired)),
+      );
+      return;
+    }
+    if (_paths.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(l10n.adminLibraryFolderRequired)),
+      );
+      return;
+    }
+    final options = _options;
+    if (options == null) return;
+    setState(() => _saving = true);
+    try {
+      final api = GetIt.instance<MediaServerClient>().adminLibraryApi;
+      await api.addVirtualFolder(
+        name: name,
+        collectionType: _collectionType == 'mixed' ? null : _collectionType,
+        paths: _paths,
+        libraryOptions: options,
+        refreshLibrary: true,
+      );
+      ref.invalidate(adminLibrariesProvider);
+      if (mounted) context.pop();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(l10n.adminLibraryCreateFailed(describeError(e, l10n)))),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 20, 16, 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          adminScreenHeader(
+            context,
+            title: l10n.adminAddLibrary,
+            icon: Icons.create_new_folder_outlined,
+          ),
+          _buildStepper(),
+          const SizedBox(height: 16),
+          Expanded(child: _buildStepContent()),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStepper() {
+    final l10n = AppLocalizations.of(context);
+    final labels = [
+      l10n.type,
+      l10n.name,
+      l10n.paths,
+      l10n.adminLibraryTabOptions,
+      l10n.confirm,
+    ];
+    return Row(
+      children: List.generate(labels.length, (i) {
+        final isCurrent = i == _step;
+        final isDone = i < _step;
+        return Expanded(
+          child: GestureDetector(
+            onTap: isDone ? () => setState(() => _step = i) : null,
+            child: Column(
+              children: [
+                CircleAvatar(
+                  radius: 14,
+                  backgroundColor: isCurrent
+                      ? Theme.of(context).colorScheme.primary
+                      : isDone
+                          ? Theme.of(context).colorScheme.primaryContainer
+                          : Theme.of(context).colorScheme.surfaceContainerHighest,
+                  child: isDone
+                      ? Icon(Icons.check, size: 14,
+                          color: Theme.of(context).colorScheme.onPrimaryContainer)
+                      : Text('${i + 1}',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: isCurrent
+                                ? Theme.of(context).colorScheme.onPrimary
+                                : null,
+                          )),
+                ),
+                const SizedBox(height: 4),
+                Text(labels[i],
+                    style: Theme.of(context).textTheme.labelSmall),
+              ],
+            ),
+          ),
+        );
+      }),
+    );
+  }
+
+  Widget _buildStepContent() {
+    switch (_step) {
+      case 0:
+        return _buildTypeStep();
+      case 1:
+        return _buildNameStep();
+      case 2:
+        return _buildPathsStep();
+      case 3:
+        return _buildOptionsStep();
+      case 4:
+        return _buildConfirmStep();
+      default:
+        return const SizedBox.shrink();
+    }
+  }
+
+  Widget _buildTypeStep() {
+    return GridView(
+      // A fixed height keeps these at button size however wide the panel gets.
+      gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+        maxCrossAxisExtent: 280,
+        mainAxisExtent: 64,
+        mainAxisSpacing: 8,
+        crossAxisSpacing: 8,
+      ),
+      children: _collectionTypes.entries.map((entry) {
+        final isSelected = _collectionType == entry.key;
+        final l10n = AppLocalizations.of(context);
+        final accent = AppColorScheme.accent;
+        final onSurface = AppColorScheme.onSurface;
+        return Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: () => _selectType(entry.key),
+            borderRadius: AppRadius.circular(14),
+            child: Container(
+              decoration: BoxDecoration(
+                borderRadius: AppRadius.circular(14),
+                color: isSelected
+                    ? accent.withValues(alpha: 0.16)
+                    : onSurface.withValues(alpha: 0.04),
+                border: Border.all(
+                  color: isSelected
+                      ? accent.withValues(alpha: 0.55)
+                      : onSurface.withValues(alpha: 0.08),
+                  width: isSelected ? 1.4 : 1,
+                ),
+              ),
+              padding: const EdgeInsets.symmetric(horizontal: 14),
+              child: Row(
+                children: [
+                  Icon(entry.value,
+                      size: 26, color: isSelected ? accent : onSurface),
+                  const SizedBox(width: 12),
+                  Flexible(
+                    child: Text(
+                      _collectionTypeLabel(entry.key, l10n),
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight:
+                            isSelected ? FontWeight.w600 : FontWeight.w500,
+                        color: isSelected ? accent : onSurface,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      }).toList(),
+    );
+  }
+
+  Widget _buildNameStep() {
+    final l10n = AppLocalizations.of(context);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        adminGlassGroup(
+          context,
+          children: [
+            adminFieldRow(
+              label: l10n.adminLibraryName,
+              child: TextFormField(
+                controller: _nameController,
+                decoration: adminInputDecoration(),
+                textInputAction: TextInputAction.next,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 24),
+        Row(
+          children: [
+            TextButton(
+              onPressed: () => setState(() => _step = 0),
+              child: Text(l10n.back),
+            ),
+            const SizedBox(width: 8),
+            FilledButton(
+              onPressed: () {
+                if (_nameController.text.trim().isEmpty) return;
+                setState(() => _step = 2);
+              },
+              child: Text(l10n.next),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildPathsStep() {
+    final l10n = AppLocalizations.of(context);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        adminSectionLabel(context, l10n.adminSelectedPaths,
+            icon: Icons.folder_outlined),
+        adminGlassGroup(
+          context,
+          children: [
+            if (_paths.isEmpty)
+              Padding(
+                padding: const EdgeInsets.all(AppSpacing.spaceLg),
+                child: Text(l10n.adminLibraryFolderRequired),
+              ),
+            ...List.generate(_paths.length, (i) => ListTile(
+              leading: const Icon(Icons.folder),
+              title: Text(_paths[i],
+                  style: const TextStyle(fontFamily: 'monospace', fontSize: 13)),
+              trailing: IconButton(
+                icon: const Icon(Icons.remove_circle_outline),
+                tooltip: l10n.adminRemovePath,
+                onPressed: () => _removePath(i),
+              ),
+              dense: true,
+            )),
+          ],
+        ),
+        const SizedBox(height: 12),
+        Text(l10n.adminBrowseFilesystem,
+            style: Theme.of(context).textTheme.titleSmall),
+        const SizedBox(height: 8),
+        Expanded(
+          child: FilesystemBrowser(
+            onPathSelected: _addPath,
+          ),
+        ),
+        const SizedBox(height: 12),
+        Row(
+          children: [
+            TextButton(
+              onPressed: () => setState(() => _step = 1),
+              child: Text(l10n.back),
+            ),
+            const SizedBox(width: 8),
+            FilledButton(
+              onPressed:
+                  _paths.isEmpty ? null : () => setState(() => _step = 3),
+              child: Text(l10n.next),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildOptionsStep() {
+    final l10n = AppLocalizations.of(context);
+    final options = _options;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Expanded(
+          child: options == null
+              ? const Center(child: CircularProgressIndicator())
+              : ListView(
+                  children: [
+                    for (final part in LibraryOptionsPart.values)
+                      LibraryOptionsForm(
+                        part: part,
+                        options: options,
+                        available: _available,
+                        collectionType: _collectionType,
+                        cultures: _cultures,
+                        countries: _countries,
+                        onChanged: () {},
+                      ),
+                  ],
+                ),
+        ),
+        const SizedBox(height: 12),
+        Row(
+          children: [
+            TextButton(
+              onPressed: () => setState(() => _step = 2),
+              child: Text(l10n.back),
+            ),
+            const SizedBox(width: 8),
+            FilledButton(
+              onPressed: options == null ? null : () => setState(() => _step = 4),
+              child: Text(l10n.next),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildConfirmStep() {
+    final l10n = AppLocalizations.of(context);
+    return ListView(
+      children: [
+        adminGlassGroup(
+          context,
+          children: [
+            Padding(
+              padding: const EdgeInsets.all(AppSpacing.spaceLg),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _summaryRow(
+                    l10n.type,
+                    _collectionType != null
+                        ? _collectionTypeLabel(_collectionType!, l10n)
+                        : l10n.mixedContent,
+                  ),
+                  const SizedBox(height: 8),
+                  _summaryRow(l10n.name, _nameController.text.trim()),
+                  const SizedBox(height: 8),
+                  Text(l10n.paths,
+                      style: Theme.of(context).textTheme.titleSmall),
+                  ...(_paths).map((p) => Padding(
+                          padding: const EdgeInsets.only(top: 4),
+                          child: Text(p,
+                              style: const TextStyle(
+                                  fontFamily: 'monospace', fontSize: 13)),
+                        )),
+                ],
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 24),
+        Row(
+          children: [
+            TextButton(
+              onPressed: _saving ? null : () => setState(() => _step = 3),
+              child: Text(l10n.back),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: adminSaveButton(
+                label: l10n.adminCreateLibrary,
+                saving: _saving,
+                onPressed: _create,
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _summaryRow(String label, String value) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SizedBox(
+          width: 60,
+          child: Text(label,
+              style: Theme.of(context)
+                  .textTheme
+                  .titleSmall
+                  ?.copyWith(fontWeight: FontWeight.w600)),
+        ),
+        Expanded(child: Text(value)),
+      ],
+    );
+  }
+}

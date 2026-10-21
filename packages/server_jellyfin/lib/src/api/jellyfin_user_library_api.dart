@@ -1,0 +1,70 @@
+import 'package:dio/dio.dart';
+import 'package:server_core/server_core.dart';
+
+class JellyfinUserLibraryApi implements UserLibraryApi {
+  final Dio _dio;
+
+  JellyfinUserLibraryApi(this._dio);
+
+  @override
+  bool get supportsNumericUserRatings => true;
+
+  @override
+  Future<void> markFavorite(String itemId) async {
+    await _dio.post('/UserFavoriteItems/$itemId');
+  }
+
+  @override
+  Future<void> unmarkFavorite(String itemId) async {
+    await _dio.delete('/UserFavoriteItems/$itemId');
+  }
+
+  @override
+  Future<void> markPlayed(String itemId) async {
+    await _dio.post('/UserPlayedItems/$itemId');
+  }
+
+  @override
+  Future<void> unmarkPlayed(String itemId) async {
+    await _dio.delete('/UserPlayedItems/$itemId');
+  }
+
+  @override
+  Future<void> updatePlayedPosition(
+    String itemId, {
+    required int positionTicks,
+  }) async {
+    await _dio.post('/UserItems/$itemId/UserData', data: {
+      'PlaybackPositionTicks': positionTicks,
+      'LastPlayedDate': DateTime.now().toUtc().toIso8601String(),
+    });
+  }
+
+  @override
+  Future<void> updateUserRating(String itemId, {required bool likes}) async {
+    await _dio.post('/UserItems/$itemId/Rating', queryParameters: {
+      'Likes': likes,
+    });
+  }
+
+  @override
+  Future<void> updateNumericUserRating(
+    String itemId, {
+    required double rating,
+  }) async {
+    await _dio.post('/UserItems/$itemId/UserData', data: {'Rating': rating});
+  }
+
+  @override
+  Future<void> deleteUserRating(String itemId) async {
+    await _dio.delete('/UserItems/$itemId/Rating');
+  }
+
+  @override
+  Future<Map<String, dynamic>> getItem(String itemId) async {
+    final response = await _dio.get('/Items/$itemId', queryParameters: {
+      'Fields': kDetailItemFields,
+    });
+    return response.data as Map<String, dynamic>;
+  }
+}

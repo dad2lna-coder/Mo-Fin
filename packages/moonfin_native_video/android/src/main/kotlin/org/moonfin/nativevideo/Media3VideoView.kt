@@ -1,0 +1,5430 @@
+package org.moonfin.nativevideo
+
+import android.app.ActivityManager
+import android.app.Activity
+import android.content.Context
+import android.content.Intent
+import android.content.ContextWrapper
+import android.graphics.Bitmap
+import android.graphics.Color
+import android.graphics.Typeface
+import android.hardware.display.DisplayManager
+import android.media.AudioDeviceCallback
+import android.media.AudioDeviceInfo
+import android.media.AudioManager
+import android.media.MediaCodecList
+import android.media.audiofx.AudioEffect
+import android.net.Uri
+import android.os.Build
+import android.os.Handler
+import android.os.Looper
+import android.os.SystemClock
+import android.view.Gravity
+import android.view.Display
+import android.view.PixelCopy
+import android.view.Surface
+import android.view.SurfaceView
+import android.view.TextureView
+import android.view.View
+import android.util.Log as AndroidLog
+import android.widget.FrameLayout
+import androidx.annotation.OptIn
+import androidx.core.content.getSystemService
+import androidx.media3.common.C
+import androidx.media3.common.Format
+import androidx.media3.common.MediaItem
+import androidx.media3.common.MediaMetadata
+import androidx.media3.common.MimeTypes
+import androidx.media3.common.PlaybackException
+import androidx.media3.common.PlaybackParameters
+import androidx.media3.common.Player
+import androidx.media3.common.TrackGroup
+import androidx.media3.common.Timeline
+import androidx.media3.common.TrackSelectionParameters
+import androidx.media3.common.TrackSelectionOverride
+import androidx.media3.common.Tracks
+import androidx.media3.common.VideoSize
+import androidx.media3.common.audio.AudioProcessor
+import androidx.media3.common.audio.BaseAudioProcessor
+import androidx.media3.common.audio.ChannelMixingAudioProcessor
+import androidx.media3.common.audio.ChannelMixingMatrix
+import androidx.media3.common.text.Cue
+import androidx.media3.common.text.CueGroup
+import androidx.media3.common.util.ExperimentalApi
+import androidx.media3.common.util.TimestampAdjuster
+import androidx.media3.common.util.UnstableApi
+import androidx.media3.common.util.Util
+import androidx.media3.datasource.DefaultDataSource
+import androidx.media3.datasource.DefaultHttpDataSource
+import androidx.media3.decoder.av1.Dav1dLibrary
+import androidx.media3.decoder.av1.Libdav1dVideoRenderer
+import androidx.media3.decoder.ffmpeg.FfmpegLibrary
+import androidx.media3.exoplayer.ExoPlaybackException
+import androidx.media3.exoplayer.DefaultLoadControl
+import androidx.media3.exoplayer.DefaultRenderersFactory
+import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.exoplayer.DecoderReuseEvaluation
+import androidx.media3.exoplayer.analytics.AnalyticsListener
+import androidx.media3.exoplayer.audio.AudioRendererEventListener
+import androidx.media3.exoplayer.audio.AudioSink
+import androidx.media3.exoplayer.audio.DefaultAudioSink
+import androidx.media3.exoplayer.audio.MediaCodecAudioRenderer
+import androidx.media3.exoplayer.Renderer
+import androidx.media3.exoplayer.RendererCapabilities
+import androidx.media3.exoplayer.mediacodec.ForwardingMediaCodecAdapter
+import androidx.media3.exoplayer.mediacodec.MediaCodecAdapter
+import androidx.media3.exoplayer.mediacodec.MediaCodecInfo
+import androidx.media3.exoplayer.mediacodec.MediaCodecSelector
+import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
+import androidx.media3.exoplayer.source.MediaSource
+import androidx.media3.exoplayer.source.MergingMediaSource
+import androidx.media3.exoplayer.trackselection.DefaultTrackSelector
+import androidx.media3.exoplayer.video.MediaCodecVideoRenderer
+import androidx.media3.exoplayer.video.VideoRendererEventListener
+import androidx.media3.extractor.DefaultExtractorsFactory
+import androidx.media3.extractor.Extractor
+import androidx.media3.extractor.ExtractorsFactory
+import androidx.media3.extractor.mp4.FragmentedMp4Extractor
+import androidx.media3.extractor.text.SubtitleParser
+import androidx.media3.extractor.ts.DefaultTsPayloadReaderFactory
+import androidx.media3.extractor.ts.TsExtractor
+import androidx.media3.ui.CaptionStyleCompat
+import androidx.media3.ui.SubtitleView
+import io.flutter.plugin.common.MethodCall
+import io.flutter.plugin.common.MethodChannel
+import io.flutter.plugin.platform.PlatformView
+import io.github.peerless2012.ass.media.AssHandler
+import io.github.peerless2012.ass.media.AssHandlerConfig
+import io.github.peerless2012.ass.media.kt.withAssSupport
+import io.github.peerless2012.ass.media.parser.AssSubtitleParserFactory
+import io.github.peerless2012.ass.media.type.AssRenderType
+import java.io.File
+import java.nio.ByteBuffer
+import java.util.Locale
+import kotlin.math.roundToInt
+import org.moonfin.nativevideo.iec.Iec61937AudioOutputProvider
+import org.moonfin.nativevideo.subtitle.DeclaredSubtitle
+import org.moonfin.nativevideo.subtitle.SidecarSourceFactory
+import org.moonfin.nativevideo.subtitle.SecondarySubtitleOverlay
+import org.moonfin.nativevideo.subtitle.SourceTree
+import org.moonfin.nativevideo.subtitle.SupAwareSubtitleParserFactory
+import org.moonfin.nativevideo.subtitle.TextStreamOffsetMediaSource
+import org.moonfin.nativevideo.subtitle.TimeOffsetMediaSource
+import org.moonfin.nativevideo.subtitle.clampManualDelayMs
+import org.moonfin.nativevideo.subtitle.declaredSubtitleFrom
+import org.moonfin.nativevideo.subtitle.declaredSubtitlesFrom
+import org.moonfin.nativevideo.subtitle.externalFormatIdMatches
+import org.moonfin.nativevideo.subtitle.joinStackedCues
+import org.moonfin.nativevideo.subtitle.sourceTreeFor
+import org.moonfin.nativevideo.subtitle.syncDelaysPayload
+import org.moonfin.nativevideo.ts.withHdmvTsSupport
+
+@OptIn(ExperimentalApi::class)
+private class MoonfinRenderersFactory(
+    context: Context,
+    private val audioDelayProcessor: AdjustableAudioDelayProcessor,
+    private val channelMixingProcessor: ChannelMixingAudioProcessor,
+    private val preferSoftwareAv1Renderer: Boolean,
+    private val passthroughPolicy: AudioPassthroughPolicy,
+    private val stereoDownmixRequested: () -> Boolean,
+    private val onPassthroughRecoveryNeeded: (String) -> Unit,
+    private val iecOutputProvider: Iec61937AudioOutputProvider?,
+) : DefaultRenderersFactory(context) {
+    override fun buildVideoRenderers(
+        context: Context,
+        extensionRendererMode: Int,
+        mediaCodecSelector: MediaCodecSelector,
+        enableDecoderFallback: Boolean,
+        eventHandler: Handler,
+        eventListener: VideoRendererEventListener,
+        allowedVideoJoiningTimeMs: Long,
+        out: ArrayList<Renderer>,
+    ) {
+        var videoRendererBuilder =
+            MediaCodecVideoRenderer
+                .Builder(context)
+                .setCodecAdapterFactory(
+                    VsyncPacingAdapterFactory(codecAdapterFactory, primaryDisplay(context)),
+                )
+                .setMediaCodecSelector(Vc1AliasMediaCodecSelector(mediaCodecSelector))
+                .setAllowedJoiningTimeMs(allowedVideoJoiningTimeMs)
+                .setEnableDecoderFallback(enableDecoderFallback)
+                .setEventHandler(eventHandler)
+                .setEventListener(eventListener)
+                .setMaxDroppedFramesToNotify(MAX_DROPPED_VIDEO_FRAME_COUNT_TO_NOTIFY)
+
+        if (Build.VERSION.SDK_INT >= 34) {
+            videoRendererBuilder =
+                videoRendererBuilder.experimentalSetEnableMediaCodecBufferDecodeOnlyFlag(
+                    false,
+                )
+        }
+
+        val av1ExtensionRenderer = buildAv1ExtensionRenderer(
+            extensionRendererMode = extensionRendererMode,
+            eventHandler = eventHandler,
+            eventListener = eventListener,
+            allowedVideoJoiningTimeMs = allowedVideoJoiningTimeMs,
+        )
+        if (av1ExtensionRenderer != null &&
+            extensionRendererMode == DefaultRenderersFactory.EXTENSION_RENDERER_MODE_PREFER
+        ) {
+            out.add(av1ExtensionRenderer)
+        }
+
+        out.add(MoonfinVideoRenderer(videoRendererBuilder))
+
+        if (av1ExtensionRenderer != null &&
+            extensionRendererMode != DefaultRenderersFactory.EXTENSION_RENDERER_MODE_OFF &&
+            extensionRendererMode != DefaultRenderersFactory.EXTENSION_RENDERER_MODE_PREFER
+        ) {
+            out.add(av1ExtensionRenderer)
+        }
+    }
+
+    override fun buildAudioRenderers(
+        context: Context,
+        extensionRendererMode: Int,
+        mediaCodecSelector: MediaCodecSelector,
+        enableDecoderFallback: Boolean,
+        audioSink: AudioSink,
+        eventHandler: Handler,
+        eventListener: AudioRendererEventListener,
+        out: ArrayList<Renderer>,
+    ) {
+        val selector = MoonfinAudioMediaCodecSelector(mediaCodecSelector)
+        super.buildAudioRenderers(
+            context,
+            extensionRendererMode,
+            selector,
+            enableDecoderFallback,
+            audioSink,
+            eventHandler,
+            eventListener,
+            out,
+        )
+        // Swapping into super's output keeps the extension renderers it loads
+        // by reflection, including the FFmpeg decoder the steering hands work
+        // to.
+        val index = out.indexOfFirst { it is MediaCodecAudioRenderer }
+        if (index >= 0) {
+            out[index] = SteeredMediaCodecAudioRenderer(
+                context = context,
+                codecAdapterFactory = codecAdapterFactory,
+                mediaCodecSelector = selector,
+                enableDecoderFallback = enableDecoderFallback,
+                eventHandler = eventHandler,
+                eventListener = eventListener,
+                sink = audioSink,
+                stereoDownmixRequested = stereoDownmixRequested,
+            )
+        }
+    }
+
+    override fun buildAudioSink(
+        context: Context,
+        enableFloatOutput: Boolean,
+        enableAudioOutputPlaybackParams: Boolean,
+    ): AudioSink {
+        // Float output must stay disabled: DefaultAudioSink skips the
+        // processor chain on the float path, which would silently drop both
+        // the downmix mixer and the audio delay processor.
+        val sinkBuilder = DefaultAudioSink.Builder(context)
+            .setAudioProcessorChain(
+                DefaultAudioSink.DefaultAudioProcessorChain(
+                    // Downmix runs first (on decoded multichannel PCM), then the
+                    // delay processor. The mixer is inactive (identity) unless a
+                    // stereo downmix is requested by preference or after an
+                    // AudioTrack init failure. It never collides with the two
+                    // paths that own their own channel handling: bitstreamed
+                    // audio skips the processor chain outright, and a requested
+                    // downmix steers surround to the platform decoder rather
+                    // than to FFmpeg.
+                    channelMixingProcessor,
+                    audioDelayProcessor,
+                ),
+            )
+            .setEnableFloatOutput(enableFloatOutput)
+            .setEnableAudioOutputPlaybackParameters(enableAudioOutputPlaybackParams)
+        if (iecOutputProvider != null) {
+            // App-side IEC 61937 packing for eligible bitstreams. Everything
+            // else routes to the stock provider inside, and when the provider
+            // is absent (the default) the builder chain above is untouched.
+            sinkBuilder.setAudioOutputProvider(iecOutputProvider)
+        }
+        val sink = sinkBuilder.build()
+        // Some TV HALs never resume a paused bitstream track and hand back a
+        // dead replacement when one is rebuilt too quickly. The recovery
+        // wrapper watches for that and rebuilds with a short write hold, and
+        // it stays inert until a dead track has actually been seen. It also
+        // holds a bitstream track through an HDMI route flap so a link
+        // renegotiating mid-playback never lands the track on a decoder.
+        val recovering = PassthroughRecoveryAudioSink(
+            delegate = sink,
+            recovery = PassthroughSilenceRecovery(),
+            flap = RouteFlapHold(),
+            onRecoveryNeeded = onPassthroughRecoveryNeeded,
+        )
+        // Auto skips the policy veto so the platform's own format probe
+        // stays authoritative. The recovery wrapper forwards every probe
+        // call untouched, so it rides along in every mode.
+        if (passthroughPolicy.mode == PassthroughMode.AUTO) {
+            return recovering
+        }
+        return PassthroughPolicyAudioSink(recovering, passthroughPolicy)
+    }
+
+    private fun buildAv1ExtensionRenderer(
+        extensionRendererMode: Int,
+        eventHandler: Handler,
+        eventListener: VideoRendererEventListener,
+        allowedVideoJoiningTimeMs: Long,
+    ): Renderer? {
+        if (!preferSoftwareAv1Renderer ||
+            extensionRendererMode == DefaultRenderersFactory.EXTENSION_RENDERER_MODE_OFF
+        ) {
+            return null
+        }
+
+        if (!runCatching { Dav1dLibrary.isAvailable() }.getOrDefault(false)) {
+            return null
+        }
+
+        return runCatching {
+            Libdav1dVideoRenderer(
+                allowedVideoJoiningTimeMs,
+                eventHandler,
+                eventListener,
+                MAX_DROPPED_VIDEO_FRAME_COUNT_TO_NOTIFY,
+            )
+        }.getOrNull()
+    }
+}
+
+private fun primaryDisplay(context: Context): Display? =
+    runCatching {
+        (context.getSystemService(Context.DISPLAY_SERVICE) as DisplayManager)
+            .getDisplay(Display.DEFAULT_DISPLAY)
+    }.getOrNull()
+
+/**
+ * Pacing gives each frame its own vsync, so Media3's skip of a frame whose
+ * release time matches the previous one would only discard a frame that can
+ * still be shown. A surplus frame from a source faster than the display shares
+ * a vsync instead, and the compositor shows the newer of the two.
+ */
+@UnstableApi
+private class MoonfinVideoRenderer(
+    builder: MediaCodecVideoRenderer.Builder,
+) : MediaCodecVideoRenderer(builder) {
+    override fun shouldSkipBuffersWithIdenticalReleaseTime(): Boolean = false
+}
+
+@UnstableApi
+private class VsyncPacingAdapterFactory(
+    private val delegate: MediaCodecAdapter.Factory,
+    private val display: Display?,
+) : MediaCodecAdapter.Factory {
+    override fun createAdapter(configuration: MediaCodecAdapter.Configuration): MediaCodecAdapter =
+        VsyncPacingAdapter(delegate.createAdapter(configuration), display)
+}
+
+/**
+ * Applies [VsyncPacer] to the video codec's frame release. Kotlin delegation
+ * would skip the interface's default methods, which the asynchronous adapter
+ * overrides to fill input buffers under its callback lock and to report when
+ * buffers free up, so this forwards everything instead.
+ */
+@UnstableApi
+private class VsyncPacingAdapter(
+    inner: MediaCodecAdapter,
+    private val display: Display?,
+) : ForwardingMediaCodecAdapter(inner) {
+    private val pacer = VsyncPacer()
+    private var vsyncNs = 0L
+    private var vsyncReadAtMs = -1L
+
+    override fun releaseOutputBuffer(index: Int, renderTimeStampNs: Long) {
+        super.releaseOutputBuffer(index, pacer.pace(renderTimeStampNs, currentVsyncNs()))
+    }
+
+    // Re-read so a refresh-rate switch during playback is followed.
+    private fun currentVsyncNs(): Long {
+        val nowMs = SystemClock.elapsedRealtime()
+        if (vsyncReadAtMs < 0L || nowMs - vsyncReadAtMs >= VSYNC_REREAD_INTERVAL_MS) {
+            vsyncReadAtMs = nowMs
+            val hz = display?.refreshRate ?: 0f
+            vsyncNs = if (hz > 1f) (1_000_000_000.0 / hz).toLong() else 0L
+        }
+        return vsyncNs
+    }
+
+    private companion object {
+        const val VSYNC_REREAD_INTERVAL_MS = 1_000L
+    }
+}
+
+/**
+ * Drops the Google software FLAC decoders (`c2.android.flac.decoder` and the
+ * older `OMX.google.flac.decoder`). They crash with
+ * `DecoderInputBuffer$InsufficientCapacityException: Buffer too small (32768 < N)`
+ * on many 16-bit FLAC streams because the Media3 FLAC extractor underestimates
+ * the maximum frame size. Every other mime passes through untouched.
+ */
+private class MoonfinAudioMediaCodecSelector(
+    private val delegate: MediaCodecSelector,
+) : MediaCodecSelector {
+    override fun getDecoderInfos(
+        mimeType: String,
+        requiresSecureDecoder: Boolean,
+        requiresTunnelingDecoder: Boolean,
+    ): List<MediaCodecInfo> {
+        val infos = delegate.getDecoderInfos(
+            mimeType,
+            requiresSecureDecoder,
+            requiresTunnelingDecoder,
+        )
+        if (mimeType.equals(MimeTypes.AUDIO_FLAC, ignoreCase = true)) {
+            return infos.filterNot { info -> isBuggyFlacDecoder(info.name) }
+        }
+        return infos
+    }
+
+    private fun isBuggyFlacDecoder(name: String): Boolean =
+        name.equals("c2.android.flac.decoder", ignoreCase = true) ||
+            name.equals("OMX.google.flac.decoder", ignoreCase = true)
+}
+
+/**
+ * Chooses between the platform decoder and the bundled FFmpeg extension for the
+ * surround codecs that could also bitstream. It only ever runs after the sink
+ * has declined to bitstream the format, so it decides how a track decodes
+ * locally, never whether it decodes at all.
+ *
+ * Mono and stereo keep the platform decoder whenever one exists: it's cheaper
+ * and correct at that channel count. Surround goes to FFmpeg unless the device
+ * ships a real Dolby decoder, because the generic AC3, E-AC3 and DTS decoders
+ * on TV SoCs routinely fold multichannel down to stereo. A requested stereo
+ * downmix makes that folding the goal, so the platform decoder is fine there
+ * too. With no platform decoder at all, FFmpeg takes the track.
+ *
+ * Reporting the format unsupported is what hands it over: the FFmpeg extension
+ * renderer sits alongside this one and picks up whatever it declines.
+ */
+@UnstableApi
+private class SteeredMediaCodecAudioRenderer(
+    context: Context,
+    codecAdapterFactory: MediaCodecAdapter.Factory,
+    mediaCodecSelector: MediaCodecSelector,
+    enableDecoderFallback: Boolean,
+    eventHandler: Handler,
+    eventListener: AudioRendererEventListener,
+    private val sink: AudioSink,
+    private val stereoDownmixRequested: () -> Boolean,
+) : MediaCodecAudioRenderer(
+    context,
+    codecAdapterFactory,
+    mediaCodecSelector,
+    enableDecoderFallback,
+    eventHandler,
+    eventListener,
+    sink,
+) {
+    override fun supportsFormat(mediaCodecSelector: MediaCodecSelector, format: Format): Int {
+        if (prefersFfmpeg(mediaCodecSelector, format)) {
+            return RendererCapabilities.create(C.FORMAT_UNSUPPORTED_SUBTYPE)
+        }
+        return super.supportsFormat(mediaCodecSelector, format)
+    }
+
+    private fun prefersFfmpeg(selector: MediaCodecSelector, format: Format): Boolean {
+        val mime = format.sampleMimeType ?: return false
+        if (!isSteerableMime(mime) || !ffmpegDecodes(mime)) return false
+        if (runCatching { sink.supportsFormat(format) }.getOrDefault(false)) return false
+
+        val decoders = runCatching {
+            selector.getDecoderInfos(mime, false, false)
+        }.getOrDefault(emptyList())
+        if (decoders.isEmpty()) return true
+
+        // An unknown channel count reads as surround. These codecs are
+        // multichannel far more often than not, and FFmpeg is the branch that
+        // stays correct either way.
+        val isSurround = format.channelCount == Format.NO_VALUE || format.channelCount > 2
+        if (!isSurround) return false
+        if (decoders.any { isDolbyDecoder(it.name) }) return false
+        return !stereoDownmixRequested()
+    }
+
+    // Dolby ships its decoder under the OMX name on older devices and the
+    // Codec2 name on newer ones.
+    private fun isDolbyDecoder(name: String): Boolean =
+        name.startsWith("OMX.dolby", ignoreCase = true) ||
+            name.startsWith("c2.dolby", ignoreCase = true)
+
+    private fun isSteerableMime(mimeType: String): Boolean =
+        mimeType.lowercase() in STEERABLE_MIMES
+
+    private fun ffmpegDecodes(mimeType: String): Boolean = runCatching {
+        FfmpegLibrary.isAvailable() && FfmpegLibrary.supportsFormat(mimeType)
+    }.getOrDefault(false)
+
+    companion object {
+        private val STEERABLE_MIMES = setOf(
+            MimeTypes.AUDIO_AC3,
+            MimeTypes.AUDIO_E_AC3,
+            MimeTypes.AUDIO_E_AC3_JOC,
+            MimeTypes.AUDIO_DTS,
+            MimeTypes.AUDIO_DTS_HD,
+            MimeTypes.AUDIO_DTS_EXPRESS,
+            MimeTypes.AUDIO_TRUEHD,
+        )
+    }
+}
+
+@UnstableApi
+private class AdjustableAudioDelayProcessor : BaseAudioProcessor() {
+    companion object {
+        private const val MAX_DELAY_MS = 5000
+        private const val ZERO_CHUNK_BYTES = 4096
+    }
+
+    @Volatile
+    private var requestedDelayMs: Int = 0
+
+    private var pendingTrimBytes: Int = 0
+    private var pendingSilenceBytes: Int = 0
+    private val silenceChunk = ByteArray(ZERO_CHUNK_BYTES)
+
+    fun setDelayMs(delayMs: Long) {
+        requestedDelayMs = delayMs.coerceIn(-MAX_DELAY_MS.toLong(), MAX_DELAY_MS.toLong()).toInt()
+    }
+
+    override fun onConfigure(inputAudioFormat: AudioProcessor.AudioFormat): AudioProcessor.AudioFormat {
+        return if (Util.isEncodingLinearPcm(inputAudioFormat.encoding)) {
+            inputAudioFormat
+        } else {
+            AudioProcessor.AudioFormat.NOT_SET
+        }
+    }
+
+    override fun onFlush(streamMetadata: AudioProcessor.StreamMetadata) {
+        recalculatePendingBytes()
+    }
+
+    override fun onReset() {
+        pendingTrimBytes = 0
+        pendingSilenceBytes = 0
+    }
+
+    override fun queueInput(inputBuffer: ByteBuffer) {
+        if (!inputBuffer.hasRemaining() && pendingSilenceBytes <= 0) {
+            return
+        }
+
+        if (pendingTrimBytes > 0 && inputBuffer.hasRemaining()) {
+            val bytesToTrim = minOf(pendingTrimBytes, inputBuffer.remaining())
+            inputBuffer.position(inputBuffer.position() + bytesToTrim)
+            pendingTrimBytes -= bytesToTrim
+        }
+
+        val inputBytes = inputBuffer.remaining()
+        val leadingSilenceBytes = pendingSilenceBytes
+        if (inputBytes <= 0 && leadingSilenceBytes <= 0) {
+            return
+        }
+
+        val outputBuffer = replaceOutputBuffer(leadingSilenceBytes + inputBytes)
+        if (leadingSilenceBytes > 0) {
+            var remainingSilence = leadingSilenceBytes
+            while (remainingSilence > 0) {
+                val chunk = minOf(remainingSilence, silenceChunk.size)
+                outputBuffer.put(silenceChunk, 0, chunk)
+                remainingSilence -= chunk
+            }
+            pendingSilenceBytes = 0
+        }
+        if (inputBytes > 0) {
+            outputBuffer.put(inputBuffer)
+        }
+        outputBuffer.flip()
+    }
+
+    private fun recalculatePendingBytes() {
+        pendingTrimBytes = 0
+        pendingSilenceBytes = 0
+
+        val bytesPerFrame = inputAudioFormat.bytesPerFrame
+        val sampleRate = inputAudioFormat.sampleRate
+        if (bytesPerFrame <= 0 || sampleRate <= 0) {
+            return
+        }
+
+        val delayFrames = (kotlin.math.abs(requestedDelayMs).toLong() * sampleRate) / 1000L
+        val delayBytes = (delayFrames * bytesPerFrame.toLong())
+            .coerceAtMost(Int.MAX_VALUE.toLong())
+            .toInt()
+
+        if (requestedDelayMs > 0) {
+            pendingSilenceBytes = delayBytes
+        } else if (requestedDelayMs < 0) {
+            pendingTrimBytes = delayBytes
+        }
+    }
+}
+
+// The AudioTrack encoding as a name a bug report can be read against. PCM
+// means something decoded the stream, anything else means it was bitstreamed
+// to the receiver untouched.
+private fun encodingName(encoding: Int): String = when (encoding) {
+    C.ENCODING_PCM_8BIT -> "pcm8"
+    C.ENCODING_PCM_16BIT -> "pcm16"
+    C.ENCODING_PCM_16BIT_BIG_ENDIAN -> "pcm16be"
+    C.ENCODING_PCM_24BIT -> "pcm24"
+    C.ENCODING_PCM_32BIT -> "pcm32"
+    C.ENCODING_PCM_FLOAT -> "pcmFloat"
+    C.ENCODING_AC3 -> "ac3"
+    C.ENCODING_E_AC3 -> "eac3"
+    C.ENCODING_E_AC3_JOC -> "eac3joc"
+    C.ENCODING_AC4 -> "ac4"
+    C.ENCODING_DTS -> "dts"
+    C.ENCODING_DTS_HD -> "dtshd"
+    C.ENCODING_DOLBY_TRUEHD -> "truehd"
+    // AudioFormat.ENCODING_IEC61937: media3's C has no constant for it.
+    13 -> "iec61937"
+    else -> "encoding $encoding"
+}
+
+// Once per process: the bundled FFmpeg audio extension runs against a media3
+// runtime forced to a different version (see android/build.gradle.kts), so a
+// broken registration would silently drop the renderer. Surfacing its state
+// makes "TrueHD is silent / transcoding" reports attributable.
+private var ffmpegDecoderDiagnosticsEmitted = false
+
+@UnstableApi
+private fun emitFfmpegDecoderDiagnosticsOnce() {
+    if (ffmpegDecoderDiagnosticsEmitted) return
+    ffmpegDecoderDiagnosticsEmitted = true
+    val available = runCatching { FfmpegLibrary.isAvailable() }.getOrDefault(false)
+    val version = runCatching { FfmpegLibrary.getVersion() }.getOrNull()
+    fun supports(mime: String): Boolean = runCatching {
+        FfmpegLibrary.supportsFormat(mime)
+    }.getOrDefault(false)
+    Media3Bridge.emitEvent(
+        mapOf(
+            "event" to "ffmpegDecoderDiagnostics",
+            "available" to available,
+            "version" to (version ?: ""),
+            "supportsTrueHd" to supports(MimeTypes.AUDIO_TRUEHD),
+            "supportsDts" to supports(MimeTypes.AUDIO_DTS),
+            "supportsDtsHd" to supports(MimeTypes.AUDIO_DTS_HD),
+            "supportsEac3" to supports(MimeTypes.AUDIO_E_AC3),
+        ),
+    )
+}
+
+@UnstableApi
+class Media3VideoView(
+    private val context: Context,
+    private val platformViewId: Int = -1,
+    // "preview" for the media bar and home row inline trailers, "main" for the
+    // real players. A preview must never steal the slot from a live main view.
+    val role: String = "main",
+    // The bridge's audio player, built on the application context and never
+    // attached to a window.
+    val isHeadlessHost: Boolean = false,
+) : PlatformView, MethodChannel.MethodCallHandler {
+    companion object {
+        private const val TS_SEARCH_BYTES_LOW_RAM = TsExtractor.TS_PACKET_SIZE * 1800
+        private const val TS_SEARCH_BYTES_DEFAULT = TsExtractor.DEFAULT_TIMESTAMP_SEARCH_BYTES
+        private const val EXTERNAL_SUBTITLE_ID_BASE = 10000
+        private const val RETIME_DEBOUNCE_MS = 300L
+        private const val STREAMING_MAX_BUFFER_MS = 120_000
+        // How long a television gets to blank, renegotiate the link and come
+        // back before a failure stops counting as part of the mode switch.
+        private const val DISPLAY_MODE_SWITCH_RECOVERY_MS = 10_000L
+        // How long the display and audio devices have to be still before a
+        // start held for a mode switch runs.
+        private const val DISPLAY_MODE_SETTLE_QUIET_MS = 1_500L
+        // The most a held start waits, which leaves the startup ready check
+        // on the Dart side time for the stream itself to come up.
+        private const val DISPLAY_MODE_SETTLE_MAX_MS = 7_000L
+        // A television that steps through an intermediate mode drops the
+        // surface more than once, so one retry is not always enough. The
+        // recovery window is what stops this running on.
+        private const val DISPLAY_MODE_SWITCH_MAX_RETRIES = 3
+        /** One greppable logcat tag for everything live recovery reports. */
+        private const val LIVE_TAG = "MoonfinLive"
+        // An HDMI route flap pauses the player through the becoming-noisy
+        // broadcast or an audio focus loss. The sink coming back inside this
+        // window undoes that pause, past it the pause is left as it is.
+        private const val ROUTE_FLAP_RESUME_MS = 10_000L
+        private const val MAX_TARGET_BUFFER_BYTES = 384L * 1024 * 1024
+        // A misread wrap jumps the head clock six hours or more, so an hour
+        // of slack can never swallow one.
+        private const val AUDIO_CLOCK_CORRUPTION_MARGIN_MS = 3_600_000L
+        private const val AUDIO_CLOCK_RECOVERY_MIN_INTERVAL_MS = 60_000L
+        // Broadcast captions ride inside the video as CEA-608 messages rather
+        // than as their own stream, and the extractor only looks for them when
+        // the transport stream announces them in a caption service descriptor.
+        // Anything remuxed by ffmpeg, which is most live TV, carries the
+        // captions and writes no descriptor, so it has to be told to look for
+        // CC1 when a stream declares nothing. A declared descriptor still wins.
+        private val FALLBACK_CLOSED_CAPTION_FORMATS = listOf(
+            Format.Builder()
+                .setSampleMimeType(MimeTypes.APPLICATION_CEA608)
+                .setAccessibilityChannel(1)
+                .build(),
+        )
+
+        private const val ASS_FALLBACK_FONT_ASSET = "fonts/NotoSans-Regular.ttf"
+        private const val ASS_FALLBACK_FONT_NAME = "Noto Sans"
+        private const val ASS_MAX_CACHE_SIZE_MB = 128
+        private const val ASS_MIN_CACHE_SIZE_MB = 16
+        private val FONT_EXTENSIONS = setOf("ttf", "otf", "ttc")
+        private val ASS_SYSTEM_CJK_FONTS = listOf(
+            "NotoSansCJK-Regular.ttc",
+            "NotoSerifCJK-Regular.ttc",
+            "DroidSansFallbackFull.ttf",
+            "DroidSansFallback.ttf",
+        )
+        // libass renders ASS itself and cannot query the OS font system, so it
+        // must be handed the system fonts for each script/symbol block. Matched
+        // by filename prefix so it works whether Android ships "-Regular.ttf" or
+        // a variable "-VF.ttf" file, and picks up scripts added in newer builds.
+        private val ASS_SYSTEM_SCRIPT_PREFIXES = listOf(
+            "NotoNaskhArabic", "NotoSansArabic",
+            "NotoSansDevanagari", "NotoSansBengali", "NotoSansTamil",
+            "NotoSansTelugu", "NotoSansKannada", "NotoSansMalayalam",
+            "NotoSansGujarati", "NotoSansGurmukhi", "NotoSansOriya",
+            "NotoSansSinhala", "NotoSansThai", "NotoSansLao",
+            "NotoSansKhmer", "NotoSansMyanmar", "NotoSansHebrew",
+            "NotoSansGeorgian", "NotoSansArmenian", "NotoSansEthiopic",
+            "NotoSansSymbols", "NotoSansSymbols2", "NotoSansMath", "NotoMusic",
+        )
+    }
+
+    private enum class SubtitleRendererMode(
+        val wireValue: String,
+    ) {
+        NATIVE("native"),
+        ASS_OVERLAY("assOverlay"),
+        ;
+
+        companion object {
+            fun fromWire(value: String?): SubtitleRendererMode {
+                return entries.firstOrNull { it.wireValue == value } ?: NATIVE
+            }
+        }
+    }
+
+    private data class TrackEntry(
+        val group: TrackGroup,
+        val trackIndex: Int,
+        val supported: Boolean,
+    )
+
+    private enum class ZoomMode(
+        val wireValue: String,
+    ) {
+        FIT("fit"),
+        ZOOM_TO_FILL("zoomToFill"),
+        STRETCH("stretch"),
+        ;
+
+        companion object {
+            fun fromWire(value: String?): ZoomMode {
+                return entries.firstOrNull { it.wireValue == value } ?: FIT
+            }
+        }
+    }
+
+    private val mainHandler = Handler(Looper.getMainLooper())
+    // SurfaceView is required for display refresh-rate switching (applyFrameRateSwitching is gated
+    // on SurfaceView); TextureView never receives it, so 24/25fps content judders. SurfaceView works
+    // on older Android too once it is lifted above Flutter's background on the legacy hybrid-
+    // composition path (see newVideoView). Previously gated to API 30+.
+    private val useSurfaceView = true
+    private var videoView: View = newVideoView()
+    private var lastSourceArguments: Map<*, *>? = null
+    private var lastPlaybackPositionMs: Long = 0L
+    private var displayModeSwitchAtMs = 0L
+    private var wasPlayingBeforeDisplayModeSwitch = false
+    private var heldStart: (() -> Unit)? = null
+    private var heldStartSettle: DisplayModeSettle? = null
+    private var heldStartDisplayListener: DisplayManager.DisplayListener? = null
+    private val heldStartRunnable = Runnable { runHeldStart() }
+    private var displayModeSwitchRetriesForCurrentSource = 0
+    private var decoderReclaimRetriesForCurrentSource = 0
+
+    private fun newVideoView(): View =
+        if (useSurfaceView) {
+            SurfaceView(context).apply {
+                setZOrderMediaOverlay(true)
+            }
+        } else {
+            TextureView(context)
+        }
+    private val firstFrameCover = View(context).apply {
+        setBackgroundColor(Color.BLACK)
+    }
+    private val paddingRowMask = View(context).apply {
+        setBackgroundColor(Color.BLACK)
+    }
+    private val subtitleView = SubtitleView(context)
+    private val secondarySubtitleView = SubtitleView(context)
+    private lateinit var secondarySubtitleOverlay: SecondarySubtitleOverlay
+    private val containerView: FrameLayout = object : FrameLayout(context) {
+        override fun onVisibilityAggregated(isVisible: Boolean) {
+            super.onVisibilityAggregated(isVisible)
+            if (isVisible) ParkedFlutterSurface.clear(this)
+        }
+
+        override fun onLayout(changed: Boolean, left: Int, top: Int, right: Int, bottom: Int) {
+            super.onLayout(changed, left, top, right, bottom)
+            layoutPaddingRowMask()
+        }
+    }.also { container ->
+        container.setBackgroundColor(Color.BLACK)
+        container.clipChildren = true
+        container.clipToPadding = true
+        // Hold the screen awake while a real player surface is attached so the
+        // OS screensaver cannot interrupt playback if the wakelock lapses.
+        // Previews stay excluded so browsing does not keep the screen on.
+        container.keepScreenOn = role == "main"
+        val videoLayoutParams = FrameLayout.LayoutParams(
+            FrameLayout.LayoutParams.MATCH_PARENT,
+            FrameLayout.LayoutParams.MATCH_PARENT,
+            Gravity.CENTER,
+        )
+        val subtitleLayoutParams = FrameLayout.LayoutParams(
+            FrameLayout.LayoutParams.MATCH_PARENT,
+            FrameLayout.LayoutParams.MATCH_PARENT,
+        )
+        container.addView(videoView, videoLayoutParams)
+        container.addView(paddingRowMask)
+        // The cover keeps its own params so resizing the subtitle canvas to the
+        // active video box never shrinks the full-frame cover.
+        container.addView(
+            firstFrameCover,
+            FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.MATCH_PARENT,
+                FrameLayout.LayoutParams.MATCH_PARENT,
+            ),
+        )
+        container.addView(subtitleView, subtitleLayoutParams)
+        container.addView(
+            secondarySubtitleView,
+            FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.MATCH_PARENT,
+                FrameLayout.LayoutParams.MATCH_PARENT,
+            ),
+        )
+
+        container.addOnAttachStateChangeListener(object : View.OnAttachStateChangeListener {
+            override fun onViewAttachedToWindow(v: View) {
+                // A view that lost the slot stays released, so only the slot
+                // owner ever holds a player.
+                if (!isDisposedByFlutter &&
+                    currentMediaType != "audio" &&
+                    Media3Bridge.isActive(this@Media3VideoView)
+                ) {
+                    resumeFromBackground()
+                }
+            }
+
+            override fun onViewDetachedFromWindow(v: View) {
+                if (currentMediaType != "audio") {
+                    forceReleasePlayer()
+                }
+            }
+        })
+    }
+    private val isLowRamDevice = context.getSystemService<ActivityManager>()?.isLowRamDevice == true
+    private val hasHardwareAv1Decoder by lazy { queryHardwareAv1DecoderAvailability() }
+    // Recreated alongside the player in createPlayer(). A TrackSelector must not
+    // be shared across ExoPlayer instances: it binds to the playback thread of
+    // the player it is built with, so reusing it after the player is released
+    // and rebuilt throws "DefaultTrackSelector is accessed on the wrong thread"
+    // on the new player's  playback thread, killing that thread and freezing
+    // playback.
+    private lateinit var trackSelector: DefaultTrackSelector
+    private val audioPipeline = ExoPlayerAudioPipeline()
+    private val audioAttributeState = AudioAttributeState()
+    private var preferFfmpegDecoder = Media3Bridge.preferFfmpegDecoderEnabled()
+    @Volatile
+    private var doviCompatMode = DoviCompatMode.fromWire(Media3Bridge.doviCompatMode())
+    private var allowExternalAudioEffects = Media3Bridge.allowExternalAudioEffectsEnabled()
+    private var frameRateSwitchingBehavior = Media3Bridge.frameRateSwitchingBehavior()
+    private var passthroughMode = Media3Bridge.passthroughMode()
+    private var passthroughCodecs = Media3Bridge.passthroughCodecs()
+    private var passthroughOutput = Media3Bridge.passthroughOutput()
+    // Present only while the IEC output mode is active. The provider is
+    // chosen at buildAudioSink time, so changes ride the rebuild-on-dirty
+    // path like the other passthrough preferences.
+    private var iecOutputProvider: Iec61937AudioOutputProvider? = null
+    private var iecRetryAttemptedForCurrentSource = false
+    private var downmixToStereoPreference = Media3Bridge.downmixToStereoEnabled()
+    private var decoderPreferenceDirty = false
+    private val audioDelayProcessor = AdjustableAudioDelayProcessor()
+    // Downmixes multichannel PCM (e.g. AAC 7.1) to stereo. Inactive (identity)
+    // by default; enabled per-session after an AudioTrack init failure so a
+    // device that cannot open a >2-channel PCM AudioTrack can still play.
+    private val channelMixingProcessor = ChannelMixingAudioProcessor()
+    private var stereoDownmixEnabled = false
+    private var stereoDownmixRetryAttemptedForCurrentSource = false
+    // Sticky once a device proves it cannot open a >2-channel PCM AudioTrack, so
+    // subsequent sources start downmixed instead of glitching on every item.
+    // Cleared when the audio output devices change: plugging in an AVR or
+    // headphones invalidates the "stereo only" conclusion.
+    private var deviceRequiresStereoDownmix = false
+    private var tunnelingRetryAttemptedForCurrentSource = false
+    // When the system last paused the player on its own, and why. Zero once
+    // the user or the route flap resume has had their say.
+    private var systemPausedAtMs = 0L
+    private var systemPauseReason = 0
+
+
+    // AudioDeviceCallback needs API 23, and minSdk is 21. The guard keeps the
+    // anonymous subclass from ever loading on older devices.
+    private val audioDeviceCallback: AudioDeviceCallback? =
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            object : AudioDeviceCallback() {
+                override fun onAudioDevicesAdded(addedDevices: Array<out AudioDeviceInfo>) {
+                    onAudioOutputDevicesChanged()
+                    maybeResumeAfterRouteFlap(addedDevices)
+                    noteHeldStartActivity()
+                }
+
+                override fun onAudioDevicesRemoved(removedDevices: Array<out AudioDeviceInfo>) {
+                    onAudioOutputDevicesChanged()
+                    noteHeldStartActivity()
+                }
+            }
+        } else {
+            null
+        }
+    // Guards the container/source-error transcode fallback against re-emitting.
+    private var containerFallbackAttempted = false
+
+    private var unsupportedVideoReported = false
+
+    // Last audio track mapping reported, so an unchanged one stays quiet.
+    private var lastAudioTrackMapping: List<Map<String, Any?>>? = null
+
+    private var player: ExoPlayer
+
+    // The pieces createPlayer hands the player, kept so a source tree built
+    // later loads and parses exactly the way the player's own factory would.
+    private lateinit var bootDataSourceFactory: DefaultDataSource.Factory
+    private lateinit var bootMediaSourceFactory: DefaultMediaSourceFactory
+    private lateinit var assParserFactory: MoonfinAssParserFactory
+
+    // Renders the ASS overlay for the current player and owns the thread that
+    // calls libass. Torn down before the player, so an in-flight render never
+    // outlives the native objects it reads.
+    private var assOverlayView: MoonfinAssOverlayView? = null
+
+    // True once a source has been loaded into the current player. Reusing the
+    // same ExoPlayer instance + surface for a second source hangs in buffering
+    // on some Android TVs (e.g. Sony BRAVIA after a cinema-mode intro), so the
+    // player is recreated for each new source after the first.
+    private var playerHasLoadedSource = false
+
+    private var ticker: Runnable? = null
+    private var currentUrl: String? = null
+    private var currentHeaders: Map<String, String> = emptyMap()
+    private lateinit var httpDataSourceFactory: DefaultHttpDataSource.Factory
+    private var requestedSubtitleRendererMode: SubtitleRendererMode = SubtitleRendererMode.NATIVE
+    private var activeSubtitleRendererMode: SubtitleRendererMode = SubtitleRendererMode.NATIVE
+    private var selectedSubtitleCodec: String? = null
+    private var selectedSubtitleIsExternal = false
+    private var selectedSubtitleIsBitmap = false
+    private var selectedExternalSubtitleUrl: String? = null
+    private var subtitleTrackEnabled = false
+
+    private var pendingClosedCaptionId: Int? = null
+
+    private var pendingSubtitleIndex: Int? = null
+    private var pendingSubtitleCodec: String? = null
+    private var pendingSubtitleIsExternal: Boolean? = null
+    private var pendingSubtitleIsBitmap: Boolean? = null
+    private var pendingExternalSubtitleUrl: String? = null
+    private var pendingAudioIndex: Int? = null
+    private var zoomMode = ZoomMode.FIT
+    private var letterboxCrop: LetterboxCropRect? = null
+    private var videoWidthPx = 0
+    private var videoHeightPx = 0
+    private var videoPixelRatio = 1f
+    private var currentNormalizationGainDb: Float? = null
+    private var currentContainer: String? = null
+    private var currentIsLive = false
+    private var currentIsPreview = false
+    // The host only ever plays audio, and starting there saves a decoder
+    // rebuild on its first source.
+    private var currentMediaType: String = if (isHeadlessHost) "audio" else "video"
+    private var currentAudioSessionId = C.AUDIO_SESSION_ID_UNSET
+    private var openedAudioEffectSessionId = C.AUDIO_SESSION_ID_UNSET
+    private var originalPreferredDisplayModeId: Int? = null
+    private var activePreferredDisplayModeId: Int? = null
+    private var detectedFrameRate: Float? = null
+    private var sourceFrameRateHint: Float? = null
+    private var sourceVideoWidthHint = 0
+    private var sourceVideoHeightHint = 0
+    private var audioOffloadDisabled = false
+    private var audioOffloadRetryAttemptedForCurrentSource = false
+    private var sessionTunnelingDisabled = Media3Bridge.sessionTunnelingDisabledEnabled()
+    private var currentAudioIsBitstream = false
+    // True while the active audio track is TrueHD/MLP, which must never run
+    // tunneled (see applyTrackSelectorForCurrentSource). Seeded from the
+    // setSource payload and kept current by onAudioInputFormatChanged so
+    // mid-play track switches re-gate tunneling.
+    private var currentAudioIsLossless = false
+    private var tunnelingActive = false
+    private var audioRekickRunnable: Runnable? = null
+    private var suppressStateEmissionsForRekick = false
+    private var resumeWedgeCheck: Runnable? = null
+    private var pausedWhileReady = false
+    private var skipSilenceEnabled = false
+    // The delay the user set. Positive shows subtitles later.
+    private var manualSubtitleDelayMs = 0L
+    private var sidecarOffsetSources: List<TimeOffsetMediaSource> = emptyList()
+    private var embeddedOffsetSource: TextStreamOffsetMediaSource? = null
+    private var retimeRunnable: Runnable? = null
+    @Volatile private var subtitleRetime: SubtitleRetime? = null
+
+    private class SubtitleRetime {
+        var disabling = false
+        var writing = false
+    }
+    private var audioDelayMs = 0L
+    private var userVolumeBoostLevel = 0
+    private var preferredAudioLanguage: String? = null
+    private var preferredTextLanguage: String? = null
+    private var selectUndeterminedTextLanguage = false
+    private var subtitleEmbeddedStylesEnabled = true
+    private var subtitleEmbeddedFontSizesEnabled = true
+    private var assFallbackFontBytes: ByteArray? = null
+    private var isDisposed = false
+    internal var leaveCensus: (() -> Unit)? = null
+    private var isDisposedByFlutter = false
+    private var lastAudioClockRecoveryAtMs = 0L
+    private var playerCreatedAtMs = 0L
+    private val audioClockListener: (Long) -> Unit = { maybeRecoverAudioClock(it) }
+    private var isPlayerReleased = false
+    private var firstFrameRendered = false
+
+    private val externalSubtitleConfigurations = mutableListOf<MediaItem.SubtitleConfiguration>()
+
+    /** So a stale cue never lingers after the position has jumped. */
+    private fun clearSubtitleCues() {
+        subtitleView.setCues(emptyList())
+    }
+
+    /**
+     * Encoded surround formats that Android TV typically bitstreams (passes
+     * through) to an AVR/soundbar rather than decoding to PCM.
+     */
+    private fun isBitstreamAudioMime(mime: String?): Boolean = when (mime) {
+        MimeTypes.AUDIO_AC3,
+        MimeTypes.AUDIO_E_AC3,
+        MimeTypes.AUDIO_E_AC3_JOC,
+        MimeTypes.AUDIO_AC4,
+        MimeTypes.AUDIO_TRUEHD,
+        MimeTypes.AUDIO_DTS,
+        MimeTypes.AUDIO_DTS_HD,
+        MimeTypes.AUDIO_DTS_X -> true
+        else -> false
+    }
+
+    // Media3 maps both TrueHD and its MLP substream to
+    // [MimeTypes.AUDIO_TRUEHD], so the mime check below covers both names.
+    private fun isLosslessAudioCodecName(codec: String?): Boolean =
+        when (codec?.trim()?.lowercase()) {
+            "truehd", "mlp" -> true
+            else -> false
+        }
+
+    private fun isLosslessAudioMime(mime: String?): Boolean =
+        mime == MimeTypes.AUDIO_TRUEHD
+
+    private fun scheduleAudioRekickAfterSeek() {
+        if (!player.playWhenReady) return
+        if (!currentAudioIsBitstream && !tunnelingActive) return
+        cancelPendingAudioRekick()
+        val runnable = Runnable {
+            audioRekickRunnable = null
+            performAudioRekick()
+        }
+        audioRekickRunnable = runnable
+        mainHandler.postDelayed(runnable, 200L)
+    }
+
+    private fun cancelPendingAudioRekick() {
+        audioRekickRunnable?.let { mainHandler.removeCallbacks(it) }
+        audioRekickRunnable = null
+    }
+
+    private fun scheduleResumeWedgeCheck() {
+        cancelResumeWedgeCheck()
+        val check = Runnable {
+            resumeWedgeCheck = null
+            if (isDisposed || currentUrl == null) return@Runnable
+            val bufferedAheadMs = player.bufferedPosition - player.currentPosition
+            val stuck = ResumeWedgePolicy.shouldReprepare(
+                stillBuffering = player.playbackState == Player.STATE_BUFFERING,
+                playWhenReady = player.playWhenReady,
+                bufferedAheadMs = bufferedAheadMs,
+                isLiveSource = currentIsLive,
+                playerLive = isPlayerLive(),
+            )
+            if (!stuck) return@Runnable
+            val resumeMs = player.currentPosition.coerceAtLeast(0L)
+            Media3Bridge.emitEvent(
+                mapOf(
+                    "event" to "resumeWedgeRecovery",
+                    "positionMs" to resumeMs,
+                    "bufferedAheadMs" to bufferedAheadMs,
+                ),
+            )
+            prepareCurrentSource(resumeMs, playWhenReady = true)
+        }
+        resumeWedgeCheck = check
+        mainHandler.postDelayed(check, ResumeWedgePolicy.CHECK_DELAY_MS)
+    }
+
+    private fun cancelResumeWedgeCheck() {
+        resumeWedgeCheck?.let { mainHandler.removeCallbacks(it) }
+        resumeWedgeCheck = null
+    }
+
+    private fun performAudioRekick() {
+        if (isDisposed || !player.playWhenReady) return
+        suppressStateEmissionsForRekick = true
+        player.playWhenReady = false
+        mainHandler.post {
+            if (!isDisposed) {
+                player.playWhenReady = true
+            }
+            suppressStateEmissionsForRekick = false
+            if (!isDisposed) emitState()
+        }
+    }
+
+    private val listener = object : Player.Listener {
+        @Suppress("DEPRECATION")
+        override fun onCues(cues: List<Cue>) {
+            val stacked = joinStackedCues(cues)
+            subtitleView.setCues(stacked)
+            if (::secondarySubtitleOverlay.isInitialized) {
+                secondarySubtitleOverlay.updatePrimaryCues(
+                    stacked,
+                    allowAutomaticShift = !selectedSubtitleIsAss,
+                )
+            }
+        }
+
+        override fun onCues(cueGroup: CueGroup) {
+            val stacked = joinStackedCues(cueGroup.cues)
+            subtitleView.setCues(stacked)
+            if (::secondarySubtitleOverlay.isInitialized) {
+                secondarySubtitleOverlay.updatePrimaryCues(
+                    stacked,
+                    allowAutomaticShift = !selectedSubtitleIsAss,
+                )
+            }
+        }
+
+        override fun onPlaybackStateChanged(playbackState: Int) {
+            if (
+                playbackState == Player.STATE_READY &&
+                !firstFrameRendered &&
+                firstFrameCover.visibility == View.VISIBLE &&
+                videoWidthPx > 0 &&
+                videoHeightPx > 0
+            ) {
+                revealVideo()
+            }
+            if (displayModeSwitchInFlight() && playbackState == Player.STATE_READY) {
+                if (wasPlayingBeforeDisplayModeSwitch && !player.playWhenReady) {
+                    player.playWhenReady = true
+                }
+            }
+            if (playbackState == Player.STATE_READY) reportUnsupportedVideoIfNeeded()
+            emitState()
+            if (playbackState == Player.STATE_ENDED &&
+                Media3Bridge.isActive(this@Media3VideoView)
+            ) {
+                Media3Bridge.emitEvent(
+                    mapOf(
+                        "event" to "completed",
+                        "completed" to true,
+                    ) + endOfStreamDiagnostics(),
+                )
+            }
+            syncTicker()
+        }
+
+        override fun onIsPlayingChanged(isPlaying: Boolean) {
+            emitState()
+        }
+
+        override fun onPlayWhenReadyChanged(playWhenReady: Boolean, reason: Int) {
+            // The HDMI switch drops the audio route and the player pauses
+            // itself. A pause the user asked for has to survive the switch, so
+            // only the system's own is worth undoing.
+            if (!playWhenReady && displayModeSwitchInFlight()) {
+                if (reason == Player.PLAY_WHEN_READY_CHANGE_REASON_USER_REQUEST) {
+                    endDisplayModeSwitchRecovery()
+                } else {
+                    wasPlayingBeforeDisplayModeSwitch = true
+                }
+            }
+            // A route flap pauses the player on its own too, through the
+            // becoming-noisy broadcast or an audio focus loss, and outside a
+            // mode switch nothing resumed it. Remember that so the sink
+            // coming back can undo it. Any other change is the user's and
+            // clears the mark, so a resume never overrides them.
+            if (!playWhenReady && isSystemPauseReason(reason)) {
+                systemPausedAtMs = SystemClock.elapsedRealtime()
+                systemPauseReason = reason
+            } else {
+                systemPausedAtMs = 0L
+            }
+            // Only a pause the viewer asked for. The system's own pauses have
+            // their recoveries above, and the rekick after a seek toggles play
+            // without anyone pausing.
+            if (!suppressStateEmissionsForRekick) {
+                if (!playWhenReady) {
+                    cancelResumeWedgeCheck()
+                    pausedWhileReady = player.playbackState == Player.STATE_READY &&
+                        reason == Player.PLAY_WHEN_READY_CHANGE_REASON_USER_REQUEST
+                } else if (pausedWhileReady) {
+                    pausedWhileReady = false
+                    scheduleResumeWedgeCheck()
+                }
+            }
+            emitState()
+            syncTicker()
+        }
+
+        override fun onPlayerError(error: PlaybackException) {
+            // Recovery order matters: an error while a display mode switch is
+            // in flight is most likely the dropped surface, so that retry gets
+            // the first look. A reclaimed decoder is next, since nothing else
+            // answers that code. An init failure under tunneling is retried
+            // untunneled before any downmix so a tunnel failure can't stick
+            // the whole session to stereo. A failure on an IEC-packed track is
+            // retried with IEC disabled (raw/decode return) before anything
+            // condemns the session to stereo. The downmix retry stays last and
+            // handles 7.1 PCM that the device can't open as an 8-channel
+            // AudioTrack.
+            val nativeRetryTriggered = retryPlaybackOnDisplayModeSwitchErrorIfNeeded(error) ||
+                retryPlaybackOnReclaimedDecoderIfNeeded(error) ||
+                retryAudioWithoutOffloadIfNeeded(error) ||
+                retryAudioWithoutTunnelingIfNeeded(error) ||
+                retryAudioWithoutIecIfNeeded(error) ||
+                retryAudioWithStereoDownmixIfNeeded(error)
+            if (nativeRetryTriggered) {
+                Media3Bridge.emitEvent(
+                    mapOf(
+                        "event" to "nativeErrorRetry",
+                        "errorCodeName" to error.errorCodeName,
+                        "message" to (error.localizedMessage ?: ""),
+                    ),
+                )
+                return
+            }
+            emitRecoverablePlayerError(error, nativeRetryTriggered)
+            Media3Bridge.emitEvent(
+                mapOf(
+                    "event" to "error",
+                    "message" to (error.localizedMessage ?: "Unknown Media3 playback error"),
+                    "errorCodeName" to error.errorCodeName,
+                    // The top level message is often empty, so a report needs
+                    // the cause chain and the frame the failure came from.
+                    "cause" to describeCauseChain(error),
+                ),
+            )
+            emitState()
+        }
+
+        override fun onTracksChanged(tracks: androidx.media3.common.Tracks) {
+            retimeTextTrack()
+            pendingSubtitleIndex?.let { index ->
+                if (!applyPendingSubtitle() && subtitleRetime == null &&
+                    index in 1..trackCount(C.TRACK_TYPE_TEXT)
+                ) {
+                    // The target track exists but can't be selected (for
+                    // example an unsupported codec), so retrying on the next
+                    // tracks change won't help.
+                    pendingSubtitleIndex = null
+                    pendingSubtitleCodec = null
+                    pendingSubtitleIsExternal = null
+                    pendingSubtitleIsBitmap = null
+                    pendingExternalSubtitleUrl = null
+                }
+            }
+            pendingClosedCaptionId?.takeIf { subtitleRetime == null }?.let { id ->
+                if (selectClosedCaptionTrack(id)) {
+                    applyClosedCaptionSelection()
+                } else if (id in 1..collectClosedCaptionTracks().size) {
+                    // The track is there and still won't select, so waiting for
+                    // another track change won't help.
+                    pendingClosedCaptionId = null
+                }
+            }
+            pendingAudioIndex?.let { index ->
+                if (selectTrack(C.TRACK_TYPE_AUDIO, index) ||
+                    index in 1..trackCount(C.TRACK_TYPE_AUDIO)
+                ) {
+                    pendingAudioIndex = null
+                }
+            }
+            emitTracksChanged()
+            reportUnsupportedVideoIfNeeded()
+            emitState()
+        }
+
+        override fun onVideoSizeChanged(videoSize: VideoSize) {
+            videoWidthPx = videoSize.width
+            videoHeightPx = videoSize.height
+            videoPixelRatio = videoSize.pixelWidthHeightRatio
+            applyVideoLayout()
+            layoutPaddingRowMask()
+            resolveSelectedVideoFrameRate()?.let { frameRate ->
+                // detectedFrameRate holds the normalized rate, so compare like
+                // with like or every callback re-runs the whole switch.
+                if (detectedFrameRate != DisplayModeChooser.normalizeFrameRate(frameRate)) {
+                    maybeApplyFrameRateSwitching(frameRate)
+                }
+            }
+            Media3Bridge.emitEvent(
+                mapOf(
+                    "event" to "videoSizeChanged",
+                    "width" to videoSize.width,
+                    "height" to videoSize.height,
+                    "pixelWidthHeightRatio" to videoSize.pixelWidthHeightRatio,
+                ),
+            )
+        }
+
+        override fun onAudioSessionIdChanged(audioSessionId: Int) {
+            audioPipeline.setAudioSessionId(audioSessionId)
+            if (currentAudioSessionId != audioSessionId) {
+                if (
+                    openedAudioEffectSessionId != C.AUDIO_SESSION_ID_UNSET &&
+                    openedAudioEffectSessionId != audioSessionId
+                ) {
+                    closeExternalAudioEffectSessionIfOpen()
+                }
+                currentAudioSessionId = audioSessionId
+            }
+            openExternalAudioEffectSessionIfNeeded()
+        }
+
+        override fun onPositionDiscontinuity(
+            oldPosition: Player.PositionInfo,
+            newPosition: Player.PositionInfo,
+            reason: Int,
+        ) {
+            if (reason == Player.DISCONTINUITY_REASON_SEEK ||
+                reason == Player.DISCONTINUITY_REASON_SEEK_ADJUSTMENT
+            ) {
+                clearSubtitleCues()
+                secondarySubtitleOverlay.renderAt(player.currentPosition)
+                scheduleAudioRekickAfterSeek()
+                // Otherwise Dart only learns the seek landed from the next
+                // 250ms ticker tick, which can still report the pre-seek
+                // position if it fires just before ExoPlayer applies this.
+                emitState()
+            }
+        }
+
+        override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
+            audioPipeline.normalizationGainDb = currentNormalizationGainDb
+            audioPipeline.userBoostMb = userVolumeBoostLevel * 200
+        }
+
+        override fun onRenderedFirstFrame() {
+            Media3Bridge.emitEvent(
+                mapOf(
+                    "event" to "firstFrameRendered",
+                    "positionMs" to player.currentPosition,
+                ),
+            )
+            resolveSelectedVideoFrameRate()?.let { frameRate ->
+                if (detectedFrameRate != DisplayModeChooser.normalizeFrameRate(frameRate)) {
+                    maybeApplyFrameRateSwitching(frameRate)
+                }
+            }
+            revealVideo()
+        }
+    }
+
+    private val analyticsListener = object : AnalyticsListener {
+        override fun onVideoInputFormatChanged(
+            eventTime: AnalyticsListener.EventTime,
+            format: Format,
+            decoderReuseEvaluation: DecoderReuseEvaluation?,
+        ) {
+            val frameRate = resolveSelectedVideoFrameRate() ?: format.frameRate
+            if (frameRate.isFinite() && frameRate > 0f) {
+                maybeApplyFrameRateSwitching(frameRate)
+            }
+        }
+
+        override fun onAudioInputFormatChanged(
+            eventTime: AnalyticsListener.EventTime,
+            format: Format,
+            decoderReuseEvaluation: DecoderReuseEvaluation?,
+        ) {
+            currentAudioIsBitstream = isBitstreamAudioMime(format.sampleMimeType)
+            val lossless = isLosslessAudioMime(format.sampleMimeType)
+            if (lossless != currentAudioIsLossless) {
+                // A mid-play track switch moved onto (or off) TrueHD/MLP:
+                // re-apply the selector so the tunneling gate follows the
+                // active track. Posted to avoid re-entering the selector
+                // while a selection is being committed.
+                currentAudioIsLossless = lossless
+                mainHandler.post { applyTrackSelectorForCurrentSource() }
+            }
+        }
+
+        override fun onAudioSinkError(
+            eventTime: AnalyticsListener.EventTime,
+            audioSinkError: Exception,
+        ) {
+            val message = audioSinkError.message?.lowercase() ?: ""
+            val isDiscontinuityError =
+                audioSinkError is AudioSink.UnexpectedDiscontinuityException ||
+                    message.contains("discontinuity") ||
+                    message.contains("discontinu")
+            if (isDiscontinuityError) {
+                Media3Bridge.emitEvent(
+                    mapOf(
+                        "event" to "tunnelingDiscontinuity",
+                    ),
+                )
+            } else {
+                // A track the route killed is held and rebuilt by the sink
+                // wrapper, so Dart reads the tag and keeps it out of the
+                // tunneling fallback count.
+                val deadObject = audioSinkError is AudioSink.WriteException &&
+                    RouteFlapHold.isDeadObjectCode(audioSinkError.errorCode)
+                Media3Bridge.emitEvent(
+                    mapOf(
+                        "event" to "audioSinkError",
+                        "message" to (audioSinkError.message ?: audioSinkError.toString()),
+                        "deadObject" to deadObject,
+                    ),
+                )
+            }
+        }
+
+        override fun onDroppedVideoFrames(
+            eventTime: AnalyticsListener.EventTime,
+            droppedFrames: Int,
+            elapsedMs: Long,
+        ) {
+            Media3Bridge.emitEvent(
+                mapOf(
+                    "event" to "droppedFrames",
+                    "count" to droppedFrames,
+                    "elapsedMs" to elapsedMs,
+                ),
+            )
+        }
+
+        override fun onAudioUnderrun(
+            eventTime: AnalyticsListener.EventTime,
+            bufferSize: Int,
+            bufferSizeMs: Long,
+            elapsedSinceLastFeedMs: Long,
+        ) {
+            Media3Bridge.emitEvent(
+                mapOf(
+                    "event" to "audioUnderrun",
+                    "bufferSizeMs" to bufferSizeMs,
+                    "elapsedMs" to elapsedSinceLastFeedMs,
+                ),
+            )
+        }
+
+        override fun onVideoDecoderInitialized(
+            eventTime: AnalyticsListener.EventTime,
+            decoderName: String,
+            initializedTimestampMs: Long,
+            initializationDurationMs: Long,
+        ) {
+            Media3Bridge.emitEvent(
+                mapOf(
+                    "event" to "videoDecoderInit",
+                    "decoder" to decoderName,
+                ),
+            )
+        }
+
+        override fun onAudioDecoderInitialized(
+            eventTime: AnalyticsListener.EventTime,
+            decoderName: String,
+            initializedTimestampMs: Long,
+            initializationDurationMs: Long,
+        ) {
+            // An ffmpeg* name means the extension renderer took the track and
+            // c2.*/OMX.* a platform decoder. Passthrough emits no decoder init.
+            Media3Bridge.emitEvent(
+                mapOf(
+                    "event" to "audioDecoderInit",
+                    "decoder" to decoderName,
+                ),
+            )
+        }
+
+        override fun onAudioTrackInitialized(
+            eventTime: AnalyticsListener.EventTime,
+            audioTrackConfig: AudioSink.AudioTrackConfig,
+        ) {
+            // Ground truth for whether bitstreaming engaged: a non-PCM
+            // encoding on the AudioTrack is passthrough by definition. Under
+            // the IEC packer the reported encoding is the media truth (ac3,
+            // truehd, ...) while the platform track is ENCODING_IEC61937, and
+            // the iec* fields carry that transport truth.
+            val iecEngaged = iecOutputProvider?.lastOutputWasIec == true
+            val iecCarrier = if (iecEngaged) iecOutputProvider?.lastIecCarrier else null
+            // What narrowed a PCM track, so a stereo one is attributable
+            // without a settings screenshot.
+            val stereoDownmix = when {
+                !stereoDownmixEnabled -> "off"
+                deviceRequiresStereoDownmix -> "device"
+                else -> "preference"
+            }
+            Media3Bridge.emitEvent(
+                mapOf(
+                    "event" to "audioTrackInitialized",
+                    "encoding" to audioTrackConfig.encoding,
+                    "encodingName" to encodingName(audioTrackConfig.encoding),
+                    "passthrough" to !Util.isEncodingLinearPcm(audioTrackConfig.encoding),
+                    "sampleRate" to audioTrackConfig.sampleRate,
+                    "channelConfig" to audioTrackConfig.channelConfig,
+                    // The CHANNEL_OUT mask is one bit per speaker, so the bit
+                    // count is the channel count the sink actually opened.
+                    "outputChannels" to Integer.bitCount(audioTrackConfig.channelConfig),
+                    "stereoDownmix" to stereoDownmix,
+                    "tunneling" to audioTrackConfig.tunneling,
+                    "offload" to audioTrackConfig.offload,
+                    "bufferSize" to audioTrackConfig.bufferSize,
+                    "iecPacker" to iecEngaged,
+                    "iecCarrierRate" to (iecCarrier?.sampleRate ?: 0),
+                    "iecCarrierChannels" to (iecCarrier?.channelCount ?: 0),
+                ),
+            )
+        }
+    }
+
+    init {
+        // createPlayer() constructs trackSelector, so build the player first.
+        player = createPlayer()
+        secondarySubtitleOverlay = SecondarySubtitleOverlay(
+            view = secondarySubtitleView,
+            dataSourceFactory = { bootDataSourceFactory },
+            mainHandler = mainHandler,
+            positionMs = { if (isPlayerReleased) lastPlaybackPositionMs else player.currentPosition },
+            onFailure = { message ->
+                Media3Bridge.emitEvent(
+                    mapOf("event" to "secondarySubtitleError", "message" to message),
+                )
+            },
+            onPrimaryVerticalOffset = { offsetPx ->
+                subtitleView.translationY = offsetPx
+            },
+        )
+
+        applyTrackSelectorForCurrentSource()
+
+        containerView.addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ ->
+            applyVideoLayout()
+        }
+
+        refreshSubtitleRendererMode()
+
+        // The bridge puts the host in the slot itself.
+        if (!isHeadlessHost) {
+            startTicker()
+            Media3Bridge.registerView(platformViewId, this)
+            Media3Bridge.attachView(this)
+        }
+
+        // Route changes invalidate the sticky stereo-downmix conclusion.
+        // Registration fires the callback once immediately with the current
+        // devices, which is a no-op while the downmix isn't engaged.
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M &&
+            audioDeviceCallback != null
+        ) {
+            context.getSystemService<AudioManager>()
+                ?.registerAudioDeviceCallback(audioDeviceCallback, mainHandler)
+        }
+    }
+
+    override fun getView(): View = containerView
+
+    fun isReattachable(): Boolean = !isDisposedByFlutter
+
+    fun isPlayerLive(): Boolean = !isPlayerReleased && !isDisposedByFlutter
+
+    // Rebuilds the player after another view's attachView() force-released it
+    // while this widget stayed mounted. This mirrors the init path and leaves
+    // the source alone, because the caller re-sends its own source right after
+    // (a view swap or trailer reactivation). Use resumeFromBackground when there
+    // is no incoming source to reload.
+    fun ensurePlayerAlive() {
+        if (!isPlayerReleased) return
+        isPlayerReleased = false
+        isDisposed = false
+        firstFrameRendered = false
+        firstFrameCover.visibility = View.VISIBLE
+        recreateVideoView()
+        player = createPlayer()
+        playerHasLoadedSource = false
+        applyTrackSelectorForCurrentSource()
+        refreshSubtitleRendererMode()
+        startTicker()
+    }
+
+    /**
+     * True while this view is mid-playback. A stop clears the media items, so
+     * a view waiting for its next source reads false and has nothing worth
+     * handing on.
+     */
+    fun hasLiveSource(): Boolean =
+        isPlayerLive() && player.currentMediaItem != null
+
+    /**
+     * The source this view was playing, wound to the position it stopped at.
+     * Read it after [forceReleasePlayer], which is what captures that position.
+     */
+    fun handoverSourceArguments(): Map<*, *>? {
+        val args = lastSourceArguments ?: return null
+        return args.toMutableMap().apply {
+            this["startPositionMs"] = lastPlaybackPositionMs
+        }
+    }
+
+    // Rebuilds the player and reloads the last source at its paused position when
+    // the app returns from the background or the system screensaver. Only runs
+    // when the player was actually released, so a still-live view is untouched.
+    fun resumeFromBackground() {
+        if (!isPlayerReleased) return
+        ensurePlayerAlive()
+        val args = lastSourceArguments ?: return
+        val restored = args.toMutableMap().apply {
+            this["startPositionMs"] = lastPlaybackPositionMs
+            this["autoPlay"] = false
+        }
+        setSource(restored)
+    }
+
+    fun isAudioPlayback(): Boolean = currentMediaType == "audio"
+
+    fun forceReleasePlayer() {
+        if (isPlayerReleased) return
+        lastPlaybackPositionMs = player.currentPosition
+        isPlayerReleased = true
+        isDisposed = true
+        cancelPendingRetime()
+        cancelPendingAudioRekick()
+        cancelResumeWedgeCheck()
+        stopTicker()
+        closeExternalAudioEffectSessionIfOpen()
+        currentAudioSessionId = C.AUDIO_SESSION_ID_UNSET
+        restorePreferredDisplayMode()
+        detectedFrameRate = null
+        releaseAssOverlay()
+        player.removeListener(listener)
+        player.removeAnalyticsListener(analyticsListener)
+        audioPipeline.release()
+        player.clearVideoSurface()
+        Media3SessionController.releaseForPlayer(player)
+        // Stop and clear before releasing so the render threads unwind and the
+        // last decoded frame is dropped instead of lingering in the surface.
+        player.stop()
+        player.clearMediaItems()
+        player.release()
+
+        videoView.visibility = View.GONE
+        if (videoView is SurfaceView) {
+            (videoView as SurfaceView).holder.setFormat(android.graphics.PixelFormat.TRANSPARENT)
+        }
+    }
+
+    override fun dispose() {
+        leaveCensus?.invoke()
+        isDisposedByFlutter = true
+        // Unregister before the audio early return so a disposed view can
+        // never be re-activated.
+        Media3Bridge.unregisterView(platformViewId, this)
+        unregisterSystemCallbacks()
+        secondarySubtitleOverlay.dispose()
+        if (currentMediaType == "audio") {
+            player.clearVideoSurface()
+            return
+        }
+        forceReleasePlayer()
+        containerView.removeAllViews()
+        Media3Bridge.detachView(this)
+    }
+
+    fun destroyHeadless() {
+        unregisterSystemCallbacks()
+        secondarySubtitleOverlay.dispose()
+        forceReleasePlayer()
+        containerView.removeAllViews()
+    }
+
+    private fun unregisterSystemCallbacks() {
+        if (Media3LogRelay.spuriousAudioPositionListener === audioClockListener) {
+            Media3LogRelay.spuriousAudioPositionListener = null
+        }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M &&
+            audioDeviceCallback != null
+        ) {
+            context.getSystemService<AudioManager>()
+                ?.unregisterAudioDeviceCallback(audioDeviceCallback)
+        }
+    }
+
+    // The default load control stops buffering at a byte budget that a
+    // high bitrate remux burns through in seconds, so bursty networks
+    // underrun and stutter long before the time target is reached. Scale
+    // the byte budget to the app heap and stretch the streaming time
+    // ceiling so direct play keeps a real runway, leaving local playback
+    // durations at their defaults.
+    private fun buildLoadControl(): DefaultLoadControl {
+        // The floor is media3's small pre track selection minimum on purpose.
+        // Its stock byte targets sit near 138MB, more than the entire heap on
+        // 128MB devices like the Fire TV Stick HD, so a stock floor lets the
+        // loader fill the heap and die on a segment allocation before the
+        // byte ceiling can ever trip.
+        val maxHeapBytes = Runtime.getRuntime().maxMemory()
+        val targetBufferBytes = (maxHeapBytes / 3)
+            .coerceAtMost(MAX_TARGET_BUFFER_BYTES)
+            .coerceAtLeast(DefaultLoadControl.DEFAULT_MIN_BUFFER_SIZE.toLong())
+            .toInt()
+        val builder = DefaultLoadControl.Builder()
+            .setTargetBufferBytes(targetBufferBytes)
+        // Low RAM boxes cant spare the stretched runway on top of decode
+        // buffers, so they keep the stock time budgets.
+        if (!isLowRamDevice) {
+            builder.setBufferDurationsMsForStreaming(
+                DefaultLoadControl.DEFAULT_MIN_BUFFER_MS,
+                STREAMING_MAX_BUFFER_MS,
+                DefaultLoadControl.DEFAULT_BUFFER_FOR_PLAYBACK_MS,
+                DefaultLoadControl.DEFAULT_BUFFER_FOR_PLAYBACK_AFTER_REBUFFER_MS,
+            )
+        }
+        Media3Bridge.emitEvent(
+            mapOf(
+                "event" to "loadControl",
+                "targetBufferBytes" to targetBufferBytes,
+                "maxHeapBytes" to maxHeapBytes,
+                "lowRam" to isLowRamDevice,
+            ),
+        )
+        return builder.build()
+    }
+
+    // A live fMP4 stream is joined part way through the broadcast, so its first
+    // fragment carries a decode time hours past zero. Media3 builds its
+    // fragmented MP4 extractor without a timestamp adjuster and reports those
+    // times unchanged, which leaves the renderers waiting on a position that
+    // never arrives. TS rebases to zero inside its own extractor, which is why
+    // live TS plays while live fMP4 sits on a spinner. A rebasing extractor
+    // goes first for a live source, and anything that isn't fMP4 fails its
+    // sniff and falls through to the extractors behind it.
+    private inner class LiveFmp4ExtractorsFactory(
+        private val delegate: ExtractorsFactory,
+        private var subtitleParserFactory: SubtitleParser.Factory,
+    ) : ExtractorsFactory by delegate {
+
+        // Media3 pushes its subtitle settings into the extractors while it
+        // builds a media source. Kotlin only delegates the methods the
+        // interface leaves abstract, so these are forwarded by hand to keep
+        // the delegate on the settings it runs with today.
+        override fun setSubtitleParserFactory(
+            subtitleParserFactory: SubtitleParser.Factory,
+        ): ExtractorsFactory {
+            this.subtitleParserFactory = subtitleParserFactory
+            delegate.setSubtitleParserFactory(subtitleParserFactory)
+            return this
+        }
+
+        @Suppress("DEPRECATION", "OVERRIDE_DEPRECATION")
+        override fun experimentalSetTextTrackTranscodingEnabled(
+            enabled: Boolean,
+        ): ExtractorsFactory {
+            delegate.experimentalSetTextTrackTranscodingEnabled(enabled)
+            return this
+        }
+
+        override fun experimentalSetCodecsToParseWithinGopSampleDependencies(
+            codecsToParseWithinGopSampleDependencies: Int,
+        ): ExtractorsFactory {
+            delegate.experimentalSetCodecsToParseWithinGopSampleDependencies(
+                codecsToParseWithinGopSampleDependencies,
+            )
+            return this
+        }
+
+        override fun createExtractors(): Array<Extractor> =
+            prependLiveFmp4(delegate.createExtractors())
+
+        override fun createExtractors(
+            uri: Uri,
+            responseHeaders: Map<String, List<String>>,
+        ): Array<Extractor> = prependLiveFmp4(delegate.createExtractors(uri, responseHeaders))
+
+        // Extractors are built when the source loads, so this reads the flag
+        // the current setSource left behind without rebuilding the player.
+        private fun prependLiveFmp4(extractors: Array<Extractor>): Array<Extractor> {
+            if (!currentIsLive) return extractors
+            val rebasing = FragmentedMp4Extractor(
+                subtitleParserFactory,
+                /* flags= */ 0,
+                TimestampAdjuster(0),
+                /* sideloadedTrack= */ null,
+                /* closedCaptionFormats= */ emptyList(),
+                /* additionalEmsgTrackOutput= */ null,
+            )
+            return arrayOf<Extractor>(rebasing) + extractors
+        }
+    }
+
+    /**
+     * Whether the route killed the AudioTrack rather than the device refusing
+     * to open it. A write on a track whose output went away answers with a
+     * dead object, and the replacement opens at the same shape once the link
+     * is back, so the failure says nothing about the channel count.
+     */
+    private fun errorIsDeadAudioTrack(error: PlaybackException): Boolean {
+        var cause: Throwable? = error
+        var depth = 0
+        while (cause != null && depth < 6) {
+            val writeError = cause as? AudioSink.WriteException
+            if (writeError != null && RouteFlapHold.isDeadObjectCode(writeError.errorCode)) {
+                return true
+            }
+            cause = cause.cause
+            depth++
+        }
+        return false
+    }
+
+    // Walks a failure back to its root, naming the type and the first frame
+    // of our own or media3's code that it came through.
+    private fun describeCauseChain(error: Throwable): String {
+        val parts = mutableListOf<String>()
+        var cause: Throwable? = error
+        var depth = 0
+        while (cause != null && depth < 6) {
+            val frame = cause.stackTrace.firstOrNull {
+                it.className.startsWith("org.moonfin") ||
+                    it.className.startsWith("androidx.media3")
+            }
+            parts += buildString {
+                append(cause!!.javaClass.simpleName)
+                cause!!.message?.let { append(": ").append(it) }
+                frame?.let {
+                    append(" at ").append(it.className.substringAfterLast('.'))
+                    append('.').append(it.methodName).append(':').append(it.lineNumber)
+                }
+            }
+            cause = cause.cause
+            depth++
+        }
+        return parts.joinToString(" <- ")
+    }
+
+    // Called from the extractor's loader thread whenever profile 7 handling
+    // settles or changes. emitEvent posts to the main thread itself.
+    private fun onDoviCompatReport(report: DoviCompatReport) {
+        Media3Bridge.emitEvent(
+            mapOf(
+                "event" to "doviCompat",
+                "reason" to report.reason,
+                "requestedMode" to report.requestedMode.wireValue,
+                "mode" to (report.appliedMode?.wireValue ?: "none"),
+                "codecs" to report.sourceCodecs,
+                "rpuSource" to report.rpuSource,
+                "samplesFiltered" to report.samplesFiltered,
+                "rpusSeen" to report.rpusSeen,
+                "rpusConverted" to report.rpusConverted,
+                "rpusDropped" to report.rpusDropped,
+                "rpusFailed" to report.rpusFailed,
+                "enhancementUnitsDropped" to report.enhancementUnitsDropped,
+                "blockAdditionsRead" to report.blockAdditionsRead,
+                "nalCensus" to report.nalCensus,
+                "sampleLayout" to report.sampleLayout,
+                "bytesIn" to report.bytesIn,
+                "bytesOut" to report.bytesOut,
+                "formatSummary" to report.formatSummary,
+                "converterStatus" to DoviRpu.statusText(),
+                "detail" to report.detail,
+            ),
+        )
+    }
+
+    // Some passthrough HALs reset the AudioTrack playback head to zero mid
+    // stream. The position tracker reads the backward jump as a 32 bit wrap
+    // and adds 2^32 frames, which throws the audio clock many hours ahead, so
+    // video chases a time that never comes and playback parks in buffering
+    // with a full runway. The sink and its position tracker are the only
+    // broken parts, and a seek to the current position rebuilds both, so
+    // playback carries on from the same frame.
+    private fun maybeRecoverAudioClock(reportedPositionUs: Long) {
+        mainHandler.post {
+            if (isDisposed || isPlayerReleased) return@post
+            // The head clock counts time since its AudioTrack started, so the
+            // player's own age bounds it. A warning under that bound is the
+            // sink rejecting a flaky HAL timestamp, which it handles itself.
+            val playerAgeMs = SystemClock.elapsedRealtime() - playerCreatedAtMs
+            if (reportedPositionUs / 1000 < playerAgeMs + AUDIO_CLOCK_CORRUPTION_MARGIN_MS) {
+                return@post
+            }
+            val nowMs = SystemClock.elapsedRealtime()
+            if (nowMs - lastAudioClockRecoveryAtMs < AUDIO_CLOCK_RECOVERY_MIN_INTERVAL_MS) {
+                return@post
+            }
+            lastAudioClockRecoveryAtMs = nowMs
+            val resumeMs = player.currentPosition
+            Media3Bridge.emitEvent(
+                mapOf(
+                    "event" to "audioClockRecovery",
+                    "positionMs" to resumeMs,
+                    "reportedPositionUs" to reportedPositionUs,
+                ),
+            )
+            player.seekTo(resumeMs)
+        }
+    }
+
+    // The sink proved its bitstream track dead, so rebuild it from the
+    // player's thread with an in-place seek. The renderer flushes the sink on
+    // the way through, and the write hold the detector armed keeps the new
+    // track from opening before the dead one is released.
+    private fun recoverPassthroughSilence(reason: String) {
+        mainHandler.post {
+            if (isDisposed || isPlayerReleased) return@post
+            val resumeMs = player.currentPosition
+            Media3Bridge.emitEvent(
+                mapOf(
+                    "event" to "passthroughSilenceRecovery",
+                    "positionMs" to resumeMs,
+                    "reason" to reason,
+                ),
+            )
+            player.seekTo(resumeMs)
+        }
+    }
+
+    private fun createPlayer(): ExoPlayer {
+        Media3LogRelay.install()
+        audioAttributeState.reset()
+        cancelPendingRetime()
+        playerCreatedAtMs = SystemClock.elapsedRealtime()
+        if (role == "main") {
+            Media3LogRelay.spuriousAudioPositionListener = audioClockListener
+        }
+        emitFfmpegDecoderDiagnosticsOnce()
+        // Fresh selector for every player; see the trackSelector field comment.
+        trackSelector = DefaultTrackSelector(context)
+        audioDelayProcessor.setDelayMs(audioDelayMs)
+        val passthroughPolicy = AudioPassthroughPolicy.fromWire(
+            passthroughMode,
+            passthroughCodecs,
+        )
+        iecOutputProvider = if (passthroughOutput == "iec" && Build.VERSION.SDK_INT >= 24) {
+            Iec61937AudioOutputProvider(context)
+        } else {
+            null
+        }
+        val renderersFactory = MoonfinRenderersFactory(
+            context = context,
+            audioDelayProcessor = audioDelayProcessor,
+            channelMixingProcessor = channelMixingProcessor,
+            preferSoftwareAv1Renderer = !hasHardwareAv1Decoder,
+            passthroughPolicy = passthroughPolicy,
+            stereoDownmixRequested = ::effectiveStereoDownmix,
+            onPassthroughRecoveryNeeded = ::recoverPassthroughSilence,
+            iecOutputProvider = iecOutputProvider,
+        ).apply {
+            setEnableDecoderFallback(true)
+            setExtensionRendererMode(extensionRendererModeFor(passthroughPolicy))
+        }
+
+        val extractorsFactory = DefaultExtractorsFactory()
+            .setConstantBitrateSeekingEnabled(true)
+            .setConstantBitrateSeekingAlwaysEnabled(true)
+            .withHdmvTsSupport(
+                mode = TsExtractor.MODE_SINGLE_PMT,
+                payloadReaderFlags = DefaultTsPayloadReaderFactory.FLAG_ALLOW_NON_IDR_KEYFRAMES,
+                subtitleFormats = FALLBACK_CLOSED_CAPTION_FORMATS,
+                timestampSearchBytes =
+                    if (isLowRamDevice) TS_SEARCH_BYTES_LOW_RAM else TS_SEARCH_BYTES_DEFAULT,
+            )
+
+        httpDataSourceFactory = DefaultHttpDataSource.Factory()
+            .setAllowCrossProtocolRedirects(true)
+            .setConnectTimeoutMs(120_000)
+            .setReadTimeoutMs(120_000)
+        bootDataSourceFactory = DefaultDataSource.Factory(context, httpDataSourceFactory)
+            .setTransferListener(Media3TransferLog)
+        val assHandler = AssHandler(
+            AssRenderType.OVERLAY_CANVAS,
+            AssHandlerConfig(cacheSize = assCacheSizeMb()),
+        )
+        registerAssFonts(assHandler)
+        // Serializes track creation and dialogue reads against the overlay's
+        // render thread.
+        assParserFactory = MoonfinAssParserFactory(
+            SupAwareSubtitleParserFactory(AssSubtitleParserFactory(assHandler)),
+            assHandler,
+        )
+        bootMediaSourceFactory = DefaultMediaSourceFactory(
+            bootDataSourceFactory,
+            // The DoVi wrapper sits outermost so it sees the extractors every
+            // inner layer ends up producing.
+            DoviCompatExtractorsFactory(
+                LiveFmp4ExtractorsFactory(
+                    extractorsFactory.withMoonfinMkvSupport(assParserFactory, assHandler),
+                    assParserFactory,
+                ),
+                mode = { doviCompatMode },
+                convertNal62 = DoviRpu::convertP7NalToP8,
+                onReport = ::onDoviCompatReport,
+            ),
+        ).apply {
+            setSubtitleParserFactory(assParserFactory)
+        }
+
+        return ExoPlayer.Builder(context, renderersFactory.withAssSupport(assHandler))
+            .setTrackSelector(trackSelector)
+            .setLoadControl(buildLoadControl())
+            .setMediaSourceFactory(bootMediaSourceFactory)
+            .setHandleAudioBecomingNoisy(true)
+            .setWakeMode(C.WAKE_MODE_NETWORK)
+            .setPauseAtEndOfMediaItems(false)
+            .build()
+            .also {
+                attachAssOverlay(assHandler)
+                // init() sets up the handler's looper and registers it as a
+                // listener. Its callbacks reach libass unlocked, so the
+                // forwarder takes that seat instead.
+                assHandler.init(it)
+                it.removeListener(assHandler)
+                it.addListener(MoonfinAssPlayerListener(assHandler))
+                if (currentMediaType != "audio") {
+                    if (useSurfaceView) {
+                        it.setVideoSurfaceView(videoView as SurfaceView)
+                    } else {
+                        it.setVideoTextureView(videoView as TextureView)
+                    }
+                }
+                it.addListener(listener)
+                it.addAnalyticsListener(analyticsListener)
+                // The MediaSession attaches lazily in setSource() so muted
+                // previews never create one.
+            }
+    }
+
+    private fun registerAssFonts(assHandler: AssHandler) {
+        if (assFallbackFontBytes == null) {
+            assFallbackFontBytes = runCatching {
+                context.assets.open(ASS_FALLBACK_FONT_ASSET).use { it.readBytes() }
+            }.getOrNull()
+        }
+        assFallbackFontBytes?.let { bytes ->
+            runCatching { assHandler.addFont(ASS_FALLBACK_FONT_NAME, bytes) }
+        }
+        registerSystemFallbackFonts(assHandler)
+    }
+
+    private fun registerSystemFallbackFonts(assHandler: AssHandler) {
+        val dir = File("/system/fonts")
+        if (!dir.isDirectory) return
+        val fonts = dir.listFiles()?.filter {
+            it.isFile && it.canRead() &&
+                it.extension.lowercase() in FONT_EXTENSIONS
+        } ?: return
+
+        val added = HashSet<String>()
+        fun add(file: File?) {
+            if (file == null || !added.add(file.name)) return
+            runCatching { assHandler.addFont(file.nameWithoutExtension, file.readBytes()) }
+        }
+
+        // One CJK font is enough
+        add(ASS_SYSTEM_CJK_FONTS.firstNotNullOfOrNull { name ->
+            fonts.firstOrNull { it.name.equals(name, ignoreCase = true) }
+        })
+
+        // One font per script/symbol block. The char after the prefix must not be
+        // a digit, so "NotoSansSymbols" does not swallow "NotoSansSymbols2".
+        for (prefix in ASS_SYSTEM_SCRIPT_PREFIXES) {
+            add(fonts.firstOrNull {
+                it.name.startsWith(prefix, ignoreCase = true) &&
+                    it.name.getOrNull(prefix.length)?.isDigit() != true
+            })
+        }
+    }
+
+    // libass caches rasterized glyphs in native memory, and ass-media asks for
+    // 128MB on every device. That's more than the whole Java heap on the low
+    // memory boxes this ships to, so the ask scales with the heap instead.
+    private fun assCacheSizeMb(): Int {
+        val quarterHeapMb = Runtime.getRuntime().maxMemory() / (4L * 1024L * 1024L)
+        return quarterHeapMb
+            .coerceIn(ASS_MIN_CACHE_SIZE_MB.toLong(), ASS_MAX_CACHE_SIZE_MB.toLong())
+            .toInt()
+    }
+
+    private fun attachAssOverlay(assHandler: AssHandler) {
+        releaseAssOverlay()
+        val overlay = MoonfinAssOverlayView(context, assHandler)
+        subtitleView.addView(
+            overlay,
+            FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.MATCH_PARENT,
+                FrameLayout.LayoutParams.MATCH_PARENT,
+            ),
+        )
+        assOverlayView = overlay
+    }
+
+    // Stops the render thread and waits for the frame inside libass to finish.
+    // Runs before the player goes, because releasing the player is what drops
+    // the last references to the handler's native objects.
+    private fun releaseAssOverlay() {
+        assOverlayView?.let { overlay ->
+            subtitleView.removeView(overlay)
+            overlay.release()
+        }
+        assOverlayView = null
+    }
+
+    private fun rebuildPlayerForDecoderPreference() {
+        cancelPendingRetime()
+        closeExternalAudioEffectSessionIfOpen()
+        currentAudioSessionId = C.AUDIO_SESSION_ID_UNSET
+        restorePreferredDisplayMode()
+        detectedFrameRate = null
+        releaseAssOverlay()
+        player.removeListener(listener)
+        player.removeAnalyticsListener(analyticsListener)
+        player.clearVideoSurface()
+        Media3SessionController.releaseForPlayer(player)
+        player.release()
+        recreateVideoView()
+        player = createPlayer()
+        httpDataSourceFactory.setDefaultRequestProperties(currentHeaders)
+        Media3Bridge.emitEvent(
+            mapOf(
+                "event" to "playerRebuilt",
+                "viewType" to if (useSurfaceView) "surfaceview" else "textureview",
+                "sdk" to Build.VERSION.SDK_INT,
+                "passthroughMode" to passthroughMode,
+                "passthroughCodecs" to passthroughCodecs.sorted(),
+                "downmixToStereo" to downmixToStereoPreference,
+            ),
+        )
+    }
+
+    // Swaps in a fresh SurfaceView/TextureView so each new source gets a brand
+    // new Surface. Reusing the same Surface across sources hangs the decoder in
+    // buffering on some Android TVs even after the ExoPlayer is recreated.
+    private fun recreateVideoView() {
+        val params = FrameLayout.LayoutParams(
+            FrameLayout.LayoutParams.MATCH_PARENT,
+            FrameLayout.LayoutParams.MATCH_PARENT,
+            Gravity.CENTER,
+        )
+        videoView.visibility = View.GONE
+        if (videoView is SurfaceView) {
+            (videoView as SurfaceView).holder.setFormat(android.graphics.PixelFormat.TRANSPARENT)
+        }
+        containerView.removeView(videoView)
+        videoView = newVideoView()
+        containerView.addView(videoView, 0, params)
+    }
+
+    // Dart "release" is only issued by preview flows, so stop in place and
+    // keep the player for the next setSource. playerHasLoadedSource stays true
+    // so the next setSource still takes the fresh-player/fresh-surface rebuild
+    // path that works around decoder-reuse hangs on some TVs.
+    private fun releaseActivePlayer() {
+        if (isDisposed) return
+        clearSubtitleCues()
+        cancelPendingRetime()
+        cancelPendingAudioRekick()
+        cancelResumeWedgeCheck()
+        closeExternalAudioEffectSessionIfOpen()
+        currentAudioSessionId = C.AUDIO_SESSION_ID_UNSET
+        restorePreferredDisplayMode()
+        detectedFrameRate = null
+        Media3SessionController.releaseForPlayer(player)
+        player.stop()
+        player.clearMediaItems()
+        disableCapabilityReselection()
+        firstFrameCover.visibility = View.VISIBLE
+        emitState()
+    }
+
+    override fun onMethodCall(call: MethodCall, result: MethodChannel.Result) {
+        handleControlCall(call, result)
+    }
+
+    fun handleControlCall(call: MethodCall, result: MethodChannel.Result) {
+        try {
+            when (call.method) {
+                "setSource" -> {
+                    setSource(call.arguments)
+                    result.success(null)
+                }
+
+                "play" -> {
+                    player.playWhenReady = true
+                    player.play()
+                    emitState()
+                    result.success(null)
+                }
+
+                "pause" -> {
+                    player.pause()
+                    emitState()
+                    result.success(null)
+                }
+
+                "resumeLive" -> {
+                    resumeLiveEdge()
+                    emitState()
+                    result.success(null)
+                }
+
+                "stop" -> {
+                    stopPlaybackAndRestoreDisplayMode()
+                    if (isDisposedByFlutter && currentMediaType != "audio") {
+                        forceReleasePlayer()
+                        Media3Bridge.detachView(this)
+                    }
+                    result.success(null)
+                }
+
+                "release" -> {
+                    releaseActivePlayer()
+                    if (isDisposedByFlutter && currentMediaType != "audio") {
+                        forceReleasePlayer()
+                        Media3Bridge.detachView(this)
+                    }
+                    result.success(null)
+                }
+
+                "appPaused" -> {
+                    if (currentMediaType != "audio") {
+                        forceReleasePlayer()
+                    }
+                    result.success(null)
+                }
+
+                "appResumed" -> {
+                    if (currentMediaType != "audio") {
+                        resumeFromBackground()
+                    }
+                    result.success(null)
+                }
+
+                "seek" -> {
+                    val positionMs = when (val args = call.arguments) {
+                        is Number -> args.toLong()
+                        is Map<*, *> -> (args["positionMs"] as? Number)?.toLong() ?: 0L
+                        else -> 0L
+                    }
+                    player.seekTo(positionMs)
+                    emitState()
+                    result.success(null)
+                }
+
+                "setVolume" -> {
+                    val volumePercent = when (val args = call.arguments) {
+                        is Number -> args.toFloat()
+                        is Map<*, *> -> (args["volume"] as? Number)?.toFloat() ?: 100f
+                        else -> 100f
+                    }
+                    player.volume = (volumePercent / 100f).coerceIn(0f, 1f)
+                    result.success(null)
+                }
+
+                "setSpeed" -> {
+                    val speed = when (val args = call.arguments) {
+                        is Number -> args.toFloat()
+                        is Map<*, *> -> (args["speed"] as? Number)?.toFloat() ?: 1f
+                        else -> 1f
+                    }
+                    player.playbackParameters = PlaybackParameters(speed)
+                    emitState()
+                    result.success(null)
+                }
+
+                "setAudioDelay" -> {
+                    updateAudioDelay(call.arguments)
+                    result.success(null)
+                }
+
+                "setSubtitleDelay" -> {
+                    updateSubtitleDelay(call.arguments)
+                    result.success(null)
+                }
+
+                "setRepeatMode" -> {
+                    updateRepeatMode(call.arguments)
+                    result.success(null)
+                }
+
+                "setSkipSilence" -> {
+                    updateSkipSilence(call.arguments)
+                    result.success(null)
+                }
+
+                "setVolumeBoost" -> {
+                    updateVolumeBoost(call.arguments)
+                    result.success(null)
+                }
+
+                "setZoomMode" -> {
+                    updateZoomMode(call.arguments)
+                    result.success(null)
+                }
+
+                "setLetterboxCrop" -> {
+                    updateLetterboxCrop(call.arguments)
+                    result.success(null)
+                }
+
+                "detectLetterbox" -> {
+                    detectLetterbox(result)
+                }
+
+                "setAudioTrack" -> {
+                    val index = ((call.arguments as? Map<*, *>)?.get("index") as? Number)?.toInt() ?: 0
+                    pendingAudioIndex = index
+                    val selected = selectTrack(C.TRACK_TYPE_AUDIO, index)
+                    if (selected) {
+                        pendingAudioIndex = null
+                    }
+                    result.success(null)
+                }
+
+                "setSubtitleTrack" -> {
+                    handleSetSubtitleTrack(call.arguments as? Map<*, *>)
+                    result.success(null)
+                }
+
+                "setSecondarySubtitle" -> {
+                    selectSecondarySubtitle(call.arguments as? Map<*, *>)
+                    result.success(null)
+                }
+
+                "setSecondarySubtitleDelay" -> {
+                    setSecondarySubtitleDelay(parseDelayMs(call.arguments))
+                    result.success(null)
+                }
+
+                "configureSecondarySubtitleStyle" -> {
+                    configureSecondarySubtitleStyle(call.arguments as? Map<*, *>)
+                    result.success(null)
+                }
+
+                "setClosedCaptionTrack" -> {
+                    handleSetClosedCaptionTrack(call.arguments as? Map<*, *>)
+                    result.success(null)
+                }
+
+                "disableSubtitleTrack" -> {
+                    trackSelector.parameters = trackSelector.parameters
+                        .buildUpon()
+                        .clearOverridesOfType(C.TRACK_TYPE_TEXT)
+                        .setTrackTypeDisabled(C.TRACK_TYPE_TEXT, true)
+                        .build()
+                    selectedSubtitleCodec = null
+                    selectedSubtitleIsExternal = false
+                    selectedSubtitleIsBitmap = false
+                    selectedExternalSubtitleUrl = null
+                    subtitleTrackEnabled = false
+
+                    pendingSubtitleIndex = null
+                    pendingSubtitleCodec = null
+                    pendingSubtitleIsExternal = null
+                    pendingSubtitleIsBitmap = null
+                    pendingExternalSubtitleUrl = null
+                    pendingClosedCaptionId = null
+
+                    applyTrackSelectorForCurrentSource()
+                    clearAssSubtitleScript()
+                    refreshSubtitleRendererMode()
+                    emitTracksChanged()
+                    emitState()
+                    result.success(null)
+                }
+
+                "setSubtitleRendererMode" -> {
+                    updateSubtitleRendererMode(call.arguments)
+                    result.success(null)
+                }
+
+                "setDecoderPreferences" -> {
+                    updateDecoderPreferences(call.arguments)
+                    result.success(null)
+                }
+
+                "disableTunnelingForSession" -> {
+                    disableTunnelingForSession()
+                    result.success(null)
+                }
+
+                "addExternalSubtitle" -> {
+                    addExternalSubtitle(call.arguments as? Map<*, *>)
+                    result.success(null)
+                }
+
+                "configureSubtitleStyle" -> {
+                    configureSubtitleStyle(call.arguments as? Map<*, *>)
+                    result.success(null)
+                }
+
+                "getState" -> {
+                    result.success(stateMap())
+                }
+
+                else -> result.notImplemented()
+            }
+        } catch (t: Throwable) {
+            result.error("MEDIA3_VIEW_ERROR", t.localizedMessage ?: "Unknown error", null)
+        }
+    }
+
+    fun handleQueuedCall(method: String, args: Any?) {
+        try {
+            when (method) {
+                "setSource" -> setSource(args)
+                "play" -> {
+                    player.playWhenReady = true
+                    player.play()
+                    emitState()
+                }
+
+                "pause" -> {
+                    player.pause()
+                    emitState()
+                }
+
+                "resumeLive" -> {
+                    resumeLiveEdge()
+                    emitState()
+                }
+
+                "stop" -> {
+                    stopPlaybackAndRestoreDisplayMode()
+                    if (isDisposedByFlutter && currentMediaType != "audio") {
+                        forceReleasePlayer()
+                        Media3Bridge.detachView(this)
+                    }
+                }
+
+                "release" -> {
+                    releaseActivePlayer()
+                    if (isDisposedByFlutter && currentMediaType != "audio") {
+                        forceReleasePlayer()
+                        Media3Bridge.detachView(this)
+                    }
+                }
+
+                "seek" -> {
+                    val positionMs = when (args) {
+                        is Number -> args.toLong()
+                        is Map<*, *> -> (args["positionMs"] as? Number)?.toLong() ?: 0L
+                        else -> 0L
+                    }
+                    player.seekTo(positionMs)
+                    emitState()
+                }
+
+                "setVolume" -> {
+                    val volumePercent = when (args) {
+                        is Number -> args.toFloat()
+                        is Map<*, *> -> (args["volume"] as? Number)?.toFloat() ?: 100f
+                        else -> 100f
+                    }
+                    player.volume = (volumePercent / 100f).coerceIn(0f, 1f)
+                }
+
+                "setSpeed" -> {
+                    val speed = when (args) {
+                        is Number -> args.toFloat()
+                        is Map<*, *> -> (args["speed"] as? Number)?.toFloat() ?: 1f
+                        else -> 1f
+                    }
+                    player.playbackParameters = PlaybackParameters(speed)
+                    emitState()
+                }
+
+                "setAudioDelay" -> {
+                    updateAudioDelay(args)
+                }
+
+                "setSubtitleDelay" -> {
+                    updateSubtitleDelay(args)
+                }
+
+                "setRepeatMode" -> {
+                    updateRepeatMode(args)
+                }
+
+                "setSkipSilence" -> {
+                    updateSkipSilence(args)
+                }
+
+                "setVolumeBoost" -> {
+                    updateVolumeBoost(args)
+                }
+
+                "setZoomMode" -> {
+                    updateZoomMode(args)
+                }
+
+                "setLetterboxCrop" -> {
+                    updateLetterboxCrop(args)
+                }
+
+                "setAudioTrack" -> {
+                    val index = (args as? Map<*, *>)?.get("index") as? Number ?: return
+                    selectTrack(C.TRACK_TYPE_AUDIO, index.toInt())
+                }
+
+                "setSubtitleTrack" -> {
+                    handleSetSubtitleTrack(args as? Map<*, *>)
+                }
+
+                "setSecondarySubtitle" -> {
+                    selectSecondarySubtitle(args as? Map<*, *>)
+                }
+
+                "setSecondarySubtitleDelay" -> {
+                    setSecondarySubtitleDelay(parseDelayMs(args))
+                }
+
+                "configureSecondarySubtitleStyle" -> {
+                    configureSecondarySubtitleStyle(args as? Map<*, *>)
+                }
+
+                "setClosedCaptionTrack" -> {
+                    handleSetClosedCaptionTrack(args as? Map<*, *>)
+                }
+
+                "disableSubtitleTrack" -> {
+                    trackSelector.parameters = trackSelector.parameters
+                        .buildUpon()
+                        .clearOverridesOfType(C.TRACK_TYPE_TEXT)
+                        .setTrackTypeDisabled(C.TRACK_TYPE_TEXT, true)
+                        .build()
+                    selectedSubtitleCodec = null
+                    selectedSubtitleIsExternal = false
+                    selectedSubtitleIsBitmap = false
+                    selectedExternalSubtitleUrl = null
+                    subtitleTrackEnabled = false
+                    pendingSubtitleIndex = null
+                    pendingSubtitleCodec = null
+                    pendingSubtitleIsExternal = null
+                    pendingSubtitleIsBitmap = null
+                    pendingExternalSubtitleUrl = null
+                    pendingClosedCaptionId = null
+                    applyTrackSelectorForCurrentSource()
+                    clearAssSubtitleScript()
+                    refreshSubtitleRendererMode()
+                    emitTracksChanged()
+                    emitState()
+                }
+
+                "setSubtitleRendererMode" -> {
+                    updateSubtitleRendererMode(args)
+                }
+
+                "disableTunnelingForSession" -> {
+                    disableTunnelingForSession()
+                }
+
+                "addExternalSubtitle" -> addExternalSubtitle(args as? Map<*, *>)
+                "configureSubtitleStyle" -> configureSubtitleStyle(args as? Map<*, *>)
+            }
+        } catch (_: Throwable) {
+        }
+    }
+
+    fun stateSnapshot(): Map<String, Any?> = stateMap()
+
+    fun trackSnapshot(): Map<String, Any?> = trackStateMap()
+
+    private fun setSource(arguments: Any?) {
+        val args = arguments as? Map<*, *> ?: return
+        secondarySubtitleOverlay.clear()
+        lastSourceArguments = args
+        val url = args["url"]?.toString() ?: return
+        val startPositionMs = (args["startPositionMs"] as? Number)?.toLong() ?: 0L
+        val autoPlay = args["autoPlay"] as? Boolean ?: false
+        displayModeSwitchRetriesForCurrentSource = 0
+        decoderReclaimRetriesForCurrentSource = 0
+        cancelResumeWedgeCheck()
+        pausedWhileReady = false
+
+        restorePreferredDisplayMode()
+        detectedFrameRate = null
+        // Most containers, mkv and ts among them, come out of the extractor
+        // with no frame rate on the Format, so the rate the server reported
+        // rides along as the answer of last resort.
+        sourceFrameRateHint = (args["videoFrameRate"] as? Number)
+            ?.toFloat()
+            ?.takeIf { it.isFinite() && it > 0f }
+        // Lets a resolution change respect the video's own size before the
+        // decoder has reported one.
+        sourceVideoWidthHint = (args["videoWidth"] as? Number)?.toInt() ?: 0
+        sourceVideoHeightHint = (args["videoHeight"] as? Number)?.toInt() ?: 0
+
+        val nextMediaType = args["mediaType"]?.toString()?.lowercase() ?: "video"
+        val isAudio = nextMediaType == "audio"
+        val mediaTypeChanged = nextMediaType != currentMediaType
+        val isPreview = args["preview"] as? Boolean ?: false
+
+        currentMediaType = nextMediaType
+        // Seed losslessness from the source's default audio stream so the
+        // very first track selection already avoids tunneling for TrueHD/MLP.
+        // onAudioInputFormatChanged keeps it current across track switches.
+        currentAudioIsLossless =
+            isLosslessAudioCodecName(args["audioCodec"]?.toString())
+
+        if (mediaTypeChanged || decoderPreferenceDirty ||
+            (!isAudio && playerHasLoadedSource)
+        ) {
+            rebuildPlayerForDecoderPreference()
+            decoderPreferenceDirty = false
+        }
+
+        // Previews must not surface a MediaSession or start the session
+        // service, and audio stays sessionless because audio_service owns the
+        // music session. The session attaches after the rebuild so it binds
+        // the live player.
+        if (!isPreview && !isAudio) {
+            Media3SessionController.attachPlayer(context, player)
+        }
+
+        closeExternalAudioEffectSessionIfOpen()
+
+        currentContainer = args["container"]
+            ?.toString()
+            ?.trim()
+            ?.lowercase()
+            ?.takeIf { it.isNotEmpty() }
+        currentIsLive = args["isLive"] as? Boolean ?: false
+        currentIsPreview = isPreview
+        audioOffloadRetryAttemptedForCurrentSource = false
+        stereoDownmixRetryAttemptedForCurrentSource = false
+        tunnelingRetryAttemptedForCurrentSource = false
+        iecRetryAttemptedForCurrentSource = false
+        containerFallbackAttempted = false
+        unsupportedVideoReported = false
+        Media3TransferLog.reset()
+        // Start each source with the downmix the user asked for or the state
+        // the device has proven it needs (sticky once an AudioTrack init
+        // failure was recovered).
+        applyStereoDownmix(effectiveStereoDownmix())
+        currentNormalizationGainDb = (args["normalizationGainDb"] as? Number)?.toFloat()
+        skipSilenceEnabled = args["skipSilenceEnabled"] as? Boolean ?: false
+        manualSubtitleDelayMs = clampManualDelayMs((args["subtitleDelayMs"] as? Number)?.toLong() ?: 0L)
+        sidecarOffsetSources = emptyList()
+        embeddedOffsetSource = null
+        cancelPendingRetime()
+        audioDelayMs = ((args["audioDelayMs"] as? Number)?.toLong() ?: 0L).coerceIn(-5000L, 5000L)
+        userVolumeBoostLevel = ((args["volumeBoostLevel"] as? Number)?.toInt() ?: 0).coerceIn(0, 10)
+        preferredAudioLanguage = normalizeLanguageCode(args["preferredAudioLanguage"]?.toString())
+        preferredTextLanguage = normalizeLanguageCode(args["preferredTextLanguage"]?.toString())
+        selectUndeterminedTextLanguage = args["selectUndeterminedTextLanguage"] as? Boolean ?: false
+        subtitleEmbeddedStylesEnabled = args["subtitleEmbeddedStylesEnabled"] as? Boolean ?: true
+        subtitleEmbeddedFontSizesEnabled = args["subtitleEmbeddedFontSizesEnabled"] as? Boolean ?: true
+
+        currentUrl = url
+        currentHeaders = (args["headers"] as? Map<*, *>)
+            ?.mapNotNull { (k, v) ->
+                if (k == null || v == null) {
+                    null
+                } else {
+                    k.toString() to v.toString()
+                }
+            }
+            ?.toMap()
+            ?: emptyMap()
+        httpDataSourceFactory.setDefaultRequestProperties(currentHeaders)
+
+        resetTrackSelectionsForNewSource()
+        externalSubtitleConfigurations.clear()
+        declaredSubtitlesFrom(args["externalSubtitles"]).forEach(::appendExternalSubtitle)
+        selectedSubtitleCodec = null
+        selectedSubtitleIsExternal = false
+        selectedSubtitleIsBitmap = false
+        selectedExternalSubtitleUrl = null
+        val forceSubtitlesDisabledOnStart = args["forceSubtitlesDisabledOnStart"] as? Boolean ?: false
+        subtitleTrackEnabled = !forceSubtitlesDisabledOnStart
+        pendingSubtitleIndex = null
+        pendingSubtitleCodec = null
+        pendingSubtitleIsExternal = null
+        pendingSubtitleIsBitmap = null
+        pendingExternalSubtitleUrl = null
+        // The first onTracksChanged applies this while the player is still
+        // buffering, so playback starts on the requested track rather than
+        // opening the container default and switching once it lands.
+        pendingAudioIndex = (args["audioTrackOrdinal"] as? Number)
+            ?.toInt()
+            ?.takeIf { it > 0 }
+        pendingClosedCaptionId = null
+        firstFrameRendered = false
+        firstFrameCover.visibility = View.VISIBLE
+        if (letterboxCrop != null) {
+            letterboxCrop = null
+            applyVideoLayout()
+        }
+        clearSubtitleCues()
+        clearAssSubtitleScript()
+        applyTrackSelectorForCurrentSource()
+        refreshSubtitleRendererMode()
+        applyAudioAttributesForCurrentMediaType()
+        openExternalAudioEffectSessionIfNeeded()
+        audioPipeline.normalizationGainDb = currentNormalizationGainDb
+        audioPipeline.userBoostMb = userVolumeBoostLevel * 200
+        audioDelayProcessor.setDelayMs(audioDelayMs)
+        player.skipSilenceEnabled = skipSilenceEnabled
+        emitSyncDelayState()
+        emitVolumeBoostState()
+        if (!isAudio) sourceFrameRateHint?.let(::maybeApplyFrameRateSwitching)
+        if (displayModeSwitchPending()) {
+            wasPlayingBeforeDisplayModeSwitch = autoPlay
+            val startDelayMs = ((args["videoStartDelayMs"] as? Number)?.toLong() ?: 0L)
+                .coerceAtLeast(0L)
+            holdStartForDisplayModeSwitch(startDelayMs) {
+                prepareCurrentSource(startPositionMs, playWhenReady = autoPlay)
+            }
+        } else {
+            prepareCurrentSource(startPositionMs, playWhenReady = autoPlay)
+        }
+        playerHasLoadedSource = true
+        secondarySubtitleOverlay.setDelayMs(
+            (args["secondarySubtitleDelayMs"] as? Number)?.toLong() ?: 0L,
+        )
+        secondarySubtitleOverlay.configureAppearance(
+            (args["secondarySubtitleFontSize"] as? Number)?.toFloat(),
+            (args["secondarySubtitleOffset"] as? Number)?.toFloat(),
+            (args["secondarySubtitleTextColor"] as? Number)?.toInt(),
+        )
+        secondarySubtitleOverlay.select(
+            args["secondarySubtitleUrl"]?.toString()?.takeIf { it.isNotBlank() },
+            args["secondarySubtitleCodec"]?.toString(),
+        )
+    }
+
+    private fun revealVideo() {
+        if (firstFrameRendered) {
+            return
+        }
+        firstFrameRendered = true
+        firstFrameCover.visibility = View.GONE
+    }
+
+    private fun resetTrackSelectionsForNewSource() {
+        trackSelector.parameters = trackSelector.parameters
+            .buildUpon()
+            .clearOverrides()
+            .setTrackTypeDisabled(C.TRACK_TYPE_AUDIO, false)
+            .setTrackTypeDisabled(C.TRACK_TYPE_TEXT, false)
+            .build()
+    }
+
+    private fun applyAudioAttributesForCurrentMediaType() {
+        val contentType = if (currentMediaType == "audio") {
+            C.AUDIO_CONTENT_TYPE_MUSIC
+        } else {
+            C.AUDIO_CONTENT_TYPE_MOVIE
+        }
+
+        audioAttributeState.updateAudioAttributes(
+            builder = {
+                setContentType(contentType)
+                setUsage(C.USAGE_MEDIA)
+            },
+            onChange = { audioAttributes ->
+                player.setAudioAttributes(audioAttributes, true)
+            },
+        )
+    }
+
+    private fun findHostActivity(): Activity? {
+        var currentContext: Context? = context
+        while (currentContext is ContextWrapper) {
+            if (currentContext is Activity) {
+                return currentContext
+            }
+            currentContext = currentContext.baseContext
+        }
+        return null
+    }
+
+    // Both options switch and differ only in whether the resolution may change.
+    // Neither consults the system television UI mode, which Fire TV doesn't
+    // report reliably, and the setting only appears on TV layouts anyway.
+    private fun isFrameRateSwitchingEnabled(): Boolean {
+        return when (frameRateSwitchingBehavior) {
+            "scaleondevice", "scaleontv" -> true
+            else -> false
+        }
+    }
+
+    private fun Display.Mode.toOption(): DisplayModeOption =
+        DisplayModeOption(modeId, physicalWidth, physicalHeight, refreshRate)
+
+    private fun choosePreferredDisplayMode(display: Display, contentFrameRate: Float): Display.Mode? {
+        val modes = display.supportedModes ?: return null
+        val chosen = DisplayModeChooser.choose(
+            modes = modes.map { it.toOption() },
+            currentMode = display.mode.toOption(),
+            contentFrameRate = contentFrameRate,
+            allowResolutionChange = frameRateSwitchingBehavior == "scaleontv",
+            videoWidth = if (sourceVideoWidthHint > 0) sourceVideoWidthHint else videoWidthPx,
+            videoHeight = if (sourceVideoHeightHint > 0) sourceVideoHeightHint else videoHeightPx,
+        ) ?: return null
+        return modes.firstOrNull { it.modeId == chosen.modeId }
+    }
+
+    private fun maybeApplyFrameRateSwitching(rawFrameRate: Float) {
+        // Previews share the activity window, so a trailer must never
+        // renegotiate the display out from under the main player.
+        if (role != "main") {
+            return
+        }
+        val normalizedFrameRate = DisplayModeChooser.normalizeFrameRate(rawFrameRate)
+        detectedFrameRate = normalizedFrameRate
+
+        if (!isFrameRateSwitchingEnabled()) {
+            clearSurfaceFrameRateHint()
+            restorePreferredDisplayMode()
+            emitFrameRateState(
+                detectedFrameRate = normalizedFrameRate,
+                appliedFrameRate = null,
+                appliedModeId = null,
+                enabled = false,
+            )
+            return
+        }
+
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) {
+            return
+        }
+        applySurfaceFrameRateHint(normalizedFrameRate)
+
+        val activity = findHostActivity() ?: return
+        val window = activity.window ?: return
+        val display = activity.windowManager.defaultDisplay ?: return
+
+        if (originalPreferredDisplayModeId == null) {
+            originalPreferredDisplayModeId = window.attributes.preferredDisplayModeId
+        }
+
+        val preferredMode = choosePreferredDisplayMode(display, normalizedFrameRate)
+        if (preferredMode == null) {
+            // The display offering nothing usable is the one outcome that looks
+            // identical to the feature being off, so it reports what it saw.
+            emitFrameRateState(
+                detectedFrameRate = normalizedFrameRate,
+                appliedFrameRate = null,
+                appliedModeId = null,
+                enabled = true,
+                supportedModes = describeSupportedModes(display),
+            )
+            return
+        }
+        val preferredModeId = preferredMode.modeId
+        val currentModeId = window.attributes.preferredDisplayModeId
+        if (currentModeId == preferredModeId || activePreferredDisplayModeId == preferredModeId) {
+            activePreferredDisplayModeId = preferredModeId
+            emitFrameRateState(
+                detectedFrameRate = normalizedFrameRate,
+                appliedFrameRate = preferredMode.refreshRate,
+                appliedModeId = preferredModeId,
+                enabled = true,
+                appliedWidth = preferredMode.physicalWidth,
+                appliedHeight = preferredMode.physicalHeight,
+            )
+            return
+        }
+
+        displayModeSwitchAtMs = SystemClock.elapsedRealtime()
+        wasPlayingBeforeDisplayModeSwitch = player.playWhenReady
+
+        val updatedLayoutParams = window.attributes
+        updatedLayoutParams.preferredDisplayModeId = preferredModeId
+        window.attributes = updatedLayoutParams
+        activePreferredDisplayModeId = preferredModeId
+
+        emitFrameRateState(
+            detectedFrameRate = normalizedFrameRate,
+            appliedFrameRate = preferredMode.refreshRate,
+            appliedModeId = preferredModeId,
+            enabled = true,
+            appliedWidth = preferredMode.physicalWidth,
+            appliedHeight = preferredMode.physicalHeight,
+        )
+    }
+
+    private fun describeSupportedModes(display: Display): List<String> {
+        val modes = display.supportedModes ?: return emptyList()
+        return modes.map { mode ->
+            String.format(
+                Locale.US,
+                "%dx%d@%.3f",
+                mode.physicalWidth,
+                mode.physicalHeight,
+                mode.refreshRate,
+            )
+        }
+    }
+
+    private fun stopPlaybackAndRestoreDisplayMode() {
+        secondarySubtitleOverlay.clear()
+        cancelPendingRetime()
+        // A canonical stop ends ownership of this source. Clear it before
+        // touching the player because appPaused may already have released it,
+        // and an immediately queued appResumed must not restore stale media.
+        lastSourceArguments = null
+        lastPlaybackPositionMs = 0L
+        player.stop()
+        player.clearMediaItems()
+        disableCapabilityReselection()
+        restorePreferredDisplayMode()
+        firstFrameCover.visibility = View.VISIBLE
+        emitState()
+    }
+
+    private fun restorePreferredDisplayMode() {
+        cancelHeldStart()
+        clearSurfaceFrameRateHint()
+        endDisplayModeSwitchRecovery()
+        // A preview never applied a mode, so its idea of the original id is 0
+        // and restoring it here would undo the main player's switch.
+        if (role != "main") {
+            return
+        }
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) {
+            return
+        }
+
+        val activity = findHostActivity() ?: return
+        val window = activity.window ?: return
+        val originalModeId = originalPreferredDisplayModeId ?: 0
+        val currentModeId = window.attributes.preferredDisplayModeId
+        if (currentModeId == originalModeId && activePreferredDisplayModeId == null) {
+            return
+        }
+
+        val restoredLayoutParams = window.attributes
+        restoredLayoutParams.preferredDisplayModeId = originalModeId
+        window.attributes = restoredLayoutParams
+        activePreferredDisplayModeId = null
+    }
+
+    private fun applySurfaceFrameRateHint(frameRate: Float) {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) {
+            return
+        }
+        val surfaceView = videoView as? SurfaceView ?: return
+        val targetSurface = surfaceView.holder.surface ?: return
+        if (!targetSurface.isValid) {
+            return
+        }
+
+        runCatching {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                // Without this the hint means switch only when seamless, and a
+                // television mode change rarely is, so the system quietly drops
+                // it. Saying always lets the non seamless switch happen.
+                targetSurface.setFrameRate(
+                    frameRate,
+                    Surface.FRAME_RATE_COMPATIBILITY_FIXED_SOURCE,
+                    Surface.CHANGE_FRAME_RATE_ALWAYS,
+                )
+            } else {
+                targetSurface.setFrameRate(
+                    frameRate,
+                    Surface.FRAME_RATE_COMPATIBILITY_FIXED_SOURCE,
+                )
+            }
+        }
+    }
+
+    private fun clearSurfaceFrameRateHint() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) {
+            return
+        }
+        val surfaceView = videoView as? SurfaceView ?: return
+        val targetSurface = surfaceView.holder.surface ?: return
+        if (!targetSurface.isValid) {
+            return
+        }
+
+        runCatching {
+            targetSurface.setFrameRate(
+                0f,
+                Surface.FRAME_RATE_COMPATIBILITY_DEFAULT,
+            )
+        }
+    }
+
+    private fun resolveSelectedVideoFrameRate(): Float? {
+        for (group in player.currentTracks.groups) {
+            if (group.type != C.TRACK_TYPE_VIDEO) {
+                continue
+            }
+            for (index in 0 until group.length) {
+                if (!group.isTrackSelected(index)) {
+                    continue
+                }
+                val frameRate = group.getTrackFormat(index).frameRate
+                if (frameRate.isFinite() && frameRate > 0f) {
+                    return frameRate
+                }
+            }
+        }
+        return sourceFrameRateHint
+    }
+
+    private fun emitFrameRateState(
+        detectedFrameRate: Float,
+        appliedFrameRate: Float?,
+        appliedModeId: Int?,
+        enabled: Boolean,
+        appliedWidth: Int? = null,
+        appliedHeight: Int? = null,
+        supportedModes: List<String>? = null,
+    ) {
+        Media3Bridge.emitEvent(
+            mapOf(
+                "event" to "frameRate",
+                "detectedFrameRate" to detectedFrameRate.toDouble(),
+                "appliedFrameRate" to appliedFrameRate?.toDouble(),
+                "appliedDisplayModeId" to appliedModeId,
+                "enabled" to enabled,
+                "behavior" to frameRateSwitchingBehavior,
+                "appliedWidth" to appliedWidth,
+                "appliedHeight" to appliedHeight,
+                "supportedModes" to supportedModes,
+            ),
+        )
+    }
+
+    private fun audioEffectContentType(): Int {
+        return if (currentMediaType == "audio") {
+            AudioEffect.CONTENT_TYPE_MUSIC
+        } else {
+            AudioEffect.CONTENT_TYPE_MOVIE
+        }
+    }
+
+    private fun openExternalAudioEffectSessionIfNeeded() {
+        if (!allowExternalAudioEffects) {
+            return
+        }
+        val sessionId = currentAudioSessionId
+        if (sessionId == C.AUDIO_SESSION_ID_UNSET || sessionId <= 0) {
+            return
+        }
+        if (openedAudioEffectSessionId == sessionId) {
+            return
+        }
+
+        closeExternalAudioEffectSessionIfOpen()
+        val opened = runCatching {
+            context.sendBroadcast(
+                Intent(AudioEffect.ACTION_OPEN_AUDIO_EFFECT_CONTROL_SESSION).apply {
+                    putExtra(AudioEffect.EXTRA_AUDIO_SESSION, sessionId)
+                    putExtra(AudioEffect.EXTRA_PACKAGE_NAME, context.packageName)
+                    putExtra(AudioEffect.EXTRA_CONTENT_TYPE, audioEffectContentType())
+                },
+            )
+        }.isSuccess
+        if (opened) {
+            openedAudioEffectSessionId = sessionId
+        }
+    }
+
+    private fun closeExternalAudioEffectSessionIfOpen() {
+        val sessionId = openedAudioEffectSessionId
+        if (sessionId == C.AUDIO_SESSION_ID_UNSET || sessionId <= 0) {
+            openedAudioEffectSessionId = C.AUDIO_SESSION_ID_UNSET
+            return
+        }
+
+        runCatching {
+            context.sendBroadcast(
+                Intent(AudioEffect.ACTION_CLOSE_AUDIO_EFFECT_CONTROL_SESSION).apply {
+                    putExtra(AudioEffect.EXTRA_AUDIO_SESSION, sessionId)
+                    putExtra(AudioEffect.EXTRA_PACKAGE_NAME, context.packageName)
+                },
+            )
+        }
+        openedAudioEffectSessionId = C.AUDIO_SESSION_ID_UNSET
+    }
+
+    private fun applyTrackSelectorForCurrentSource() {
+        val isAudioContent = currentMediaType == "audio"
+        val hasExternalSubtitle = selectedSubtitleIsExternal ||
+            !selectedExternalSubtitleUrl.isNullOrBlank() ||
+            externalSubtitleConfigurations.isNotEmpty()
+        val shouldEnableTunneling =
+            !isAudioContent &&
+                !hasExternalSubtitle &&
+                !sessionTunnelingDisabled &&
+                // Tunneled TrueHD/MLP passthrough can be silent with no sink
+                // exception on some AVR chains. Tunneling is only a latency
+                // optimization, so drop it whenever a lossless track is active.
+                !currentAudioIsLossless &&
+                // App-side IEC packing writes PCM-shaped bursts that must
+                // never get HW_AV_SYNC headers, so tunneling stays off while
+                // the IEC output mode is live (it returns after the session
+                // fallback disables IEC).
+                (iecOutputProvider?.sessionIecDisabled != false)
+
+        tunnelingActive = shouldEnableTunneling
+
+        // Offloaded audio bypasses the PCM processors, so skip silence would
+        // quietly do nothing there.
+        val offloadMode = if (isAudioContent && !audioOffloadDisabled && !skipSilenceEnabled) {
+            TrackSelectionParameters.AudioOffloadPreferences.AUDIO_OFFLOAD_MODE_ENABLED
+        } else {
+            TrackSelectionParameters.AudioOffloadPreferences.AUDIO_OFFLOAD_MODE_DISABLED
+        }
+
+        val parametersBuilder = trackSelector.buildUponParameters()
+            .setAudioOffloadPreferences(
+                TrackSelectionParameters.AudioOffloadPreferences.DEFAULT
+                    .buildUpon()
+                    .setAudioOffloadMode(offloadMode)
+                    // Offloaded speed goes through the AudioTrack, which some
+                    // devices can't change, and audiobooks rely on speed.
+                    .setIsSpeedChangeSupportRequired(true)
+                    .build(),
+            )
+            .setAllowInvalidateSelectionsOnRendererCapabilitiesChange(true)
+            .setPreferredAudioLanguage(preferredAudioLanguage)
+            .setPreferredTextLanguage(preferredTextLanguage)
+            .setSelectUndeterminedTextLanguage(selectUndeterminedTextLanguage)
+            .setTunnelingEnabled(shouldEnableTunneling)
+            .setTrackTypeDisabled(C.TRACK_TYPE_TEXT, !subtitleTrackEnabled || subtitleRetime?.disabling == true)
+
+        trackSelector.setParameters(parametersBuilder)
+    }
+
+    // An idle player still hears the audio route change that restoring the
+    // display mode sets off, and Media3 answers a capabilities change with a
+    // reselect-and-seek that reads a playing period it no longer has. The
+    // next source re-arms this through applyTrackSelectorForCurrentSource.
+    private fun disableCapabilityReselection() {
+        trackSelector.setParameters(
+            trackSelector.buildUponParameters()
+                .setAllowInvalidateSelectionsOnRendererCapabilitiesChange(false),
+        )
+    }
+
+    private fun updateSubtitleRendererMode(arguments: Any?) {
+        val args = arguments as? Map<*, *>
+        val modeValue = args?.get("mode")?.toString()
+        val nextMode = SubtitleRendererMode.fromWire(modeValue)
+        if (requestedSubtitleRendererMode == nextMode) {
+            return
+        }
+
+        requestedSubtitleRendererMode = nextMode
+        refreshSubtitleRendererMode()
+    }
+
+    private fun updateDecoderPreferences(arguments: Any?) {
+        val args = arguments as? Map<*, *> ?: return
+
+        val nextPreference = args["preferFfmpeg"] as? Boolean
+        if (nextPreference != null && preferFfmpegDecoder != nextPreference) {
+            preferFfmpegDecoder = nextPreference
+            decoderPreferenceDirty = true
+        }
+
+        // The sink filter is built once per player, so passthrough changes go
+        // through the rebuild-on-dirty path. A live supportsFormat flip would
+        // not retrigger track selection anyway.
+        val nextPassthroughMode = Media3Bridge.passthroughMode()
+        if (args.containsKey("passthroughMode") && passthroughMode != nextPassthroughMode) {
+            passthroughMode = nextPassthroughMode
+            decoderPreferenceDirty = true
+        }
+        val nextPassthroughCodecs = Media3Bridge.passthroughCodecs()
+        if (args.containsKey("passthroughCodecs") && passthroughCodecs != nextPassthroughCodecs) {
+            passthroughCodecs = nextPassthroughCodecs
+            decoderPreferenceDirty = true
+        }
+        // The audio output provider is chosen at buildAudioSink time, so the
+        // RAW-vs-IEC packer choice also rides the rebuild-on-dirty path.
+        val nextPassthroughOutput = Media3Bridge.passthroughOutput()
+        if (args.containsKey("passthroughOutput") && passthroughOutput != nextPassthroughOutput) {
+            passthroughOutput = nextPassthroughOutput
+            decoderPreferenceDirty = true
+        }
+
+        // Downmix applies live: the mixing matrices take effect at the sink's
+        // next configure, no player rebuild needed.
+        val nextDownmix = args["downmixToStereo"] as? Boolean
+        if (nextDownmix != null && downmixToStereoPreference != nextDownmix) {
+            downmixToStereoPreference = nextDownmix
+            applyStereoDownmix(effectiveStereoDownmix())
+        }
+
+        // Applies at the next source load, when the extractors are recreated.
+        (args["doviCompatMode"] as? String)?.let {
+            doviCompatMode = DoviCompatMode.fromWire(it)
+        }
+
+        val nextTunnelingDisabled = args["tunnelingDisabled"] as? Boolean
+        if (nextTunnelingDisabled != null && sessionTunnelingDisabled != nextTunnelingDisabled) {
+            sessionTunnelingDisabled = nextTunnelingDisabled
+            Media3Bridge.setSessionTunnelingDisabledEnabled(nextTunnelingDisabled)
+            applyTrackSelectorForCurrentSource()
+        }
+
+        val nextAllowExternalAudioEffects = args["allowExternalAudioEffects"] as? Boolean
+        if (
+            nextAllowExternalAudioEffects != null &&
+            allowExternalAudioEffects != nextAllowExternalAudioEffects
+        ) {
+            allowExternalAudioEffects = nextAllowExternalAudioEffects
+            if (allowExternalAudioEffects) {
+                openExternalAudioEffectSessionIfNeeded()
+            } else {
+                closeExternalAudioEffectSessionIfOpen()
+            }
+        }
+
+        val nextFrameRateBehavior = args["frameRateSwitchingBehavior"]
+            ?.toString()
+            ?.trim()
+            ?.lowercase()
+            ?.ifBlank { "disabled" }
+        if (nextFrameRateBehavior != null && frameRateSwitchingBehavior != nextFrameRateBehavior) {
+            frameRateSwitchingBehavior = nextFrameRateBehavior
+            val lastDetected = detectedFrameRate
+            if (isFrameRateSwitchingEnabled()) {
+                if (lastDetected != null) {
+                    maybeApplyFrameRateSwitching(lastDetected)
+                }
+            } else {
+                restorePreferredDisplayMode()
+                if (lastDetected != null) {
+                    emitFrameRateState(
+                        detectedFrameRate = lastDetected,
+                        appliedFrameRate = null,
+                        appliedModeId = null,
+                        enabled = false,
+                    )
+                }
+            }
+        }
+    }
+
+    private fun updateAudioDelay(arguments: Any?) {
+        val nextDelayMs = parseDelayMs(arguments).coerceIn(-2000L, 2000L)
+        if (audioDelayMs == nextDelayMs) {
+            return
+        }
+        audioDelayMs = nextDelayMs
+        audioDelayProcessor.setDelayMs(nextDelayMs)
+        // Trigger a buffer flush so the new delay takes effect immediately
+        // rather than waiting for the next natural seek or track change.
+        // Only do this when the player has an active, prepared item; skip
+        // during initial setSource (handled by setMediaItem + prepare).
+        val state = player.playbackState
+        if (player.currentMediaItem != null &&
+            state != Player.STATE_IDLE &&
+            state != Player.STATE_ENDED
+        ) {
+            val pos = player.currentPosition.coerceAtLeast(0L)
+            player.seekTo(pos)
+        }
+        emitSyncDelayState()
+        emitState()
+    }
+
+    private fun updateSubtitleDelay(arguments: Any?) {
+        val nextDelayMs = clampManualDelayMs(parseDelayMs(arguments))
+        if (manualSubtitleDelayMs == nextDelayMs) {
+            return
+        }
+        manualSubtitleDelayMs = nextDelayMs
+        clearSubtitleCues()
+        applySubtitleDelay()
+        emitSyncDelayState()
+        emitState()
+    }
+
+    private fun updateRepeatMode(arguments: Any?) {
+        val nextMode = when (arguments) {
+            is Number -> {
+                when (arguments.toInt()) {
+                    Player.REPEAT_MODE_ONE -> Player.REPEAT_MODE_ONE
+                    Player.REPEAT_MODE_ALL -> Player.REPEAT_MODE_ALL
+                    else -> Player.REPEAT_MODE_OFF
+                }
+            }
+
+            is Map<*, *> -> {
+                when ((arguments["mode"]?.toString() ?: "").trim().lowercase()) {
+                    "one",
+                    "repeatone",
+                    -> Player.REPEAT_MODE_ONE
+
+                    "all",
+                    "repeatall",
+                    -> Player.REPEAT_MODE_ALL
+
+                    else -> Player.REPEAT_MODE_OFF
+                }
+            }
+
+            else -> Player.REPEAT_MODE_OFF
+        }
+        if (player.repeatMode == nextMode) {
+            return
+        }
+        player.repeatMode = nextMode
+        emitRepeatModeState()
+        emitState()
+    }
+
+    private fun updateSkipSilence(arguments: Any?) {
+        val nextEnabled = when (arguments) {
+            is Boolean -> arguments
+            is Map<*, *> -> arguments["enabled"] as? Boolean ?: false
+            else -> false
+        }
+        if (skipSilenceEnabled == nextEnabled) {
+            return
+        }
+        skipSilenceEnabled = nextEnabled
+        player.skipSilenceEnabled = nextEnabled
+        applyTrackSelectorForCurrentSource()
+        emitState()
+    }
+
+    private fun updateVolumeBoost(arguments: Any?) {
+        val level = when (arguments) {
+            is Number -> arguments.toInt()
+            is Map<*, *> -> (arguments["level"] as? Number)?.toInt() ?: 0
+            else -> 0
+        }.coerceIn(0, 10)
+        if (userVolumeBoostLevel == level) {
+            return
+        }
+        userVolumeBoostLevel = level
+        audioPipeline.userBoostMb = level * 200
+        emitVolumeBoostState()
+        emitState()
+    }
+
+    // A resume from the background or the screensaver reloads
+    // lastSourceArguments, so the secondary track and its settings are kept
+    // there as they change.
+    private fun rememberSourceArguments(vararg entries: Pair<String, Any?>) {
+        val args = lastSourceArguments ?: return
+        lastSourceArguments = args.toMutableMap().apply {
+            for ((key, value) in entries) this[key] = value
+        }
+    }
+
+    private fun selectSecondarySubtitle(args: Map<*, *>?) {
+        val url = args?.get("url")?.toString()?.takeIf { it.isNotBlank() }
+        val codec = args?.get("codec")?.toString()
+        rememberSourceArguments(
+            "secondarySubtitleUrl" to url,
+            "secondarySubtitleCodec" to codec,
+        )
+        secondarySubtitleOverlay.select(url, codec)
+    }
+
+    private fun setSecondarySubtitleDelay(delayMs: Long) {
+        rememberSourceArguments("secondarySubtitleDelayMs" to delayMs)
+        secondarySubtitleOverlay.setDelayMs(delayMs)
+    }
+
+    private fun configureSecondarySubtitleStyle(args: Map<*, *>?) {
+        val fontSize = (args?.get("fontSize") as? Number)?.toFloat()
+        val verticalOffset = (args?.get("verticalOffset") as? Number)?.toFloat()
+        val textColor = (args?.get("textColor") as? Number)?.toInt()
+        rememberSourceArguments(
+            "secondarySubtitleFontSize" to fontSize,
+            "secondarySubtitleOffset" to verticalOffset,
+            "secondarySubtitleTextColor" to textColor,
+        )
+        secondarySubtitleOverlay.configureAppearance(fontSize, verticalOffset, textColor)
+    }
+
+    private fun parseDelayMs(arguments: Any?): Long {
+        return when (arguments) {
+            is Number -> arguments.toLong()
+            is Map<*, *> -> {
+                val ms = (arguments["delayMs"] as? Number)?.toLong()
+                if (ms != null) {
+                    ms
+                } else {
+                    val seconds = (arguments["seconds"] as? Number)?.toDouble() ?: 0.0
+                    (seconds * 1000.0).toLong()
+                }
+            }
+
+            else -> 0L
+        }
+    }
+
+    private fun normalizeLanguageCode(raw: String?): String? {
+        val normalized = raw?.trim()?.lowercase().orEmpty()
+        if (
+            normalized.isEmpty() ||
+            normalized == "auto" ||
+            normalized == "device" ||
+            normalized == "default" ||
+            normalized == "none"
+        ) {
+            return null
+        }
+        return normalized
+    }
+
+    private fun emitSyncDelayState() {
+        Media3Bridge.emitEvent(
+            syncDelaysPayload(
+                audioDelayMs = audioDelayMs,
+                subtitleDelayMs = manualSubtitleDelayMs,
+            ),
+        )
+    }
+
+    private fun emitVolumeBoostState() {
+        Media3Bridge.emitEvent(
+            mapOf(
+                "event" to "volumeBoost",
+                "level" to userVolumeBoostLevel,
+            ),
+        )
+    }
+
+    private fun emitRepeatModeState() {
+        Media3Bridge.emitEvent(
+            mapOf(
+                "event" to "repeatModeChanged",
+                "repeatMode" to repeatModeToWire(player.repeatMode),
+            ),
+        )
+    }
+
+    private fun repeatModeToWire(mode: Int): String {
+        return when (mode) {
+            Player.REPEAT_MODE_ONE -> "one"
+            Player.REPEAT_MODE_ALL -> "all"
+            else -> "off"
+        }
+    }
+
+    private fun disableTunnelingForSession() {
+        if (sessionTunnelingDisabled) {
+            return
+        }
+        sessionTunnelingDisabled = true
+        Media3Bridge.setSessionTunnelingDisabledEnabled(true)
+        applyTrackSelectorForCurrentSource()
+    }
+
+    // PREFER puts the extension renderers ahead of the MediaCodec ones and the
+    // track selector breaks ties by renderer order, so it would quietly beat an
+    // enabled passthrough with an FFmpeg decode. Nothing is lost by staying on
+    // ON, since SteeredMediaCodecAudioRenderer already hands surround decoding
+    // to FFmpeg.
+    private fun extensionRendererModeFor(policy: AudioPassthroughPolicy): Int =
+        if (preferFfmpegDecoder && policy.mode == PassthroughMode.DISABLED) {
+            DefaultRenderersFactory.EXTENSION_RENDERER_MODE_PREFER
+        } else {
+            DefaultRenderersFactory.EXTENSION_RENDERER_MODE_ON
+        }
+
+    private fun updateZoomMode(arguments: Any?) {
+        val args = arguments as? Map<*, *>
+        val modeValue = args?.get("mode")?.toString()
+        val nextMode = ZoomMode.fromWire(modeValue)
+        if (zoomMode == nextMode) {
+            return
+        }
+
+        zoomMode = nextMode
+        applyVideoLayout()
+    }
+
+    private fun updateLetterboxCrop(arguments: Any?) {
+        val args = arguments as? Map<*, *> ?: return
+        if (args["clear"] == true) {
+            if (letterboxCrop != null) {
+                letterboxCrop = null
+                applyVideoLayout()
+            }
+            return
+        }
+        val w = (args["w"] as? Number)?.toInt() ?: return
+        val h = (args["h"] as? Number)?.toInt() ?: return
+        val x = (args["x"] as? Number)?.toInt() ?: return
+        val y = (args["y"] as? Number)?.toInt() ?: return
+        val next = LetterboxCropRect(w = w, h = h, x = x, y = y)
+        if (next != letterboxCrop) {
+            letterboxCrop = next
+            applyVideoLayout()
+        }
+    }
+
+    private fun detectLetterbox(result: MethodChannel.Result) {
+        val sourceW = videoWidthPx
+        val sourceH = videoHeightPx
+        if (sourceW <= 0 || sourceH <= 0) {
+            result.success(null)
+            return
+        }
+        when (val view = videoView) {
+            // Tunneled output never lands in a buffer this side can read.
+            is SurfaceView ->
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N && !tunnelingActive) {
+                    copySurfaceForLetterbox(view, sourceW, sourceH, result)
+                } else {
+                    result.success(null)
+                }
+            is TextureView -> copyTextureForLetterbox(view, sourceW, sourceH, result)
+            else -> result.success(null)
+        }
+    }
+
+    private fun copyTextureForLetterbox(
+        view: TextureView,
+        sourceWidth: Int,
+        sourceHeight: Int,
+        result: MethodChannel.Result,
+    ) {
+        if (view.width <= 0 || view.height <= 0) {
+            result.success(null)
+            return
+        }
+        val sample = letterboxSampleSize(view.width, view.height)
+        val bitmap = view.getBitmap(sample.width, sample.height)
+        if (bitmap == null) {
+            result.success(null)
+            return
+        }
+        result.success(scanBitmap(bitmap, sourceWidth, sourceHeight)?.toWireMap(sourceWidth, sourceHeight))
+        bitmap.recycle()
+    }
+
+    @androidx.annotation.RequiresApi(Build.VERSION_CODES.N)
+    private fun copySurfaceForLetterbox(
+        view: SurfaceView,
+        sourceWidth: Int,
+        sourceHeight: Int,
+        result: MethodChannel.Result,
+    ) {
+        val surface = view.holder.surface
+        if (surface == null || !surface.isValid || view.width <= 0 || view.height <= 0) {
+            result.success(null)
+            return
+        }
+        val sample = letterboxSampleSize(view.width, view.height)
+        val bitmap = Bitmap.createBitmap(sample.width, sample.height, Bitmap.Config.ARGB_8888)
+        try {
+            PixelCopy.request(view, bitmap, { copyResult ->
+                if (isDisposedByFlutter || copyResult != PixelCopy.SUCCESS) {
+                    bitmap.recycle()
+                    result.success(null)
+                    return@request
+                }
+                result.success(
+                    scanBitmap(bitmap, sourceWidth, sourceHeight)
+                        ?.toWireMap(sourceWidth, sourceHeight),
+                )
+                bitmap.recycle()
+            }, mainHandler)
+        } catch (_: Throwable) {
+            bitmap.recycle()
+            result.success(null)
+        }
+    }
+
+    private fun letterboxSampleSize(viewWidth: Int, viewHeight: Int): android.util.Size {
+        val maxDim = 480
+        val width = viewWidth.coerceAtLeast(1)
+        val height = viewHeight.coerceAtLeast(1)
+        val longest = maxOf(width, height)
+        if (longest <= maxDim) {
+            return android.util.Size(width, height)
+        }
+        val scale = maxDim.toFloat() / longest.toFloat()
+        return android.util.Size(
+            (width * scale).roundToInt().coerceAtLeast(1),
+            (height * scale).roundToInt().coerceAtLeast(1),
+        )
+    }
+
+    private fun scanBitmap(
+        bitmap: Bitmap,
+        sourceWidth: Int,
+        sourceHeight: Int,
+    ): LetterboxCropRect? {
+        val width = bitmap.width
+        val height = bitmap.height
+        val pixels = IntArray(width * height)
+        bitmap.getPixels(pixels, 0, width, 0, 0, width, height)
+        return LetterboxBarScanner.scanArgb(
+            pixels = pixels,
+            width = width,
+            height = height,
+            sourceWidth = sourceWidth,
+            sourceHeight = sourceHeight,
+        )
+    }
+
+    // The Dart side only reports a codec when it drives the selection itself.
+    // Media3 picks the track on its own for a preferred text language or a
+    // closed caption, so the selected track's mime type is the reliable test
+    // and the codec hint is only a fallback for a track not selected yet.
+    private val selectedSubtitleIsAss: Boolean
+        get() = codecToMimeType(selectedSubtitleCodec) == MimeTypes.TEXT_SSA ||
+            selectedTextTrackIsAss()
+
+    private fun selectedTextTrackIsAss(): Boolean {
+        for (group in player.currentTracks.groups) {
+            if (group.type != C.TRACK_TYPE_TEXT) {
+                continue
+            }
+            for (index in 0 until group.length) {
+                if (!group.isTrackSelected(index)) {
+                    continue
+                }
+                if (MimeTypes.TEXT_SSA.equals(group.getTrackFormat(index).sampleMimeType, true)) {
+                    return true
+                }
+            }
+        }
+        return false
+    }
+
+    private fun applyVideoLayout() {
+        val videoLayoutParams = videoView.layoutParams as? FrameLayout.LayoutParams
+            ?: FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.MATCH_PARENT,
+                FrameLayout.LayoutParams.MATCH_PARENT,
+                Gravity.CENTER,
+            )
+        val subtitleLayoutParams = subtitleView.layoutParams as? FrameLayout.LayoutParams
+            ?: FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.MATCH_PARENT,
+                FrameLayout.LayoutParams.MATCH_PARENT,
+                Gravity.CENTER,
+            )
+
+        // ASS is positioned against the video picture, so its overlay tracks
+        // the video box. Everything else belongs on the full frame: PGS and
+        // VOBSUB cues carry positions relative to their own full-frame plane,
+        // and text cues have no relationship to the picture at all. The
+        // vertical offset is a fraction of this view's height, so pinning text
+        // to a letterboxed box would make one setting land at a different
+        // on-screen position for every aspect ratio.
+        fun applyBounds(
+            width: Int,
+            height: Int,
+            gravity: Int = Gravity.CENTER,
+            leftMargin: Int = 0,
+            topMargin: Int = 0,
+        ) {
+            applyLayoutBounds(
+                videoView,
+                videoLayoutParams,
+                width,
+                height,
+                gravity,
+                leftMargin,
+                topMargin,
+            )
+            if (selectedSubtitleIsAss) {
+                applyLayoutBounds(
+                    subtitleView,
+                    subtitleLayoutParams,
+                    width,
+                    height,
+                    gravity,
+                    leftMargin,
+                    topMargin,
+                )
+            } else {
+                applyLayoutBounds(
+                    subtitleView,
+                    subtitleLayoutParams,
+                    FrameLayout.LayoutParams.MATCH_PARENT,
+                    FrameLayout.LayoutParams.MATCH_PARENT,
+                )
+            }
+        }
+
+        if (zoomMode == ZoomMode.STRETCH) {
+            applyBounds(
+                FrameLayout.LayoutParams.MATCH_PARENT,
+                FrameLayout.LayoutParams.MATCH_PARENT,
+            )
+            return
+        }
+
+        val containerWidth = containerView.width
+        val containerHeight = containerView.height
+        val sourceWidth = videoWidthPx.toFloat() * videoPixelRatio
+        val sourceHeight = videoHeightPx.toFloat()
+        if (containerWidth <= 0 || containerHeight <= 0 || sourceWidth <= 0f || sourceHeight <= 0f) {
+            applyBounds(
+                FrameLayout.LayoutParams.MATCH_PARENT,
+                FrameLayout.LayoutParams.MATCH_PARENT,
+            )
+            return
+        }
+
+        val crop = letterboxCrop
+        if (crop != null && crop.w > 0 && crop.h > 0) {
+            val bounds = LetterboxCropLayout.compute(
+                containerWidth = containerWidth,
+                containerHeight = containerHeight,
+                sourceWidth = sourceWidth,
+                sourceHeight = sourceHeight,
+                cropX = crop.x * videoPixelRatio,
+                cropY = crop.y.toFloat(),
+                cropW = crop.w * videoPixelRatio,
+                cropH = crop.h.toFloat(),
+                cover = zoomMode == ZoomMode.ZOOM_TO_FILL,
+            )
+            applyBounds(
+                bounds.width,
+                bounds.height,
+                Gravity.TOP or Gravity.START,
+                bounds.left,
+                bounds.top,
+            )
+            return
+        }
+
+        val containerAspect = containerWidth.toFloat() / containerHeight.toFloat()
+        val sourceAspect = sourceWidth / sourceHeight
+        val targetSize = when (zoomMode) {
+            ZoomMode.FIT -> {
+                if (containerAspect > sourceAspect) {
+                    val targetHeight = containerHeight
+                    val targetWidth = (targetHeight * sourceAspect).roundToInt()
+                    targetWidth to targetHeight
+                } else {
+                    val targetWidth = containerWidth
+                    val targetHeight = (targetWidth / sourceAspect).roundToInt()
+                    targetWidth to targetHeight
+                }
+            }
+
+            ZoomMode.ZOOM_TO_FILL -> {
+                if (containerAspect > sourceAspect) {
+                    val targetWidth = containerWidth
+                    val targetHeight = (targetWidth / sourceAspect).roundToInt()
+                    targetWidth to targetHeight
+                } else {
+                    val targetHeight = containerHeight
+                    val targetWidth = (targetHeight * sourceAspect).roundToInt()
+                    targetWidth to targetHeight
+                }
+            }
+
+            ZoomMode.STRETCH -> FrameLayout.LayoutParams.MATCH_PARENT to FrameLayout.LayoutParams.MATCH_PARENT
+        }
+
+        applyBounds(
+            targetSize.first.coerceAtLeast(1),
+            targetSize.second.coerceAtLeast(1),
+        )
+    }
+
+    private fun layoutPaddingRowMask() {
+        val video = videoView
+        val maskHeight =
+            if (video.visibility == View.VISIBLE) PaddingRowMask.heightPx(videoHeightPx, video.height) else 0
+        paddingRowMask.layout(video.left, video.bottom - maskHeight, video.right, video.bottom)
+    }
+
+    private fun applyLayoutBounds(
+        view: View,
+        layoutParams: FrameLayout.LayoutParams,
+        width: Int,
+        height: Int,
+        gravity: Int = Gravity.CENTER,
+        leftMargin: Int = 0,
+        topMargin: Int = 0,
+    ) {
+        if (
+            layoutParams.width == width &&
+            layoutParams.height == height &&
+            layoutParams.gravity == gravity &&
+            layoutParams.leftMargin == leftMargin &&
+            layoutParams.topMargin == topMargin &&
+            layoutParams.rightMargin == 0 &&
+            layoutParams.bottomMargin == 0
+        ) {
+            return
+        }
+
+        layoutParams.width = width
+        layoutParams.height = height
+        layoutParams.gravity = gravity
+        layoutParams.leftMargin = leftMargin
+        layoutParams.topMargin = topMargin
+        layoutParams.rightMargin = 0
+        layoutParams.bottomMargin = 0
+        view.layoutParams = layoutParams
+    }
+
+    private fun applySubtitleRendererMode(mode: SubtitleRendererMode) {
+        when (mode) {
+            SubtitleRendererMode.NATIVE,
+            SubtitleRendererMode.ASS_OVERLAY,
+            -> {
+                subtitleView.visibility = View.VISIBLE
+                subtitleView.setApplyEmbeddedStyles(subtitleEmbeddedStylesEnabled)
+                subtitleView.setApplyEmbeddedFontSizes(subtitleEmbeddedFontSizesEnabled)
+            }
+        }
+    }
+
+    private fun refreshSubtitleRendererMode() {
+        val desiredMode = SubtitleRendererMode.NATIVE
+        val resolvedMode = SubtitleRendererMode.NATIVE
+        val fallbackReason = if (requestedSubtitleRendererMode == SubtitleRendererMode.ASS_OVERLAY) {
+            "handledByAssMedia"
+        } else {
+            null
+        }
+
+        val previousActive = activeSubtitleRendererMode
+        activeSubtitleRendererMode = resolvedMode
+
+        applySubtitleRendererMode(activeSubtitleRendererMode)
+        // The overlay only shifts once the source tree shifts the cues with it.
+        assOverlayView?.timeOffsetUs = if (embeddedOffsetSource == null) 0L else subtitleOffsetUs()
+
+        if (previousActive != activeSubtitleRendererMode || desiredMode != previousActive) {
+            emitSubtitleRendererModeChanged(desiredMode)
+        }
+
+        if (desiredMode != resolvedMode && !fallbackReason.isNullOrBlank()) {
+            emitSubtitleRendererFallback(desiredMode, resolvedMode, fallbackReason)
+        }
+
+        // Bitmap and vector subtitles anchor to different frames, so re-sync
+        // the canvas size for whichever kind is now active.
+        applyVideoLayout()
+    }
+
+    private fun emitSubtitleRendererFallback(
+        desiredMode: SubtitleRendererMode,
+        activeMode: SubtitleRendererMode,
+        reason: String,
+    ) {
+        Media3Bridge.emitEvent(
+            mapOf(
+                "event" to "subtitleRendererFallback",
+                "requestedMode" to requestedSubtitleRendererMode.wireValue,
+                "desiredMode" to desiredMode.wireValue,
+                "activeMode" to activeMode.wireValue,
+                "reason" to reason,
+                "codec" to selectedSubtitleCodec,
+                "isExternalSubtitle" to selectedSubtitleIsExternal,
+                "isBitmapSubtitle" to selectedSubtitleIsBitmap,
+            ),
+        )
+    }
+
+    private fun emitSubtitleRendererModeChanged(desiredMode: SubtitleRendererMode) {
+        Media3Bridge.emitEvent(
+            mapOf(
+                "event" to "subtitleRendererModeChanged",
+                "requestedMode" to requestedSubtitleRendererMode.wireValue,
+                "desiredMode" to desiredMode.wireValue,
+                "activeMode" to activeSubtitleRendererMode.wireValue,
+                "usesFallback" to (desiredMode != activeSubtitleRendererMode),
+                "codec" to selectedSubtitleCodec,
+                "isExternalSubtitle" to selectedSubtitleIsExternal,
+                "isBitmapSubtitle" to selectedSubtitleIsBitmap,
+            ),
+        )
+    }
+
+    private fun clearAssSubtitleScript() {
+    }
+
+    /**
+     * Adds a sidecar after the source opened, which costs a re-prepare. The
+     * app sends every sidecar through here, including the ones that came with
+     * the source, so one already in place is left alone.
+     */
+    private fun addExternalSubtitle(args: Map<*, *>?) {
+        val subtitle = declaredSubtitleFrom(args) ?: return
+        val uri = parseUri(subtitle.url)
+        if (externalSubtitleConfigurations.any { it.uri == uri }) return
+
+        appendExternalSubtitle(subtitle)
+        applyTrackSelectorForCurrentSource()
+
+        val playWhenReady = player.playWhenReady
+        val currentPosition = player.currentPosition
+        prepareCurrentSource(currentPosition, playWhenReady = playWhenReady)
+    }
+
+    private fun appendExternalSubtitle(subtitle: DeclaredSubtitle) {
+        val builder = MediaItem.SubtitleConfiguration.Builder(parseUri(subtitle.url))
+            .setSelectionFlags(C.SELECTION_FLAG_DEFAULT)
+            // ass-media matches selected Media3 text tracks back to libass tracks by ID.
+            .setId((EXTERNAL_SUBTITLE_ID_BASE + externalSubtitleConfigurations.size).toString())
+        codecToMimeType(subtitle.codec)?.let(builder::setMimeType)
+        subtitle.language?.let(builder::setLanguage)
+        subtitle.title?.let(builder::setLabel)
+        externalSubtitleConfigurations.add(builder.build())
+    }
+
+    private fun configureSubtitleStyle(args: Map<*, *>?) {
+        val textColor = (args?.get("textColor") as? Number)?.toInt() ?: Color.WHITE
+        val bgColor = (args?.get("backgroundColor") as? Number)?.toInt() ?: Color.TRANSPARENT
+        val strokeColor = (args?.get("strokeColor") as? Number)?.toInt() ?: Color.TRANSPARENT
+        val fontSize = (args?.get("fontSize") as? Number)?.toFloat()
+        val fontWeight = (args?.get("fontWeight") as? Number)?.toInt() ?: 400
+        val bold = (args?.get("bold") as? Boolean) ?: (fontWeight >= 600)
+        val verticalOffset = (args?.get("verticalOffset") as? Number)?.toFloat()
+        val applyEmbeddedStyles = args?.get("applyEmbeddedStyles") as? Boolean
+        val applyEmbeddedFontSizes = args?.get("applyEmbeddedFontSizes") as? Boolean
+
+        val edgeType = if (strokeColor != Color.TRANSPARENT) {
+            CaptionStyleCompat.EDGE_TYPE_OUTLINE
+        } else {
+            CaptionStyleCompat.EDGE_TYPE_NONE
+        }
+
+        if (applyEmbeddedStyles != null) {
+            subtitleEmbeddedStylesEnabled = applyEmbeddedStyles
+        }
+        if (applyEmbeddedFontSizes != null) {
+            subtitleEmbeddedFontSizesEnabled = applyEmbeddedFontSizes
+        }
+        refreshSubtitleRendererMode()
+
+        // Use the OS default typeface so Android falls back per script
+        // for glyphs beyond Latin, instead of a bundled font
+        // that only covers Latin and renders everything else as tofu.
+        val baseTypeface = Typeface.DEFAULT
+        val resolvedTypeface = if (bold) {
+            Typeface.create(baseTypeface, Typeface.BOLD)
+        } else {
+            baseTypeface
+        }
+
+        subtitleView.setStyle(
+            CaptionStyleCompat(
+                textColor,
+                bgColor,
+                Color.TRANSPARENT,
+                edgeType,
+                strokeColor,
+                resolvedTypeface,
+            ),
+        )
+
+        if (fontSize != null) {
+            val fractionalTextSize = (fontSize / 24f) * 0.06f
+            subtitleView.setFractionalTextSize(fractionalTextSize.coerceAtLeast(0.01f))
+        }
+
+        if (verticalOffset != null) {
+            subtitleView.setBottomPaddingFraction(verticalOffset.coerceIn(0f, 0.95f))
+        }
+        secondarySubtitleOverlay.configureBaseStyle(
+            textColor = textColor,
+            backgroundColor = bgColor,
+            strokeColor = strokeColor,
+            fontSize = fontSize,
+            fontWeight = fontWeight,
+            verticalOffset = verticalOffset,
+        )
+    }
+
+    /** The window the player is on, or null before it has a timeline. */
+    private fun currentWindow(): Timeline.Window? {
+        val timeline = player.currentTimeline
+        if (timeline.isEmpty) return null
+        return try {
+            timeline.getWindow(player.currentMediaItemIndex, Timeline.Window())
+        } catch (_: IndexOutOfBoundsException) {
+            null
+        }
+    }
+
+    /**
+     * What the player thought it was playing when it reported the end of the
+     * stream. A live source has no end, so the window's own view of itself is
+     * what separates a starved live stream from a finished one, whatever
+     * container the server chose to deliver it in.
+     */
+    private fun endOfStreamDiagnostics(): Map<String, Any> {
+        val window = currentWindow()
+        val mimeType = inferStreamMimeType(currentUrl ?: "", currentContainer, currentMediaType)
+        val fields = mapOf(
+            "isLive" to currentIsLive,
+            "windowIsLive" to (window?.isLive() ?: false),
+            "windowIsDynamic" to (window?.isDynamic ?: false),
+            "sourceMimeType" to (mimeType ?: "unknown"),
+            "durationMs" to player.duration,
+            "positionMs" to player.currentPosition,
+            "bufferedPositionMs" to player.bufferedPosition,
+            // C.TIME_UNSET means the player isn't treating the window as live.
+            "liveOffsetMs" to player.currentLiveOffset,
+            // A starved live source ends with loading still true; one that ran
+            // out ends with nothing left to load.
+            "isLoading" to player.isLoading,
+            "playWhenReady" to player.playWhenReady,
+        )
+        // Also to logcat: the Dart diagnostic log only keeps entries when the
+        // user has the diagnostics preference on, and its developer.log call
+        // sits behind an assert, so on a release build this is the only place
+        // the answer survives.
+        AndroidLog.w(LIVE_TAG, fields.entries.joinToString(" ") { "${it.key}=${it.value}" })
+        return fields
+    }
+
+    /**
+     * Picks a starved live stream back up in place, without the server
+     * session being torn down. Only a window that says it is live has an edge
+     * to seek to; anything else -- a progressive transport stream the server
+     * stopped feeding, say -- is re-prepared where it stopped, since seeking
+     * such a source to its default position means restarting it from the
+     * front.
+     */
+    private fun resumeLiveEdge() {
+        if (isPlayerReleased) return
+        val window = currentWindow()
+        // Only a dynamic window has newer media to seek into; seeking a fixed
+        // window's default position restarts it from 0.
+        val hasLiveEdge = window?.isDynamic == true
+        if (hasLiveEdge) {
+            // Jump to the edge and re-prepare onto fresh media.
+            player.seekToDefaultPosition()
+            player.prepare()
+        } else {
+            // ENDED with nothing after the playhead, so only handing the
+            // source back reopens the connection.
+            prepareCurrentSource(player.currentPosition, true)
+        }
+        player.playWhenReady = true
+        AndroidLog.w(LIVE_TAG, "resumeLiveEdge seekedToEdge=$hasLiveEdge")
+        Media3Bridge.emitEvent(
+            mapOf(
+                "event" to "liveEdgeResumed",
+                "seekedToEdge" to hasLiveEdge,
+            ) + endOfStreamDiagnostics(),
+        )
+    }
+
+    /**
+     * The one place the current source is handed to the player, for the first
+     * prepare and every re-prepare after it. Playback with no subtitle timing
+     * to shift keeps the player's own media item path, the rest gets a source
+     * tree the app builds.
+     */
+    private fun prepareCurrentSource(startPositionMs: Long, playWhenReady: Boolean) {
+        val url = currentUrl ?: return
+        cancelPendingRetime()
+
+        val mediaItemBuilder = MediaItem.Builder()
+            .setUri(parseUri(url))
+            .setSubtitleConfigurations(externalSubtitleConfigurations.toList())
+            .setMediaMetadata(buildNowPlayingMetadata())
+        val inferredMimeType = inferStreamMimeType(url, currentContainer, currentMediaType)
+        inferredMimeType?.let { mimeType ->
+            mediaItemBuilder.setMimeType(mimeType)
+        }
+        val mediaItem = mediaItemBuilder.build()
+        val tree = sourceTreeFor(
+            isLive = currentIsLive,
+            isPreview = currentIsPreview,
+            mediaType = currentMediaType,
+            externalCount = externalSubtitleConfigurations.size,
+            manualDelayMs = manualSubtitleDelayMs,
+            hasEmbeddedWrapper = embeddedOffsetSource != null,
+        )
+        when (tree) {
+            SourceTree.PLAYER_ITEM -> {
+                sidecarOffsetSources = emptyList()
+                embeddedOffsetSource = null
+                player.setMediaItem(mediaItem, startPositionMs)
+            }
+            SourceTree.CUSTOM_TREE -> {
+                player.setMediaSource(buildSourceTree(mediaItem), startPositionMs)
+            }
+        }
+        player.prepare()
+        if (playWhenReady) {
+            player.playWhenReady = true
+            player.play()
+        } else {
+            player.playWhenReady = false
+        }
+        emitState()
+    }
+
+    /**
+     * Content first, then the sideloaded subtitles in the order they were
+     * added, so track positions match what the player's own factory builds.
+     * The content item drops its subtitle configurations because each one
+     * becomes a child of its own here, wrapped so its timeline can slide.
+     */
+    private fun buildSourceTree(mediaItem: MediaItem): MediaSource {
+        val contentItem = mediaItem.buildUpon()
+            .setSubtitleConfigurations(emptyList())
+            .build()
+        val content = bootMediaSourceFactory.createMediaSource(contentItem)
+        val offsetUs = subtitleOffsetUs()
+        val embedded = TextStreamOffsetMediaSource(content, offsetUs)
+        val sidecars = externalSubtitleConfigurations.map { configuration ->
+            TimeOffsetMediaSource(
+                SidecarSourceFactory.create(configuration, bootDataSourceFactory, assParserFactory),
+                offsetUs,
+            )
+        }
+        embeddedOffsetSource = embedded
+        sidecarOffsetSources = sidecars
+        assOverlayView?.timeOffsetUs = offsetUs
+        if (sidecars.isEmpty()) return embedded
+        return MergingMediaSource(embedded, *sidecars.toTypedArray())
+    }
+
+    private fun subtitleOffsetUs(): Long = manualSubtitleDelayMs * 1000L
+
+    /**
+     * Pushes the current offsets into the source tree. The first non zero
+     * delay on a source that has no tree yet needs one, which is the same
+     * re-prepare at the current position that adding a sidecar costs. After
+     * that the wrappers take the new value live, and the text track is
+     * re-selected so cues the renderer already holds pick it up.
+     */
+    private fun applySubtitleDelay() {
+        if (isPlayerReleased || currentUrl == null) return
+        if (embeddedOffsetSource == null) {
+            val tree = sourceTreeFor(
+                isLive = currentIsLive,
+                isPreview = currentIsPreview,
+                mediaType = currentMediaType,
+                externalCount = externalSubtitleConfigurations.size,
+                manualDelayMs = manualSubtitleDelayMs,
+                hasEmbeddedWrapper = false,
+            )
+            if (tree == SourceTree.CUSTOM_TREE && playerHasLoadedSource) {
+                prepareCurrentSource(player.currentPosition, player.playWhenReady)
+            }
+            return
+        }
+        val request = subtitleRetime ?: SubtitleRetime().also { subtitleRetime = it }
+        if (!request.disabling && !request.writing) {
+            scheduleRetime()
+        } else if (retimeRunnable == null) {
+            retimeTextTrack()
+        }
+    }
+
+    private fun scheduleRetime() {
+        retimeRunnable?.let { mainHandler.removeCallbacks(it) }
+        val request = subtitleRetime ?: return
+        val runnable = Runnable {
+            retimeRunnable = null
+            if (subtitleRetime === request) retimeTextTrack()
+        }
+        retimeRunnable = runnable
+        mainHandler.postDelayed(runnable, RETIME_DEBOUNCE_MS)
+    }
+
+    private fun cancelPendingRetime() {
+        retimeRunnable?.let { mainHandler.removeCallbacks(it) }
+        retimeRunnable = null
+        val request = subtitleRetime
+        subtitleRetime = null
+        if (request?.disabling == true && !isDisposed && !isPlayerReleased) {
+            trackSelector.parameters = trackSelector.parameters.buildUpon()
+                .setTrackTypeDisabled(C.TRACK_TYPE_TEXT, !subtitleTrackEnabled)
+                .build()
+        }
+    }
+
+    // Wait for actual deselection, then acknowledge the playback-thread offset
+    // write before enabling text. Immediate toggles can collapse into one update.
+    private fun retimeTextTrack() {
+        val request = subtitleRetime ?: return
+        if (isDisposed || isPlayerReleased || retimeRunnable != null || request.writing) return
+        if (!request.disabling) {
+            request.disabling = true
+            trackSelector.parameters = trackSelector.parameters.buildUpon()
+                .setTrackTypeDisabled(C.TRACK_TYPE_TEXT, true)
+                .build()
+        }
+        if (request.disabling && player.currentTracks.isTypeSelected(C.TRACK_TYPE_TEXT)) return
+
+        val owner = player
+        val embedded = embeddedOffsetSource ?: return
+        val sidecars = sidecarOffsetSources
+        val offsetUs = subtitleOffsetUs()
+        request.writing = true
+        // This also orders writes after queued selection invalidations when
+        // text was already Off and no track-change callback will be delivered.
+        val posted = Handler(owner.playbackLooper).post playback@{
+            if (subtitleRetime !== request) return@playback
+            embedded.setTimeOffsetUs(offsetUs)
+            for (source in sidecars) source.setTimeOffsetUs(offsetUs)
+            mainHandler.post completion@{
+                if (subtitleRetime !== request || player !== owner || isDisposed || isPlayerReleased) {
+                    return@completion
+                }
+                request.writing = false
+                if (offsetUs != subtitleOffsetUs()) {
+                    retimeTextTrack()
+                    return@completion
+                }
+                subtitleRetime = null
+                assOverlayView?.timeOffsetUs = offsetUs
+                // Keep accepted overrides rather than restoring a snapshot of
+                // possibly stale Tracks. New pending choices and Off take priority.
+                if (!applyPendingSubtitle()) {
+                    pendingClosedCaptionId?.let { id ->
+                        if (selectClosedCaptionTrack(id)) applyClosedCaptionSelection()
+                    }
+                    applyTrackSelectorForCurrentSource()
+                }
+            }
+        }
+        if (!posted) cancelPendingRetime()
+    }
+
+    fun refreshNowPlayingMetadata() {
+        val index = player.currentMediaItemIndex
+        if (index == C.INDEX_UNSET || index < 0 || index >= player.mediaItemCount) {
+            return
+        }
+
+        val currentMediaItem = player.getMediaItemAt(index)
+        val updatedItem = currentMediaItem.buildUpon()
+            .setMediaMetadata(buildNowPlayingMetadata())
+            .build()
+        player.replaceMediaItem(index, updatedItem)
+    }
+
+    private fun buildNowPlayingMetadata(): MediaMetadata {
+        val uiMetadata = Media3Bridge.activeUiMetadata()
+        val topTitle = uiMetadata["topTitle"]?.toString()?.trim().orEmpty()
+        val topSubtitle = uiMetadata["topSubtitle"]?.toString()?.trim().orEmpty()
+        val artworkUrl = uiMetadata["artworkUrl"]?.toString()?.trim().orEmpty()
+
+        return MediaMetadata.Builder().apply {
+            if (topTitle.isNotEmpty()) {
+                setTitle(topTitle)
+                setDisplayTitle(topTitle)
+            }
+            if (topSubtitle.isNotEmpty()) {
+                setSubtitle(topSubtitle)
+                setArtist(topSubtitle)
+            }
+            if (artworkUrl.isNotEmpty()) {
+                runCatching {
+                    setArtworkUri(parseUri(artworkUrl))
+                }
+            }
+        }.build()
+    }
+
+    private fun inferStreamMimeType(url: String, container: String?, mediaType: String?): String? {
+        val normalizedMediaType = mediaType?.trim()?.lowercase()
+        val normalizedUrl = url.lowercase()
+
+        when {
+            normalizedUrl.startsWith("rtsp://") -> return MimeTypes.APPLICATION_RTSP
+            normalizedUrl.contains(".m3u8") -> return MimeTypes.APPLICATION_M3U8
+            normalizedUrl.contains(".mpd") -> return MimeTypes.APPLICATION_MPD
+            normalizedUrl.contains(".ism") || normalizedUrl.contains(".isml") -> return MimeTypes.APPLICATION_SS
+        }
+
+        val containerTokens = container
+            ?.split(',', ';', '|', ' ')
+            ?.mapNotNull { token -> token.trim().lowercase().takeIf { it.isNotEmpty() } }
+            ?: emptyList()
+
+        for (token in containerTokens) {
+            when (token) {
+                "hls", "m3u8" -> return MimeTypes.APPLICATION_M3U8
+                "dash", "mpd" -> return MimeTypes.APPLICATION_MPD
+                "ss", "smoothstreaming", "ism" -> return MimeTypes.APPLICATION_SS
+                "rtsp" -> return MimeTypes.APPLICATION_RTSP
+            }
+            inferAudioMimeType(token, normalizedMediaType)?.let { return it }
+            inferVideoMimeType(token, normalizedMediaType)?.let { return it }
+        }
+
+        return when {
+            normalizedUrl.contains(".mkv") -> MimeTypes.VIDEO_MATROSKA
+            normalizedUrl.contains(".webm") -> MimeTypes.VIDEO_WEBM
+            normalizedUrl.contains(".mov") -> MimeTypes.VIDEO_QUICK_TIME
+            normalizedUrl.contains(".mp4") || normalizedUrl.contains(".m4v") -> MimeTypes.VIDEO_MP4
+            normalizedUrl.contains(".avi") -> MimeTypes.VIDEO_AVI
+            normalizedUrl.contains(".flv") -> MimeTypes.VIDEO_FLV
+            normalizedUrl.contains(".ts") || normalizedUrl.contains(".m2ts") || normalizedUrl.contains(".mts") -> MimeTypes.VIDEO_MP2T
+            normalizedUrl.contains(".mpg") || normalizedUrl.contains(".mpeg") -> MimeTypes.VIDEO_MPEG
+            normalizedUrl.contains(".ogv") -> MimeTypes.VIDEO_OGG
+            normalizedUrl.contains(".flac") -> MimeTypes.AUDIO_FLAC
+            normalizedUrl.contains(".mp3") -> MimeTypes.AUDIO_MPEG
+            normalizedUrl.contains(".m4a") || normalizedUrl.contains(".aac") -> MimeTypes.AUDIO_AAC
+            normalizedUrl.contains(".opus") -> MimeTypes.AUDIO_OPUS
+            normalizedUrl.contains(".ogg") || normalizedUrl.contains(".oga") -> MimeTypes.AUDIO_OGG
+            normalizedUrl.contains(".wav") || normalizedUrl.contains(".wave") -> MimeTypes.AUDIO_WAV
+            normalizedUrl.contains(".ac3") -> MimeTypes.AUDIO_AC3
+            normalizedUrl.contains(".eac3") -> MimeTypes.AUDIO_E_AC3
+            normalizedUrl.contains(".dts") -> MimeTypes.AUDIO_DTS
+            normalizedUrl.contains(".mka") -> MimeTypes.AUDIO_MATROSKA
+            else -> null
+        }
+    }
+
+    private fun inferVideoMimeType(containerToken: String, mediaType: String?): String? {
+        if (mediaType == "audio") {
+            return null
+        }
+        return when (containerToken) {
+            "mkv",
+            "matroska",
+            -> MimeTypes.VIDEO_MATROSKA
+
+            "webm" -> MimeTypes.VIDEO_WEBM
+            "mov" -> MimeTypes.VIDEO_QUICK_TIME
+            "mp4",
+            "m4v",
+            -> MimeTypes.VIDEO_MP4
+
+            "avi" -> MimeTypes.VIDEO_AVI
+            "flv" -> MimeTypes.VIDEO_FLV
+            "ts",
+            "m2ts",
+            "mts",
+            -> MimeTypes.VIDEO_MP2T
+
+            "mp2p",
+            "ps",
+            -> MimeTypes.VIDEO_PS
+
+            "mpg",
+            "mpeg",
+            -> MimeTypes.VIDEO_MPEG
+
+            "ogv" -> MimeTypes.VIDEO_OGG
+            else -> null
+        }
+    }
+
+    private fun inferAudioMimeType(containerToken: String, mediaType: String?): String? {
+        return when (containerToken) {
+            "mp3" -> MimeTypes.AUDIO_MPEG
+            "flac" -> MimeTypes.AUDIO_FLAC
+            "aac" -> MimeTypes.AUDIO_AAC
+            "m4a",
+            "m4b",
+            -> MimeTypes.AUDIO_AAC
+
+            "mp4" -> if (mediaType == "audio") MimeTypes.AUDIO_AAC else null
+            "opus" -> MimeTypes.AUDIO_OPUS
+            "ogg",
+            "oga",
+            -> MimeTypes.AUDIO_OGG
+
+            "wav",
+            "wave",
+            -> MimeTypes.AUDIO_WAV
+
+            "wma" -> "audio/x-ms-wma"
+            "alac" -> "audio/alac"
+            "ac3" -> MimeTypes.AUDIO_AC3
+            "eac3" -> MimeTypes.AUDIO_E_AC3
+            "dts" -> MimeTypes.AUDIO_DTS
+            "mka",
+            "matroska",
+            -> MimeTypes.AUDIO_MATROSKA
+
+            else -> null
+        }
+    }
+
+    /**
+     * The set of audio output devices changed (AVR or headphones plugged or
+     * unplugged). Any sticky "this device can only open a stereo AudioTrack"
+     * conclusion was drawn against hardware that is no longer the sink, so
+     * drop it and let the next failure (if any) re-establish it.
+     */
+    private fun onAudioOutputDevicesChanged() {
+        if (!deviceRequiresStereoDownmix && !stereoDownmixEnabled) {
+            return
+        }
+        // Only the failure-driven conclusion resets on a route change. The
+        // user's downmix preference survives it.
+        deviceRequiresStereoDownmix = false
+        stereoDownmixRetryAttemptedForCurrentSource = false
+        applyStereoDownmix(downmixToStereoPreference)
+        Media3Bridge.emitEvent(
+            mapOf(
+                "event" to "stereoDownmixReset",
+                "reason" to "audioRouteChanged",
+            ),
+        )
+    }
+
+    /**
+     * The HDMI sink is back after a flap that paused the player through the
+     * system. Only an HDMI class device counts, so headphones pulled on a TV
+     * still leave playback paused, and only inside the window, so a pause
+     * that has stood for a while is left alone.
+     */
+    private fun maybeResumeAfterRouteFlap(addedDevices: Array<out AudioDeviceInfo>) {
+        if (isDisposed || isPlayerReleased) return
+        val pausedAtMs = systemPausedAtMs
+        if (pausedAtMs == 0L) return
+        if (SystemClock.elapsedRealtime() - pausedAtMs > ROUTE_FLAP_RESUME_MS) {
+            systemPausedAtMs = 0L
+            return
+        }
+        if (addedDevices.none { isHdmiDevice(it.type) }) return
+        systemPausedAtMs = 0L
+        Media3Bridge.emitEvent(
+            mapOf(
+                "event" to "routeFlapResume",
+                "reason" to pauseReasonName(systemPauseReason),
+            ),
+        )
+        player.playWhenReady = true
+    }
+
+    private fun isHdmiDevice(type: Int): Boolean =
+        type == AudioDeviceInfo.TYPE_HDMI ||
+            type == AudioDeviceInfo.TYPE_HDMI_ARC ||
+            (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && type == AudioDeviceInfo.TYPE_HDMI_EARC)
+
+    private fun isSystemPauseReason(reason: Int): Boolean =
+        reason == Player.PLAY_WHEN_READY_CHANGE_REASON_AUDIO_BECOMING_NOISY ||
+            reason == Player.PLAY_WHEN_READY_CHANGE_REASON_AUDIO_FOCUS_LOSS
+
+    private fun pauseReasonName(reason: Int): String = when (reason) {
+        Player.PLAY_WHEN_READY_CHANGE_REASON_AUDIO_BECOMING_NOISY -> "becomingNoisy"
+        Player.PLAY_WHEN_READY_CHANGE_REASON_AUDIO_FOCUS_LOSS -> "audioFocusLoss"
+        else -> "reason$reason"
+    }
+
+    /**
+     * An AudioTrack init failure while tunneling is active is frequently the
+     * tunnel configuration failing, not the channel count. Retry untunneled
+     * first so a tunneling problem doesn't condemn the session to a sticky
+     * stereo downmix.
+     */
+    private fun retryAudioWithoutTunnelingIfNeeded(error: PlaybackException): Boolean {
+        val isRetryableError =
+            error.errorCode == PlaybackException.ERROR_CODE_AUDIO_TRACK_INIT_FAILED
+
+        if (!isRetryableError ||
+            !tunnelingActive ||
+            sessionTunnelingDisabled ||
+            tunnelingRetryAttemptedForCurrentSource
+        ) {
+            return false
+        }
+
+        if (currentUrl == null) return false
+        tunnelingRetryAttemptedForCurrentSource = true
+        val retryPositionMs = player.currentPosition.coerceAtLeast(0L)
+        val playWhenReady = player.playWhenReady
+
+        disableTunnelingForSession()
+        Media3Bridge.emitEvent(
+            mapOf("event" to "tunnelingDisabledOnAudioTrackFailure"),
+        )
+        prepareCurrentSource(retryPositionMs, playWhenReady)
+        return true
+    }
+
+    /**
+     * A track failure while the app-side IEC 61937 packer owned the output is
+     * most likely a device that advertises IEC61937 but can't actually play
+     * it, or a bitstream the packer can't carry. Disable IEC for the session
+     * and re-prepare: eligible codecs then take the device's normal raw
+     * passthrough or local decode path, and tunneling may return.
+     */
+    private fun retryAudioWithoutIecIfNeeded(error: PlaybackException): Boolean {
+        val provider = iecOutputProvider ?: return false
+        val isRetryableError =
+            error.errorCode == PlaybackException.ERROR_CODE_AUDIO_TRACK_INIT_FAILED ||
+                error.errorCode == PlaybackException.ERROR_CODE_AUDIO_TRACK_WRITE_FAILED
+
+        if (!isRetryableError ||
+            provider.sessionIecDisabled ||
+            !provider.lastOutputWasIec ||
+            iecRetryAttemptedForCurrentSource
+        ) {
+            return false
+        }
+
+        if (currentUrl == null) return false
+        iecRetryAttemptedForCurrentSource = true
+        val retryPositionMs = player.currentPosition.coerceAtLeast(0L)
+        val playWhenReady = player.playWhenReady
+
+        provider.disableForSession()
+        applyTrackSelectorForCurrentSource()
+        Media3Bridge.emitEvent(
+            mapOf("event" to "iecDisabledOnAudioTrackFailure"),
+        )
+        prepareCurrentSource(retryPositionMs, playWhenReady)
+        return true
+    }
+
+    private fun retryAudioWithoutOffloadIfNeeded(error: PlaybackException): Boolean {
+        val isAudioContent = currentMediaType == "audio"
+        val isRetryableError =
+            error.errorCode == PlaybackException.ERROR_CODE_AUDIO_TRACK_INIT_FAILED ||
+                error.errorCode == PlaybackException.ERROR_CODE_DECODING_FORMAT_UNSUPPORTED
+
+        if (!isAudioContent || !isRetryableError || audioOffloadDisabled || audioOffloadRetryAttemptedForCurrentSource) {
+            return false
+        }
+
+        audioOffloadRetryAttemptedForCurrentSource = true
+        if (currentUrl == null) return false
+        val retryPositionMs = player.currentPosition.coerceAtLeast(0L)
+        val playWhenReady = player.playWhenReady
+
+        audioOffloadDisabled = true
+        applyTrackSelectorForCurrentSource()
+        prepareCurrentSource(retryPositionMs, playWhenReady)
+        return true
+    }
+
+    /**
+     * Recovery for `AudioTrack init failed` (e.g. AAC 7.1 decoded to 8-channel
+     * PCM on a device that can only open a stereo PCM AudioTrack). Enables an
+     * in-place stereo downmix and re-prepares from the current position, which
+     * avoids a costly server-transcode round-trip. Applies to both audio-only
+     * and video content.
+     *
+     * The conclusion is sticky for the session, so only a failure that really
+     * is about the channel count may draw it. A track the route killed is not
+     * one: an HDMI link renegotiating mid stream hands back a dead object
+     * whatever the channel count was, and a display mode switch still landing
+     * is the same story before the error even arrives. Reading either as a
+     * device limit folds every later decode in the session to 2.0.
+     */
+    private fun retryAudioWithStereoDownmixIfNeeded(error: PlaybackException): Boolean {
+        val isRetryableError =
+            error.errorCode == PlaybackException.ERROR_CODE_AUDIO_TRACK_INIT_FAILED ||
+                error.errorCode == PlaybackException.ERROR_CODE_AUDIO_TRACK_WRITE_FAILED
+
+        if (!isRetryableError ||
+            stereoDownmixEnabled ||
+            stereoDownmixRetryAttemptedForCurrentSource ||
+            displayModeSwitchInFlight() ||
+            errorIsDeadAudioTrack(error)
+        ) {
+            return false
+        }
+
+        if (currentUrl == null) return false
+        stereoDownmixRetryAttemptedForCurrentSource = true
+        val retryPositionMs = player.currentPosition.coerceAtLeast(0L)
+        val playWhenReady = player.playWhenReady
+
+        // Sticky for the rest of the session so later items start downmixed
+        // instead of failing the AudioTrack init again.
+        deviceRequiresStereoDownmix = true
+        applyStereoDownmix(true)
+        Media3Bridge.emitEvent(mapOf("event" to "stereoDownmixLatched"))
+        prepareCurrentSource(retryPositionMs, playWhenReady)
+        return true
+    }
+
+    // Setting the window's preferred mode only asks for the switch. The
+    // television renegotiates the link well after the player is ready again,
+    // and the surface it drops on the way through is what kills playback, so
+    // the recovery has to stay armed until the transition has had time to land.
+    private fun displayModeSwitchInFlight(): Boolean =
+        displayModeSwitchAtMs != 0L &&
+            SystemClock.elapsedRealtime() - displayModeSwitchAtMs < DISPLAY_MODE_SWITCH_RECOVERY_MS
+
+    private fun endDisplayModeSwitchRecovery() {
+        displayModeSwitchAtMs = 0L
+        wasPlayingBeforeDisplayModeSwitch = false
+    }
+
+    private fun displayModeSwitchPending(): Boolean {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) return false
+        val target = activePreferredDisplayModeId ?: return false
+        val display = findHostActivity()?.windowManager?.defaultDisplay ?: return false
+        return display.mode.modeId != target
+    }
+
+    // The television renegotiates HDMI a second or so after a mode switch,
+    // which drops the audio route under any track already open, and a
+    // bitstreamed track that comes back from that can leave the player stuck
+    // buffering. So the start waits for the switch to settle instead of
+    // racing it, with the user's start delay added on top.
+    private fun holdStartForDisplayModeSwitch(startDelayMs: Long, start: () -> Unit) {
+        cancelHeldStart()
+        heldStart = start
+        heldStartSettle = DisplayModeSettle(
+            quietMs = DISPLAY_MODE_SETTLE_QUIET_MS + startDelayMs,
+            maxWaitMs = DISPLAY_MODE_SETTLE_MAX_MS,
+            startedAtMs = SystemClock.elapsedRealtime(),
+        )
+        val listener = object : DisplayManager.DisplayListener {
+            override fun onDisplayAdded(displayId: Int) {}
+            override fun onDisplayRemoved(displayId: Int) {}
+            override fun onDisplayChanged(displayId: Int) = noteHeldStartActivity()
+        }
+        context.getSystemService<DisplayManager>()?.registerDisplayListener(listener, mainHandler)
+        heldStartDisplayListener = listener
+        noteHeldStartActivity()
+        emitState()
+    }
+
+    private fun noteHeldStartActivity() {
+        val settle = heldStartSettle ?: return
+        mainHandler.removeCallbacks(heldStartRunnable)
+        mainHandler.postDelayed(
+            heldStartRunnable,
+            settle.delayAfterChange(SystemClock.elapsedRealtime()),
+        )
+    }
+
+    private fun runHeldStart() {
+        val start = heldStart ?: return
+        val settle = heldStartSettle ?: return
+        cancelHeldStart()
+        Media3Bridge.emitEvent(
+            mapOf(
+                "event" to "startHeldForDisplayMode",
+                "heldMs" to SystemClock.elapsedRealtime() - settle.startedAtMs,
+            ),
+        )
+        start()
+    }
+
+    private fun cancelHeldStart() {
+        heldStart = null
+        heldStartSettle = null
+        mainHandler.removeCallbacks(heldStartRunnable)
+        heldStartDisplayListener?.let {
+            context.getSystemService<DisplayManager>()?.unregisterDisplayListener(it)
+        }
+        heldStartDisplayListener = null
+    }
+
+    private fun retryPlaybackOnDisplayModeSwitchErrorIfNeeded(error: PlaybackException): Boolean {
+        if (!displayModeSwitchInFlight() ||
+            displayModeSwitchRetriesForCurrentSource >= DISPLAY_MODE_SWITCH_MAX_RETRIES
+        ) {
+            return false
+        }
+        if (currentUrl == null) return false
+        displayModeSwitchRetriesForCurrentSource++
+        val retryPositionMs = player.currentPosition.coerceAtLeast(0L)
+        val playWhenReady = wasPlayingBeforeDisplayModeSwitch || player.playWhenReady
+
+        prepareCurrentSource(retryPositionMs, playWhenReady)
+        return true
+    }
+
+    /**
+     * Passing playWhenReady through rather than forcing play means a viewer who
+     * paused before the decoder went comes back paused.
+     */
+    private fun retryPlaybackOnReclaimedDecoderIfNeeded(error: PlaybackException): Boolean {
+        val shouldRetry = DecoderReclaimPolicy.shouldRetry(
+            errorCode = error.errorCode,
+            retriesSoFar = decoderReclaimRetriesForCurrentSource,
+            playerLive = isPlayerLive(),
+        )
+        if (!shouldRetry) return false
+        if (currentUrl == null) return false
+        decoderReclaimRetriesForCurrentSource++
+        prepareCurrentSource(player.currentPosition.coerceAtLeast(0L), player.playWhenReady)
+        return true
+    }
+
+    /** The user's downmix preference, or the state a failure proved necessary. */
+    private fun effectiveStereoDownmix(): Boolean =
+        downmixToStereoPreference || deviceRequiresStereoDownmix
+
+    /**
+     * Enable or disable the stereo downmix on [channelMixingProcessor].
+     *
+     * When enabled, registers downmix matrices for 3-12 input channels (to 2)
+     * and identity matrices for mono/stereo input. Identity matrices for 1-2 are
+     * required: the processor throws on any input channel count it has no matrix
+     * for once it is active. When disabled, all counts get identity matrices so
+     * isActive() is false and the processor is bypassed entirely.
+     *
+     * The range runs to 12 because Dolby's platform E-AC3 JOC decoder renders
+     * Atmos to 7.1.4 PCM, and a count with no matrix fails the whole
+     * AudioTrack init rather than one track.
+     */
+    private fun applyStereoDownmix(enabled: Boolean) {
+        stereoDownmixEnabled = enabled
+        for (channelCount in 1..12) {
+            val matrix = if (enabled && channelCount > 2) {
+                ChannelMixingMatrix(channelCount, 2, buildStereoDownmixCoefficients(channelCount))
+            } else {
+                ChannelMixingMatrix(channelCount, channelCount, identityCoefficients(channelCount))
+            }
+            runCatching { channelMixingProcessor.putChannelMixingMatrix(matrix) }
+        }
+    }
+
+    /**
+     * Row-major [inputChannel * 2 + output] downmix coefficients (output 0 = L,
+     * 1 = R) following the conventional ITU-R BS.775 stereo fold-down. Assumes
+     * the standard Android/ExoPlayer PCM channel order
+     * (FL, FR, FC, LFE, BL, BR, SL, SR). LFE is dropped; centre and surrounds
+     * are mixed at -3 dB.
+     */
+    private fun buildStereoDownmixCoefficients(inputChannelCount: Int): FloatArray {
+        val coefficients = FloatArray(inputChannelCount * 2)
+        val minus3dB = 0.7071068f
+        for (channel in 0 until inputChannelCount) {
+            val (toLeft, toRight) = when (channel) {
+                0 -> 1f to 0f          // Front Left
+                1 -> 0f to 1f          // Front Right
+                2 -> minus3dB to minus3dB // Front Centre
+                3 -> 0f to 0f          // LFE (dropped)
+                4 -> minus3dB to 0f    // Back/Surround Left
+                5 -> 0f to minus3dB    // Back/Surround Right
+                6 -> minus3dB to 0f    // Side Left
+                7 -> 0f to minus3dB    // Side Right
+                else -> minus3dB to minus3dB
+            }
+            coefficients[channel * 2] = toLeft
+            coefficients[channel * 2 + 1] = toRight
+        }
+        return coefficients
+    }
+
+    private fun identityCoefficients(channelCount: Int): FloatArray {
+        val coefficients = FloatArray(channelCount * channelCount)
+        for (channel in 0 until channelCount) {
+            coefficients[channel * channelCount + channel] = 1f
+        }
+        return coefficients
+    }
+
+    private fun queryHardwareAv1DecoderAvailability(): Boolean {
+        return runCatching {
+            MediaCodecList(MediaCodecList.ALL_CODECS).codecInfos.any { codecInfo ->
+                if (codecInfo.isEncoder) {
+                    return@any false
+                }
+
+                val supportsAv1 = codecInfo.supportedTypes.any { supportedType ->
+                    supportedType.equals(MimeTypes.VIDEO_AV1, ignoreCase = true)
+                }
+                if (!supportsAv1) {
+                    return@any false
+                }
+
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                    return@any codecInfo.isHardwareAccelerated
+                }
+
+                val codecName = codecInfo.name.lowercase()
+                !codecName.startsWith("omx.google.") &&
+                    !codecName.startsWith("c2.android.") &&
+                    !codecName.startsWith("c2.google.")
+            }
+        }.getOrDefault(false)
+    }
+
+    private fun errorIsFromAudioRenderer(error: PlaybackException): Boolean {
+        val exo = error as? ExoPlaybackException ?: return false
+        if (exo.type != ExoPlaybackException.TYPE_RENDERER) return false
+        return exo.rendererFormat?.sampleMimeType
+            ?.startsWith("audio/") == true
+    }
+
+    private fun errorIsNoValidVarintLengthMaskFound(error: PlaybackException): Boolean {
+        val exo = error as? ExoPlaybackException ?: return false
+        if (exo.type != ExoPlaybackException.TYPE_SOURCE) return false
+
+        var cause: Throwable? = exo.sourceException
+        var depth = 0
+
+        while (cause != null && depth < 3) {
+            if (cause is IllegalStateException &&
+                cause.message == "No valid varint length mask found"
+            ) {
+                return true
+            }
+
+            cause = cause.cause
+            depth++
+        }
+
+        return false
+    }
+
+    private fun emitRecoverablePlayerError(
+        error: PlaybackException,
+        audioOffloadRetryTriggered: Boolean,
+    ) {
+        val recoverableKind = when (error.errorCode) {
+            PlaybackException.ERROR_CODE_AUDIO_TRACK_INIT_FAILED,
+            PlaybackException.ERROR_CODE_AUDIO_TRACK_WRITE_FAILED,
+            PlaybackException.ERROR_CODE_DECODING_FORMAT_UNSUPPORTED,
+            PlaybackException.ERROR_CODE_DECODING_FORMAT_EXCEEDS_CAPABILITIES,
+            -> "unsupported_audio"
+
+            // No extractor could read the stream (e.g. brand-less MP4 / remux
+            // that fails byte-sniffing, UnrecognizedInputFormatException). The
+            // MIME hint only picks the media source, not the extractor, so the
+            // only reliable recovery for a server client is a transcode fallback.
+            PlaybackException.ERROR_CODE_PARSING_CONTAINER_UNSUPPORTED,
+            PlaybackException.ERROR_CODE_PARSING_CONTAINER_MALFORMED,
+            -> if (containerFallbackAttempted) null else "unsupported_container"
+
+            // Some platform decoders accept a format on paper and then throw
+            // a raw codec error on the first frames, Tensor's Dolby E-AC3
+            // decoder on a JOC stream for one. From an audio renderer that is
+            // the same situation as an init failure: the codec has to go.
+            PlaybackException.ERROR_CODE_DECODING_FAILED ->
+                if (errorIsFromAudioRenderer(error)) "unsupported_audio" else null
+
+            // Some MKVs carry zero padding after the last real cluster while
+            // the Segment size runs to EOF. Media3 reads a 0x00 there as an
+            // EBML length byte, which has no leading 1-bit and so no valid
+            // varint length mask. The container is the malformed part, and any
+            // server transcode rewrites it without the tail.
+            PlaybackException.ERROR_CODE_IO_UNSPECIFIED ->
+                if (!containerFallbackAttempted &&
+                    errorIsNoValidVarintLengthMaskFound(error)
+                ) {
+                    "unsupported_container"
+                } else {
+                    null
+                }
+
+            else -> null
+        }
+
+        if (recoverableKind == null) {
+            return
+        }
+
+        if (recoverableKind == "unsupported_container") {
+            // Guard against re-emitting for the same source; the Dart side also
+            // refuses to re-resolve when already transcoding, so this cannot loop.
+            containerFallbackAttempted = true
+        }
+
+        Media3Bridge.emitEvent(
+            mapOf(
+                "event" to "playerError",
+                "recoverable" to true,
+                "kind" to recoverableKind,
+                "code" to error.errorCode,
+                "message" to (error.localizedMessage ?: ""),
+                "cause" to describeCauseChain(error),
+                "audioOffloadRetryTriggered" to audioOffloadRetryTriggered,
+            ),
+        )
+    }
+
+    private fun selectTrack(trackType: Int, oneBasedIndex: Int): Boolean {
+        val entries = collectTracks(trackType)
+        if (oneBasedIndex <= 0 || oneBasedIndex > entries.size) {
+            return false
+        }
+        val entry = entries[oneBasedIndex - 1]
+        if (!entry.supported) {
+            return false
+        }
+
+        return applyTrackOverride(trackType, entry)
+    }
+
+    private fun applyTrackOverride(trackType: Int, entry: TrackEntry): Boolean {
+        if (trackType == C.TRACK_TYPE_TEXT && subtitleRetime != null) return false
+        return try {
+            val override = TrackSelectionOverride(entry.group, listOf(entry.trackIndex))
+
+            trackSelector.parameters = trackSelector.parameters
+                .buildUpon()
+                .setTrackTypeDisabled(trackType, false)
+                .clearOverridesOfType(trackType)
+                .addOverride(override)
+                .build()
+
+            emitTracksChanged()
+            emitState()
+            true
+        } catch (_: Throwable) {
+            emitTracksChanged()
+            emitState()
+            false
+        }
+    }
+
+    // Include unsupported tracks so 1-based positions stay aligned with the
+    // server's stream list (a track the decoder rejects must not shift every
+    // later position); selection of an unsupported entry is vetoed instead.
+    // Resolves an external file by the URL it was added from (through the
+    // deterministic SubtitleConfiguration id), which is immune to ExoPlayer
+    // group-ordering surprises, and falls back to positional selection.
+    // Applies a subtitle selection request from either the live channel
+    // (handleControlCall) or a replayed queued call (handleQueuedCall). Both
+    // must resolve externals through selectTextTrack (by SubtitleConfiguration
+    // id), and both keep the request pending so onTracksChanged retries once the
+    // tracks are ready.
+    private fun handleSetSubtitleTrack(args: Map<*, *>?) {
+        val index = (args?.get("index") as? Number)?.toInt() ?: 0
+        val codec = args?.get("codec")?.toString()
+        val isExternal = args?.get("isExternalSubtitle") as? Boolean ?: false
+        val isBitmap = args?.get("isBitmapSubtitle") as? Boolean ?: false
+        val externalUrl = args?.get("externalSubtitleUrl")?.toString()
+
+        pendingClosedCaptionId = null
+        pendingSubtitleIndex = index
+        pendingSubtitleCodec = codec
+        pendingSubtitleIsExternal = isExternal
+        pendingSubtitleIsBitmap = isBitmap
+        pendingExternalSubtitleUrl = externalUrl
+
+        applyPendingSubtitle()
+    }
+
+    private fun applyPendingSubtitle(): Boolean {
+        if (subtitleRetime != null) return false
+        val index = pendingSubtitleIndex ?: return false
+        if (selectTextTrack(index, pendingExternalSubtitleUrl)) {
+            selectedSubtitleCodec = pendingSubtitleCodec?.trim()?.lowercase()
+            selectedSubtitleIsExternal = pendingSubtitleIsExternal ?: false
+            selectedSubtitleIsBitmap = pendingSubtitleIsBitmap ?: false
+            selectedExternalSubtitleUrl = pendingExternalSubtitleUrl?.takeIf { it.isNotBlank() }
+            subtitleTrackEnabled = true
+            applyTrackSelectorForCurrentSource()
+            refreshSubtitleRendererMode()
+
+            pendingSubtitleIndex = null
+            pendingSubtitleCodec = null
+            pendingSubtitleIsExternal = null
+            pendingSubtitleIsBitmap = null
+            pendingExternalSubtitleUrl = null
+            return true
+        }
+        return false
+    }
+
+    // Live TV joins a stream part way through, so the captions are often not
+    // there yet when the viewer asks for them. The request is kept pending and
+    // retried on every track change, the same way a subtitle request is.
+    private fun handleSetClosedCaptionTrack(args: Map<*, *>?) {
+        val id = (args?.get("id") as? Number)?.toInt() ?: 0
+
+        pendingSubtitleIndex = null
+        pendingSubtitleCodec = null
+        pendingSubtitleIsExternal = null
+        pendingSubtitleIsBitmap = null
+        pendingExternalSubtitleUrl = null
+        pendingClosedCaptionId = id
+
+        if (selectClosedCaptionTrack(id)) {
+            applyClosedCaptionSelection()
+        }
+    }
+
+    private fun selectClosedCaptionTrack(id: Int): Boolean {
+        val entries = collectClosedCaptionTracks()
+        if (id <= 0 || id > entries.size) return false
+        val entry = entries[id - 1]
+        if (!entry.supported) return false
+        return applyTrackOverride(C.TRACK_TYPE_TEXT, entry)
+    }
+
+    private fun applyClosedCaptionSelection() {
+        pendingClosedCaptionId = null
+        selectedSubtitleCodec = null
+        selectedSubtitleIsExternal = false
+        selectedSubtitleIsBitmap = false
+        selectedExternalSubtitleUrl = null
+        subtitleTrackEnabled = true
+        applyTrackSelectorForCurrentSource()
+        refreshSubtitleRendererMode()
+    }
+
+    private fun selectTextTrack(oneBasedIndex: Int, externalUrl: String?): Boolean {
+        val url = externalUrl?.takeIf { it.isNotBlank() }
+        if (url != null && selectExternalSubtitleByUrl(url)) {
+            emitSubtitleSelection(oneBasedIndex, "url", true)
+            return true
+        }
+        // Positional selection counts on the player seeing tracks in the same
+        // order the server listed them, which an external that failed to match
+        // by url has already disproved, so say which way the track was picked.
+        val how = if (url != null) "positionalAfterUrlMiss" else "positional"
+        val selected = selectTrack(C.TRACK_TYPE_TEXT, oneBasedIndex)
+        emitSubtitleSelection(oneBasedIndex, how, selected)
+        return selected
+    }
+
+    private fun emitSubtitleSelection(oneBasedIndex: Int, how: String, selected: Boolean) {
+        Media3Bridge.emitEvent(
+            mapOf(
+                "event" to "subtitleSelection",
+                "trackId" to oneBasedIndex,
+                "how" to how,
+                "selected" to selected,
+                "externalCount" to externalSubtitleConfigurations.size,
+                "textTrackCount" to collectTracks(C.TRACK_TYPE_TEXT).size,
+            ),
+        )
+    }
+
+    private fun selectExternalSubtitleByUrl(url: String): Boolean {
+        // The configuration uri was built with Uri.parse at add time, so parse
+        // the request the same way. Comparing a parsed uri to the raw string
+        // misses whenever Android normalizes it, dropping us to positional
+        // selection which is off for externals.
+        val target = parseUri(url)
+        val configIndex = externalSubtitleConfigurations.indexOfFirst {
+            it.uri == target
+        }
+        if (configIndex < 0) return false
+        val targetId = (EXTERNAL_SUBTITLE_ID_BASE + configIndex).toString()
+
+        for (group in player.currentTracks.groups) {
+            if (group.type != C.TRACK_TYPE_TEXT) continue
+            val mediaTrackGroup = group.mediaTrackGroup
+            for (index in 0 until group.length) {
+                if (!externalFormatIdMatches(group.getTrackFormat(index).id, targetId)) continue
+                if (!group.isTrackSupported(index)) return false
+                return applyTrackOverride(
+                    C.TRACK_TYPE_TEXT,
+                    TrackEntry(mediaTrackGroup, index, supported = true),
+                )
+            }
+        }
+        return false
+    }
+
+    private fun collectTracks(trackType: Int): List<TrackEntry> =
+        collectTrackEntries(trackType) { !isClosedCaptionTrack(it) }
+
+    private fun collectClosedCaptionTracks(): List<TrackEntry> =
+        collectTrackEntries(C.TRACK_TYPE_TEXT) { isClosedCaptionTrack(it) }
+
+    private inline fun collectTrackEntries(
+        trackType: Int,
+        accept: (Format) -> Boolean,
+    ): List<TrackEntry> {
+        val entries = mutableListOf<TrackEntry>()
+
+        for (group in groupsInSourceOrder(trackType)) {
+            val mediaTrackGroup = group.mediaTrackGroup
+            for (index in 0 until group.length) {
+                if (!accept(group.getTrackFormat(index))) continue
+                entries.add(
+                    TrackEntry(mediaTrackGroup, index, group.isTrackSupported(index)),
+                )
+            }
+        }
+
+        return entries
+    }
+
+    /**
+     * The groups of [trackType] in the order the source declared them.
+     *
+     * Tracks.groups arrives renderer by renderer, so a file whose audio tracks
+     * land on different renderers, one on a platform decoder and the other on
+     * the FFmpeg extension, hands them back shuffled. The 1-based positions
+     * built from that order are matched against the server's stream list, so a
+     * shuffle silently selects the wrong track. TrackGroup.id carries the
+     * source position, so sort by it and leave the order alone whenever any id
+     * is unreadable.
+     */
+    private fun groupsInSourceOrder(trackType: Int): List<Tracks.Group> {
+        val groups = player.currentTracks.groups.filter { it.type == trackType }
+        if (groups.size < 2) return groups
+
+        val keys = ArrayList<List<Int>>(groups.size)
+        for (group in groups) {
+            keys.add(sourceOrderKey(group.mediaTrackGroup.id) ?: return groups)
+        }
+        return groups.indices
+            .sortedWith { left, right -> compareSourceOrderKeys(keys[left], keys[right]) }
+            .map { groups[it] }
+    }
+
+    // Progressive sources number their groups "0", "1", "2", and a merged
+    // source (an external subtitle alongside the media) prefixes the child
+    // index as "0:1". Anything else is not a position and gives up.
+    private fun sourceOrderKey(id: String): List<Int>? {
+        if (id.isEmpty()) return null
+        return id.split(':').map { part -> part.toIntOrNull() ?: return null }
+    }
+
+    private fun compareSourceOrderKeys(left: List<Int>, right: List<Int>): Int {
+        for (index in 0 until maxOf(left.size, right.size)) {
+            val diff = left.getOrElse(index) { -1 }.compareTo(right.getOrElse(index) { -1 })
+            if (diff != 0) return diff
+        }
+        return 0
+    }
+
+    // Captions found inside the video are the player's own discovery and have
+    // no place in the server's stream list, so they are kept out of the
+    // positions that list is matched against and offered separately.
+    private fun isClosedCaptionTrack(format: Format): Boolean {
+        return when (format.sampleMimeType) {
+            MimeTypes.APPLICATION_CEA608,
+            MimeTypes.APPLICATION_CEA708,
+            MimeTypes.APPLICATION_MP4CEA608,
+            -> true
+
+            else -> false
+        }
+    }
+
+    private fun closedCaptionTrackOptions(): List<Map<String, Any?>> {
+        return collectClosedCaptionTracks().mapIndexed { position, entry ->
+            val format = entry.group.getFormat(entry.trackIndex)
+            mapOf(
+                "id" to position + 1,
+                "label" to closedCaptionLabel(format, position + 1),
+                "language" to (format.language ?: ""),
+            )
+        }
+    }
+
+    // CC1 through CC4 and the 708 service numbers are what broadcasters print
+    // on screen, so they are used verbatim rather than translated.
+    private fun closedCaptionLabel(format: Format, fallbackId: Int): String {
+        val channel = format.accessibilityChannel
+        if (format.sampleMimeType == MimeTypes.APPLICATION_CEA708) {
+            return if (channel != Format.NO_VALUE) "Service $channel" else "Service $fallbackId"
+        }
+        return if (channel != Format.NO_VALUE) "CC$channel" else "CC$fallbackId"
+    }
+
+    private fun trackCount(trackType: Int): Int = collectTracks(trackType).size
+
+    private fun trackStateMap(): Map<String, Any?> {
+        return mapOf(
+            "audioTracks" to collectTrackOptions(C.TRACK_TYPE_AUDIO),
+            "subtitleTracks" to collectTrackOptions(C.TRACK_TYPE_TEXT),
+        )
+    }
+
+    private fun collectTrackOptions(trackType: Int): List<Map<String, Any?>> {
+        val options = mutableListOf<Map<String, Any?>>()
+        var oneBasedIndex = 1
+
+        // Numbering must mirror collectTracks (all tracks, including
+        // unsupported ones) so a menu selection resolves to the same track.
+        for (group in groupsInSourceOrder(trackType)) {
+            for (trackIndex in 0 until group.length) {
+                val format = group.getTrackFormat(trackIndex)
+                if (isClosedCaptionTrack(format)) continue
+                options.add(
+                    mapOf(
+                        "index" to oneBasedIndex,
+                        "label" to formatTrackLabel(format, trackType, oneBasedIndex),
+                        "selected" to group.isTrackSelected(trackIndex),
+                        "language" to (format.language ?: ""),
+                        "codec" to (format.codecs ?: format.sampleMimeType ?: ""),
+                        "supported" to group.isTrackSupported(trackIndex),
+                    ),
+                )
+                oneBasedIndex += 1
+            }
+        }
+
+        return options
+    }
+
+    private fun formatTrackLabel(format: Format, trackType: Int, fallbackIndex: Int): String {
+        val explicitLabel = format.label?.trim().orEmpty()
+        if (explicitLabel.isNotEmpty()) {
+            return explicitLabel
+        }
+
+        val language = format.language
+            ?.takeIf { it.isNotBlank() && it != "und" }
+            ?.replaceFirstChar { it.uppercase() }
+        val codec = format.codecs
+            ?.takeIf { it.isNotBlank() }
+            ?: format.sampleMimeType
+                ?.substringAfterLast('.')
+                ?.takeIf { it.isNotBlank() }
+                ?.uppercase()
+
+        val pieces = listOfNotNull(language, codec)
+        if (pieces.isNotEmpty()) {
+            return pieces.joinToString(" • ")
+        }
+
+        return "${trackTypeLabel(trackType)} $fallbackIndex"
+    }
+
+    private fun trackTypeLabel(trackType: Int): String {
+        return when (trackType) {
+            C.TRACK_TYPE_AUDIO -> "Audio"
+            C.TRACK_TYPE_TEXT -> "Subtitle"
+            else -> "Track"
+        }
+    }
+
+    private fun emitTracksChanged() {
+        Media3Bridge.emitEvent(
+            mapOf(
+                "event" to "tracksChanged",
+                "videoTrackCount" to trackCount(C.TRACK_TYPE_VIDEO),
+                "audioTrackCount" to trackCount(C.TRACK_TYPE_AUDIO),
+                "textTrackCount" to trackCount(C.TRACK_TYPE_TEXT),
+                "closedCaptionTracks" to closedCaptionTrackOptions(),
+                "subtitleRendererMode" to activeSubtitleRendererMode.wireValue,
+                "subtitleRendererModeRequested" to requestedSubtitleRendererMode.wireValue,
+            ),
+        )
+        emitAudioTrackMapping()
+    }
+
+    // Media3 raises nothing when no renderer takes the video or the extractor
+    // drops it, it just plays the audio over a black screen. Reporting it here
+    // lets the Dart side try the item again as a transcode, or stop if it
+    // already is one.
+    private fun reportUnsupportedVideoIfNeeded() {
+        val tracks = player.currentTracks
+        val hasVideoTrack = tracks.containsType(C.TRACK_TYPE_VIDEO)
+        val report = shouldReportUnsupportedVideo(
+            mediaType = currentMediaType,
+            isPreview = currentIsPreview,
+            alreadyReported = unsupportedVideoReported,
+            sourceHasVideo = sourceVideoWidthHint > 0,
+            isReady = player.playbackState == Player.STATE_READY,
+            hasVideoTrack = hasVideoTrack,
+            videoSelected = tracks.isTypeSelected(C.TRACK_TYPE_VIDEO),
+        )
+        if (!report) {
+            return
+        }
+
+        unsupportedVideoReported = true
+        Media3Bridge.emitEvent(
+            mapOf(
+                "event" to "playerError",
+                "recoverable" to true,
+                "kind" to "unsupported_video",
+                "message" to if (hasVideoTrack) {
+                    "No renderer took the video track"
+                } else {
+                    "The stream has no video track the player can read"
+                },
+            ),
+        )
+    }
+
+    /**
+     * Reports which renderer every audio track was mapped to, in the order the
+     * app numbers them. A file whose tracks span more than one renderer is the
+     * shape that used to shuffle the positions, so `splitAcrossRenderers` is
+     * the flag worth reading first in a bug report.
+     */
+    private fun emitAudioTrackMapping() {
+        val rendererNames = audioRendererNamesByGroup()
+        val tracks = mutableListOf<Map<String, Any?>>()
+        var position = 1
+
+        for (group in groupsInSourceOrder(C.TRACK_TYPE_AUDIO)) {
+            val rendererName = rendererNames[group.mediaTrackGroup] ?: "unmapped"
+            for (trackIndex in 0 until group.length) {
+                val format = group.getTrackFormat(trackIndex)
+                tracks.add(
+                    mapOf(
+                        "position" to position,
+                        "groupId" to group.mediaTrackGroup.id,
+                        "codec" to (format.sampleMimeType ?: ""),
+                        "channels" to format.channelCount,
+                        "language" to (format.language ?: ""),
+                        "renderer" to rendererName,
+                        "selected" to group.isTrackSelected(trackIndex),
+                        "supported" to group.isTrackSupported(trackIndex),
+                    ),
+                )
+                position += 1
+            }
+        }
+
+        if (tracks.isEmpty()) return
+        // Track changes fire on every selection, and the mapping only matters
+        // when it moves, so repeats of an unchanged list stay out of the log.
+        if (tracks == lastAudioTrackMapping) return
+        lastAudioTrackMapping = tracks
+
+        Media3Bridge.emitEvent(
+            mapOf(
+                "event" to "audioTrackMapping",
+                "splitAcrossRenderers" to (rendererNames.values.toSet().size > 1),
+                "tracks" to tracks,
+            ),
+        )
+    }
+
+    private fun audioRendererNamesByGroup(): Map<TrackGroup, String> {
+        val info = trackSelector.currentMappedTrackInfo ?: return emptyMap()
+        val names = mutableMapOf<TrackGroup, String>()
+        for (rendererIndex in 0 until info.rendererCount) {
+            if (info.getRendererType(rendererIndex) != C.TRACK_TYPE_AUDIO) continue
+            val name = runCatching { player.getRenderer(rendererIndex).name }
+                .getOrDefault("renderer $rendererIndex")
+            val groups = info.getTrackGroups(rendererIndex)
+            for (groupIndex in 0 until groups.length) {
+                names[groups.get(groupIndex)] = name
+            }
+        }
+        return names
+    }
+
+    private fun stateMap(): Map<String, Any?> {
+        val duration = player.duration
+        val bufferedPosition = player.bufferedPosition
+        val videoSize = player.videoSize
+        return mapOf(
+            "positionMs" to player.currentPosition,
+            "durationMs" to if (duration > 0) duration else 0L,
+            "bufferedMs" to if (bufferedPosition > 0) bufferedPosition else 0L,
+            "isPlaying" to player.isPlaying,
+            "isBuffering" to (player.playbackState == Player.STATE_BUFFERING || heldStart != null),
+            "isSubtitleLoading" to (subtitleTrackEnabled &&
+                player.playbackState != Player.STATE_IDLE &&
+                player.playbackState != Player.STATE_ENDED &&
+                sidecarOffsetSources.any { it.isSubtitleLoading }),
+            // isPlaying can't tell a viewer pause from a stall, so this sends the
+            // intent to play. A phone call holds playback without clearing that
+            // intent, so it counts as paused here instead of looking like a stall.
+            "playWhenReady" to (player.playWhenReady &&
+                player.playbackSuppressionReason == Player.PLAYBACK_SUPPRESSION_REASON_NONE),
+            "playbackSpeed" to player.playbackParameters.speed.toDouble(),
+            "videoWidth" to videoSize.width,
+            "videoHeight" to videoSize.height,
+            "repeatMode" to repeatModeToWire(player.repeatMode),
+            "skipSilenceEnabled" to skipSilenceEnabled,
+            "audioDelayMs" to audioDelayMs,
+            "subtitleDelayMs" to manualSubtitleDelayMs,
+            "volumeBoostLevel" to userVolumeBoostLevel,
+            "subtitleRendererMode" to activeSubtitleRendererMode.wireValue,
+            "subtitleRendererModeRequested" to requestedSubtitleRendererMode.wireValue,
+            "liveEdgeMs" to liveEdgeMs(),
+        )
+    }
+
+    /**
+     * Where playing live sits on the window's own clock, which is the one
+     * positions are reported on. Null unless the stream keeps a window that
+     * can be sought back into, like a live HLS playlist does.
+     */
+    private fun liveEdgeMs(): Long? {
+        val window = currentWindow() ?: return null
+        if (!window.isLive() || !window.isSeekable || !window.isDynamic) return null
+        return window.defaultPositionMs.takeIf { it > 0 }
+    }
+
+    private fun emitState() {
+        if (suppressStateEmissionsForRekick) return
+        // One global event stream feeds Dart, so a view that doesn't hold the
+        // slot would overwrite the real player's state with its own.
+        if (!Media3Bridge.isActive(this)) return
+        Media3Bridge.emitEvent(stateMap() + ("event" to "state"))
+    }
+
+    // Offline playback hands us bare filesystem paths. Media3 needs a scheme to
+    // pick a data source, so anything arriving without one becomes a file uri.
+    private fun parseUri(url: String): Uri {
+        val parsed = Uri.parse(url)
+        return if (parsed.scheme.isNullOrEmpty()) Uri.fromFile(File(url)) else parsed
+    }
+
+    private fun startTicker() {
+        if (ticker != null) return
+        val runnable = object : Runnable {
+            override fun run() {
+                emitState()
+                secondarySubtitleOverlay.renderAt(player.currentPosition)
+                mainHandler.postDelayed(this, 250L)
+            }
+        }
+        ticker = runnable
+        mainHandler.post(runnable)
+    }
+
+    private fun stopTicker() {
+        ticker?.let { mainHandler.removeCallbacks(it) }
+        ticker = null
+    }
+
+    // Platform views keep their ticker. The host's follows its playback.
+    fun syncTicker() {
+        if (!isHeadlessHost) return
+        if (!isPlayerReleased &&
+            Media3SlotPolicy.shouldTick(player.playWhenReady, player.playbackState)
+        ) {
+            startTicker()
+        } else {
+            stopTicker()
+        }
+    }
+
+    private fun codecToMimeType(codec: String?): String? {
+        val normalized = codec?.trim()?.lowercase() ?: return null
+        return when (normalized) {
+            "ass", "ssa" -> MimeTypes.TEXT_SSA
+            "srt", "subrip" -> MimeTypes.APPLICATION_SUBRIP
+            "vtt", "webvtt" -> MimeTypes.TEXT_VTT
+            "ttml" -> MimeTypes.APPLICATION_TTML
+            "pgs", "pgssub", "hdmv_pgs_subtitle" -> MimeTypes.APPLICATION_PGS
+            "dvbsub", "dvb_subtitle" -> MimeTypes.APPLICATION_DVBSUBS
+            "dvdsub", "dvd_subtitle", "vobsub", "xsub" -> MimeTypes.APPLICATION_VOBSUB
+            else -> null
+        }
+    }
+}

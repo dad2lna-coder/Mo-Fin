@@ -1,0 +1,551 @@
+import 'package:flutter/cupertino.dart' show CupertinoSlider;
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:get_it/get_it.dart';
+import 'package:moonfin_design/moonfin_design.dart';
+import 'package:jellyfin_preference/jellyfin_preference.dart';
+
+import '../../../preference/user_preferences.dart';
+import '../../../l10n/app_localizations.dart';
+import '../../../util/idiom/app_ui_idiom.dart';
+import '../../../util/platform_detection.dart';
+import '../../widgets/overlay_sheet.dart';
+import '../../widgets/settings/clean_settings_typography.dart';
+import '../../widgets/settings/preference_binding.dart';
+import '../../widgets/settings/preference_tiles.dart';
+import '../../widgets/settings/settings_section_header.dart';
+import '../../widgets/subtitle_preview.dart';
+import 'settings_app_bar.dart';
+import '../../widgets/focus/request_initial_focus.dart';
+
+class SubtitleCustomizationScreen extends StatefulWidget {
+  const SubtitleCustomizationScreen({super.key});
+
+  @override
+  State<SubtitleCustomizationScreen> createState() =>
+      _SubtitleCustomizationScreenState();
+}
+
+class _SubtitleCustomizationScreenState
+    extends State<SubtitleCustomizationScreen> {
+  late final PreferenceBinding<double> _sizeBind;
+  late final PreferenceBinding<double> _offsetBind;
+  late final PreferenceBinding<double> _hdrSizeBind;
+  late final PreferenceBinding<double> _hdrOffsetBind;
+  late final FocusNode _sizeOuterNode;
+  late final FocusNode _sizeInnerNode;
+  late final FocusNode _offsetOuterNode;
+  late final FocusNode _offsetInnerNode;
+  late final FocusNode _hdrSizeOuterNode;
+  late final FocusNode _hdrSizeInnerNode;
+  late final FocusNode _hdrOffsetOuterNode;
+  late final FocusNode _hdrOffsetInnerNode;
+  bool _sizeFocused = false;
+  bool _offsetFocused = false;
+  bool _hdrSizeFocused = false;
+  bool _hdrOffsetFocused = false;
+
+  @override
+  void initState() {
+    super.initState();
+    final store = GetIt.instance<PreferenceStore>();
+    _sizeBind = PreferenceBinding(store, UserPreferences.subtitlesTextSize);
+    _offsetBind = PreferenceBinding(
+      store,
+      UserPreferences.subtitlesOffsetPosition,
+    );
+    _sizeOuterNode = FocusNode(debugLabel: 'SubtitleSizeOuter');
+    _sizeInnerNode = FocusNode(
+      debugLabel: 'SubtitleSizeInner',
+      canRequestFocus: false,
+      skipTraversal: true,
+    );
+    _offsetOuterNode = FocusNode(debugLabel: 'SubtitleOffsetOuter');
+    _offsetInnerNode = FocusNode(
+      debugLabel: 'SubtitleOffsetInner',
+      canRequestFocus: false,
+      skipTraversal: true,
+    );
+    _hdrSizeBind = PreferenceBinding(
+      store,
+      UserPreferences.subtitlesHdrTextSize,
+    );
+    _hdrOffsetBind = PreferenceBinding(
+      store,
+      UserPreferences.subtitlesHdrOffsetPosition,
+    );
+    _hdrSizeOuterNode = FocusNode(debugLabel: 'SubtitleHdrSizeOuter');
+    _hdrSizeInnerNode = FocusNode(
+      debugLabel: 'SubtitleHdrSizeInner',
+      canRequestFocus: false,
+      skipTraversal: true,
+    );
+    _hdrOffsetOuterNode = FocusNode(debugLabel: 'SubtitleHdrOffsetOuter');
+    _hdrOffsetInnerNode = FocusNode(
+      debugLabel: 'SubtitleHdrOffsetInner',
+      canRequestFocus: false,
+      skipTraversal: true,
+    );
+  }
+
+  KeyEventResult _sliderKeyHandler({
+    required FocusNode node,
+    required KeyEvent event,
+    required PreferenceBinding<double> binding,
+    required double min,
+    required double max,
+    required double step,
+    bool swallowDown = false,
+  }) {
+    if (event is! KeyDownEvent && event is! KeyRepeatEvent) {
+      return KeyEventResult.ignored;
+    }
+    final key = event.logicalKey;
+    if (key == LogicalKeyboardKey.arrowUp) {
+      final moved = node.previousFocus();
+      if (!moved) {
+        node.requestFocus();
+      }
+      return KeyEventResult.handled;
+    }
+    if (key == LogicalKeyboardKey.arrowDown) {
+      if (swallowDown) {
+        return KeyEventResult.handled;
+      }
+      final moved = node.nextFocus();
+      if (!moved) {
+        node.requestFocus();
+      }
+      return KeyEventResult.handled;
+    }
+    if (key == LogicalKeyboardKey.arrowLeft ||
+        key == LogicalKeyboardKey.arrowRight) {
+      final delta = key == LogicalKeyboardKey.arrowLeft ? -step : step;
+      final next = (binding.value + delta).clamp(min, max);
+      if (next != binding.value) binding.value = next;
+      return KeyEventResult.handled;
+    }
+    return KeyEventResult.ignored;
+  }
+
+  @override
+  void dispose() {
+    _sizeOuterNode.dispose();
+    _sizeInnerNode.dispose();
+    _offsetOuterNode.dispose();
+    _offsetInnerNode.dispose();
+    _hdrSizeOuterNode.dispose();
+    _hdrSizeInnerNode.dispose();
+    _hdrOffsetOuterNode.dispose();
+    _hdrOffsetInnerNode.dispose();
+    _sizeBind.dispose();
+    _offsetBind.dispose();
+    _hdrSizeBind.dispose();
+    _hdrOffsetBind.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final content = _buildContent(context);
+    if (PlatformDetection.isTV) {
+      return RequestInitialFocus(child: content);
+    }
+    return content;
+  }
+
+  Widget _buildContent(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    return withCleanSettingsTypography(
+      context,
+      Scaffold(
+        appBar: buildSettingsAppBar(context, Text(l10n.subtitleCustomization)),
+        body: ListView(
+          padding: EdgeInsets.only(
+            bottom: MediaQuery.of(context).padding.bottom + 16,
+          ),
+          children: [
+            const SubtitlePreview(),
+            _ColorPickerTile(
+              title: l10n.textFillColor,
+              icon: Icons.format_color_text,
+              preference: UserPreferences.subtitlesTextColor,
+              allowTransparent: false,
+            ),
+            _ColorPickerTile(
+              title: l10n.textStrokeColor,
+              icon: Icons.border_color,
+              preference: UserPreferences.subtitleTextStrokeColor,
+            ),
+            _ColorPickerTile(
+              title: l10n.backgroundColor,
+              icon: Icons.format_color_fill,
+              preference: UserPreferences.subtitlesBackgroundColor,
+            ),
+            _sliderTile(
+              context: context,
+              icon: Icons.format_size,
+              label: l10n.subtitleSize,
+              binding: _sizeBind,
+              outerNode: _sizeOuterNode,
+              innerNode: _sizeInnerNode,
+              focused: _sizeFocused,
+              onFocusChange: (f) {
+                if (_sizeFocused != f && mounted) {
+                  setState(() => _sizeFocused = f);
+                }
+              },
+              min: 12,
+              max: 48,
+              divisions: 18,
+              step: 2,
+              labelBuilder: (v) => l10n.pixelValue(v.round()),
+            ),
+            _sliderTile(
+              context: context,
+              icon: Icons.vertical_align_bottom,
+              label: l10n.verticalOffset,
+              binding: _offsetBind,
+              outerNode: _offsetOuterNode,
+              innerNode: _offsetInnerNode,
+              focused: _offsetFocused,
+              onFocusChange: (f) {
+                if (_offsetFocused != f && mounted) {
+                  setState(() => _offsetFocused = f);
+                }
+              },
+              min: 0.0,
+              max: 0.5,
+              divisions: 50,
+              step: 0.01,
+              labelBuilder: (v) => l10n.percentValue((v * 100).round()),
+            ),
+            SettingsSectionHeader(l10n.hdr),
+            SwitchPreferenceTile(
+              preference: UserPreferences.subtitlesHdrSeparate,
+              title: l10n.subtitleHdrSeparate,
+              subtitle: l10n.subtitleHdrSeparateSubtitle,
+              icon: Icons.hdr_on,
+            ),
+            ListenableBuilder(
+              listenable: GetIt.instance<UserPreferences>(),
+              builder: (context, _) => GetIt.instance<UserPreferences>().get(
+                UserPreferences.subtitlesHdrSeparate,
+              )
+                  ? Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        _ColorPickerTile(
+                          title: l10n.textFillColor,
+                          icon: Icons.format_color_text,
+                          preference: UserPreferences.subtitlesHdrTextColor,
+                          allowTransparent: false,
+                        ),
+                        _ColorPickerTile(
+                          title: l10n.textStrokeColor,
+                          icon: Icons.border_color,
+                          preference:
+                              UserPreferences.subtitlesHdrTextStrokeColor,
+                        ),
+                        _ColorPickerTile(
+                          title: l10n.backgroundColor,
+                          icon: Icons.format_color_fill,
+                          preference:
+                              UserPreferences.subtitlesHdrBackgroundColor,
+                        ),
+                        _sliderTile(
+                          context: context,
+                          icon: Icons.format_size,
+                          label: l10n.subtitleSize,
+                          binding: _hdrSizeBind,
+                          outerNode: _hdrSizeOuterNode,
+                          innerNode: _hdrSizeInnerNode,
+                          focused: _hdrSizeFocused,
+                          onFocusChange: (f) {
+                            if (_hdrSizeFocused != f && mounted) {
+                              setState(() => _hdrSizeFocused = f);
+                            }
+                          },
+                          min: 12,
+                          max: 48,
+                          divisions: 18,
+                          step: 2,
+                          labelBuilder: (v) => l10n.pixelValue(v.round()),
+                        ),
+                        _sliderTile(
+                          context: context,
+                          icon: Icons.vertical_align_bottom,
+                          label: l10n.verticalOffset,
+                          binding: _hdrOffsetBind,
+                          outerNode: _hdrOffsetOuterNode,
+                          innerNode: _hdrOffsetInnerNode,
+                          focused: _hdrOffsetFocused,
+                          onFocusChange: (f) {
+                            if (_hdrOffsetFocused != f && mounted) {
+                              setState(() => _hdrOffsetFocused = f);
+                            }
+                          },
+                          min: 0.0,
+                          max: 0.5,
+                          divisions: 50,
+                          step: 0.01,
+                          swallowDown: true,
+                          labelBuilder: (v) =>
+                              l10n.percentValue((v * 100).round()),
+                        ),
+                      ],
+                    )
+                  : const SizedBox.shrink(),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _sliderTile({
+    required BuildContext context,
+    required IconData icon,
+    required String label,
+    required PreferenceBinding<double> binding,
+    required FocusNode outerNode,
+    required FocusNode innerNode,
+    required bool focused,
+    required ValueChanged<bool> onFocusChange,
+    required double min,
+    required double max,
+    required int divisions,
+    required double step,
+    bool swallowDown = false,
+    required String Function(double) labelBuilder,
+  }) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final useTvFocusStyling = PlatformDetection.isTV;
+    final activeFocusStyling = useTvFocusStyling && focused;
+    return ValueListenableBuilder<double>(
+      valueListenable: binding,
+      builder: (context, value, _) => Padding(
+        padding: const EdgeInsets.fromLTRB(12, 4, 12, 4),
+        child: Focus(
+          focusNode: outerNode,
+          onFocusChange: onFocusChange,
+          onKeyEvent: (node, event) => _sliderKeyHandler(
+            node: node,
+            event: event,
+            binding: binding,
+            min: min,
+            max: max,
+            step: step,
+            swallowDown: swallowDown,
+          ),
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 90),
+            curve: Curves.easeOut,
+            decoration: BoxDecoration(
+              color: activeFocusStyling
+                  ? AppColorScheme.onSurface
+                  : colorScheme.surfaceContainerLow,
+              borderRadius: AppRadius.circular(12),
+              border: Border.fromBorderSide(
+                (activeFocusStyling
+                        ? ThemeRegistry.active.borders.focusBorder
+                        : ThemeRegistry.active.borders.cardBorder)
+                    .copyWith(width: 1),
+              ),
+              boxShadow: activeFocusStyling
+                  ? ThemeRegistry.active.borders.focusGlow
+                  : null,
+            ),
+            child: ListTileTheme.merge(
+              textColor: activeFocusStyling
+                  ? AppColors.black.withValues(alpha: 0.87)
+                  : AppColorScheme.onSurface,
+              iconColor: activeFocusStyling
+                  ? AppColors.black.withValues(alpha: 0.54)
+                  : AppColorScheme.onSurface.withValues(alpha: 0.7),
+              child: ListTile(
+                focusColor: Colors.transparent,
+                hoverColor: Colors.transparent,
+                leading: Icon(icon),
+                title: Text(label),
+                subtitle: AppUiIdiomResolver.isApple
+                    ? CupertinoSlider(
+                        value: value.clamp(min, max),
+                        min: min,
+                        max: max,
+                        divisions: divisions,
+                        onChanged: (v) => binding.value = v,
+                      )
+                    : Slider(
+                        focusNode: innerNode,
+                        value: value.clamp(min, max),
+                        min: min,
+                        max: max,
+                        divisions: divisions,
+                        label: labelBuilder(value),
+                        onChanged: (v) => binding.value = v,
+                      ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ColorPickerTile extends StatefulWidget {
+  final String title;
+  final IconData icon;
+  final Preference<int> preference;
+  final bool allowTransparent;
+
+  const _ColorPickerTile({
+    required this.title,
+    required this.icon,
+    required this.preference,
+    this.allowTransparent = true,
+  });
+
+  @override
+  State<_ColorPickerTile> createState() => _ColorPickerTileState();
+}
+
+/// Keyed by slug rather than by English display text, so a translated label
+/// cannot fall out of step with the color it names.
+const subtitlePresetColors = <String, int>{
+  'white': 0xFFFFFFFF,
+  'light_gray': 0xFFCCCCCC,
+  'gray': 0xFF808080,
+  'dark_gray': 0xFF404040,
+  'black': 0xFF000000,
+  'yellow': 0xFFFFFF00,
+  'green': 0xFF00FF00,
+  'cyan': 0xFF00FFFF,
+  'blue': 0xFF0000FF,
+  'magenta': 0xFFFF00FF,
+  'red': 0xFFFF0000,
+  'navy': 0xFF000080,
+  'transparent': 0x00000000,
+  'semi_transparent_black': 0x80000000,
+  'semi_transparent_white': 0x80FFFFFF,
+};
+
+/// Null for a key with no translation, so a missing one shows up rather than
+/// reading back as the slug.
+String? subtitleColorLabel(String key, AppLocalizations l10n) {
+  return switch (key) {
+    'white' => l10n.white,
+    'light_gray' => l10n.lightGray,
+    'gray' => l10n.gray,
+    'dark_gray' => l10n.darkGray,
+    'black' => l10n.black,
+    'yellow' => l10n.yellow,
+    'green' => l10n.green,
+    'cyan' => l10n.cyan,
+    'blue' => l10n.blue,
+    'magenta' => l10n.magenta,
+    'red' => l10n.red,
+    'navy' => l10n.navy,
+    'transparent' => l10n.transparent,
+    'semi_transparent_black' => l10n.semiTransparentBlack,
+    'semi_transparent_white' => l10n.semiTransparentWhite,
+    _ => null,
+  };
+}
+
+class _ColorPickerTileState extends State<_ColorPickerTile> {
+  late final PreferenceBinding<int> _binding;
+  bool _pickerOpen = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _binding = PreferenceBinding(
+      GetIt.instance<PreferenceStore>(),
+      widget.preference,
+    );
+  }
+
+  @override
+  void dispose() {
+    _binding.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return TvFocusHighlight(
+      builder: (context, _) => ValueListenableBuilder<int>(
+        valueListenable: _binding,
+        builder: (context, value, _) => ListTile(
+          focusColor: Colors.transparent,
+          hoverColor: Colors.transparent,
+          leading: Icon(widget.icon),
+          title: Text(widget.title),
+          trailing: Container(
+            width: 24,
+            height: 24,
+            decoration: BoxDecoration(
+              color: Color(value),
+              shape: BoxShape.circle,
+              border: Border.fromBorderSide(
+                ThemeRegistry.active.borders.chipBorder,
+              ),
+            ),
+          ),
+          onTap: () => _showPicker(context),
+        ),
+      ),
+    );
+  }
+
+  void _showPicker(BuildContext context) async {
+    if (_pickerOpen) return;
+    _pickerOpen = true;
+    final l10n = AppLocalizations.of(context);
+    final current = _binding.value;
+    final isTV = PlatformDetection.isTV;
+    final entries = widget.allowTransparent
+        ? subtitlePresetColors.entries
+        : subtitlePresetColors.entries.where((e) => Color(e.value).a > 0);
+    var picked = false;
+    final result = await showFocusRestoringDialog<int>(
+      context: context,
+      useRootNavigator: false,
+      builder: (ctx) => SimpleDialog(
+        title: Text(widget.title),
+        children: entries.map((e) {
+          final selected = e.value == current;
+          return TvFocusHighlight(
+            builder: (_, _) => ListTile(
+              autofocus: isTV && selected,
+              leading: Container(
+                width: 24,
+                height: 24,
+                decoration: BoxDecoration(
+                  color: Color(e.value),
+                  shape: BoxShape.circle,
+                  border: Border.fromBorderSide(
+                    ThemeRegistry.active.borders.chipBorder,
+                  ),
+                ),
+              ),
+              title: Text(subtitleColorLabel(e.key, l10n) ?? e.key),
+              trailing: selected ? const Icon(Icons.check) : null,
+              onTap: () {
+                if (picked) return;
+                picked = true;
+                Navigator.pop(ctx, e.value);
+              },
+            ),
+          );
+        }).toList(),
+      ),
+    );
+    if (!mounted) return;
+    _pickerOpen = false;
+    if (result == null || result == _binding.value) return;
+    _binding.value = result;
+  }
+}

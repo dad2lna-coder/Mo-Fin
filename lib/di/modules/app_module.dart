@@ -1,0 +1,365 @@
+import 'dart:async';
+
+import 'package:dio/dio.dart';
+import 'package:get_it/get_it.dart';
+import 'package:jellyfin_preference/jellyfin_preference.dart';
+import 'package:playback_core/playback_core.dart';
+import 'package:server_core/server_core.dart';
+
+import '../../auth/models/user.dart';
+import '../../auth/repositories/session_repository.dart';
+import '../../auth/repositories/user_repository.dart';
+import '../../auth/store/authentication_store.dart';
+import '../../auth/store/credential_store.dart';
+import '../../data/repositories/anime_marker_repository.dart';
+import '../../data/repositories/mdblist_repository.dart';
+import '../../data/repositories/multi_server_repository.dart';
+import '../../data/repositories/media_bar_repository.dart';
+import '../../data/repositories/offline_repository.dart';
+import '../../data/services/blocked_content_gate.dart';
+import '../../data/services/library_scope_service.dart';
+import '../../data/services/media_server_client_factory.dart';
+import '../../data/repositories/seerr_repository.dart';
+import '../../data/repositories/tmdb_repository.dart';
+import '../../data/repositories/user_views_repository.dart';
+import '../../data/repositories/search_repository.dart';
+import '../../data/repositories/item_mutation_repository.dart';
+import '../../util/game_library.dart';
+import '../../data/services/background_service.dart';
+import '../../data/services/access_schedule_service.dart';
+import '../../data/services/app_update_service.dart';
+import '../../data/services/upcoming_episode_service.dart';
+import '../../data/services/cast/airplay_provider.dart';
+import '../../data/services/cast/airplay_command_bridge.dart';
+import '../../data/services/cast/cast_service.dart';
+import '../../data/services/cast/dlna_provider.dart';
+import '../../data/services/cast/native_airplay_channel.dart';
+import '../../data/services/cast/native_dlna_channel.dart';
+import '../../data/services/cast/google_cast_provider.dart';
+import '../../data/services/cast/native_cast_channel.dart';
+import '../../data/services/cast/remote_session_cast_provider.dart';
+import '../../data/services/achievements_service.dart';
+import '../../data/services/plugin_sync_service.dart';
+import '../../data/services/server_messages_service.dart';
+import '../../data/services/server_pin_service.dart';
+import '../../data/services/retro_artwork/retro_artwork_activity_gate.dart';
+import '../../data/services/retro_artwork/retro_artwork_cache.dart';
+import '../../data/services/retro_artwork/retro_artwork_disk_cache.dart';
+import '../../data/services/connectivity_service.dart';
+import '../../data/services/custom_external_lists_service.dart';
+import '../../data/services/download_service.dart';
+import '../../data/services/remove_watched_service.dart';
+import '../../data/services/row_data_source.dart';
+import '../../data/services/socket_handler.dart';
+import '../../data/services/pending_rating_store.dart';
+import '../../data/services/sync_service.dart';
+import '../../data/services/user_data_sync.dart';
+import '../../data/services/theme_music_service.dart';
+import '../../data/viewmodels/media_bar_view_model.dart';
+import '../../data/viewmodels/seerr_discover_view_model.dart';
+import '../../playback/current_playing_item.dart';
+import '../../playback/external_player_service.dart';
+import '../../preference/seerr_preferences.dart';
+import '../../preference/user_preferences.dart';
+import '../../ui/navigation/app_router.dart';
+import '../../ui/navigation/destinations.dart';
+import '../../ui/screensaver/screensaver_controller.dart';
+import '../../ui/screens/home/home_view_model.dart';
+import '../../ui/screens/setup/setup_wizard_gate.dart';
+
+final _getIt = GetIt.instance;
+
+void resetUserScopedSingletons() {
+  void unregister<T extends Object>() {
+    if (_getIt.isRegistered<T>()) {
+      _getIt.unregister<T>();
+    }
+  }
+
+  unregister<SeerrDiscoverViewModel>();
+  unregister<SeerrRepository>();
+  unregister<HomeViewModel>();
+  unregister<MediaBarViewModel>();
+  unregister<MultiServerRepository>();
+  unregister<ThemeMusicService>();
+  unregister<MediaBarRepository>();
+  unregister<TmdbRepository>();
+  unregister<MdbListRepository>();
+  unregister<AnimeMarkerRepository>();
+  unregister<RowDataSource>();
+  RowDataSource.clearRecommendationCache();
+  unregister<ItemMutationRepository>();
+  unregister<SearchRepository>();
+  unregister<UserViewsRepository>();
+  unregister<LibraryScopeService>();
+  unregister<BlockedContentGate>();
+  unregister<GameLibraryRegistry>();
+  unregister<UpcomingEpisodeService>();
+  // Watched state is per user, so the next account must not inherit it.
+  userDataSync.reset();
+
+  _registerUserScopedSingletons();
+}
+
+StreamSubscription<User?>? _accessScheduleUserSubscription;
+
+/// The signed in user's access schedule, or null when it can't be read.
+Future<List<AccessSchedule>?> _loadAccessSchedules(String userId) =>
+    _getIt<MediaServerClient>().usersApi.getAccessSchedules(userId);
+
+/// Whether the server is turning the signed in user away right now. Jellyfin
+/// answers /Users/Me with 403 outside the user's schedule, by its own clock.
+Future<bool?> _serverRefusesUser() async {
+  try {
+    await _getIt<MediaServerClient>().usersApi.getCurrentUser();
+    return false;
+  } on DioException catch (e) {
+    return e.response?.statusCode == 403 ? true : null;
+  }
+}
+
+/// Stops whatever is playing when the user's access schedule closes.
+Future<void> _stopPlaybackForAccessSchedule() async {
+  // Each step is best effort, so one that fails doesn't leave the rest undone.
+  try {
+    await _getIt<PlaybackManager>().stop(userInitiated: false);
+  } catch (_) {}
+  try {
+    if (_getIt.isRegistered<ThemeMusicService>()) {
+      _getIt<ThemeMusicService>().stop();
+    }
+  } catch (_) {}
+  // A trailer, a photo or a game plays in its own screen, which only leaving
+  // that screen stops. A player is pushed over whichever tab launched it, so
+  // the router's uri stays on that tab and only the match list names what is
+  // on screen.
+  final matches = appRouter.routerDelegate.currentConfiguration.matches;
+  final path = matches.isEmpty ? '' : matches.last.matchedLocation;
+  if (Destinations.isPlayerRoute(path)) appRouter.go(Destinations.home);
+}
+
+void registerAppModule() {
+  _getIt.registerLazySingleton(() => RetroArtworkActivityGate());
+  _getIt.registerLazySingletonAsync<RetroArtworkByteCache>(
+    () => openDefaultRetroArtworkDiskCache(),
+    dispose: (cache) => cache.dispose(),
+  );
+  _getIt.registerLazySingleton(() => SocketHandler());
+  _getIt.registerLazySingleton(() => CustomExternalListsService());
+  _getIt.registerLazySingleton(
+    () => BackgroundService(),
+    dispose: (service) => service.dispose(),
+  );
+  _getIt.registerLazySingleton(
+    () =>
+        AppUpdateService(_getIt<PreferenceStore>(), _getIt<UserPreferences>()),
+  );
+  _getIt.registerLazySingleton(
+    () => ScreensaverController(
+      _getIt<UserPreferences>(),
+      _getIt<PlaybackManager>(),
+    ),
+    dispose: (controller) => controller.dispose(),
+  );
+  _getIt.registerLazySingleton(() {
+    final users = _getIt<UserRepository>();
+    final service = AccessScheduleService(
+      loadSchedules: _loadAccessSchedules,
+      onBlocked: _stopPlaybackForAccessSchedule,
+      serverRefuses: _serverRefusesUser,
+    );
+    // An administrator has no schedule to enforce.
+    String? watched(User? user) =>
+        user == null || user.isAdministrator ? null : user.id;
+    service.setUser(watched(users.currentUser));
+    _accessScheduleUserSubscription = users.currentUserStream.listen(
+      (user) => service.setUser(watched(user)),
+    );
+    return service;
+  }, dispose: (service) {
+    unawaited(_accessScheduleUserSubscription?.cancel());
+    service.dispose();
+  });
+  _getIt.registerLazySingleton(() => SetupWizardGate(_getIt<UserPreferences>()));
+  _getIt.registerLazySingleton(() => const NativeCastChannel());
+  _getIt.registerLazySingleton(() => const NativeDlnaChannel());
+  _getIt.registerLazySingleton(() => const NativeAirPlayChannel());
+  _getIt.registerLazySingleton(
+    () => AirPlayCommandBridge(
+      _getIt<NativeAirPlayChannel>(),
+      _getIt<PlaybackManager>(),
+    ),
+    dispose: (bridge) => bridge.dispose(),
+  );
+  _getIt.registerLazySingleton(
+    () => CastService(
+      [
+        RemoteSessionCastProvider(_getIt<MediaServerClientFactory>()),
+        GoogleCastProvider(
+          _getIt<NativeCastChannel>(),
+          _getIt<MediaServerClientFactory>(),
+        ),
+        AirPlayProvider(
+          _getIt<NativeCastChannel>(),
+          _getIt<NativeAirPlayChannel>(),
+          _getIt<MediaServerClientFactory>(),
+        ),
+        DlnaProvider(
+          _getIt<NativeDlnaChannel>(),
+          _getIt<MediaServerClientFactory>(),
+        ),
+      ],
+      nativeCast: _getIt<NativeCastChannel>(),
+      nativeDlna: _getIt<NativeDlnaChannel>(),
+      nativeAirPlay: _getIt<NativeAirPlayChannel>(),
+    ),
+    dispose: (service) => service.dispose(),
+  );
+  _getIt.registerLazySingleton(
+    () => PluginSyncService(_getIt<UserPreferences>(), _getIt()),
+  );
+  _getIt.registerLazySingleton(
+    () => AchievementsService(),
+    dispose: (service) => service.dispose(),
+  );
+  _getIt.registerLazySingleton(
+    () => ServerPinService(deviceInfo: _getIt<DeviceInfo>()),
+  );
+  _getIt.registerLazySingleton(
+    () => ServerMessagesService(_getIt<PreferenceStore>()),
+    dispose: (service) => service.dispose(),
+  );
+  _getIt.registerLazySingleton(
+    () => SeerrPreferences(
+      _getIt<PreferenceStore>(),
+      _getIt<SessionRepository>(),
+    ),
+  );
+  _getIt.registerLazySingleton<SyncService>(
+    () => SyncService(_getIt<OfflineRepository>(), _getIt<PendingRatingStore>()),
+  );
+  _getIt.registerLazySingleton(
+    () => RemoveWatchedService(
+      repository: _getIt<OfflineRepository>(),
+      prefs: _getIt<UserPreferences>(),
+      // Resolved per delete: the download service is replaced on every
+      // server or account switch.
+      deleteDownload: (item, {required serverId}) async =>
+          _getIt.isRegistered<DownloadService>() &&
+          await _getIt<DownloadService>().deleteServerDownload(
+            item,
+            serverId: serverId,
+          ),
+      signedInServer: () {
+        if (!_getIt.isRegistered<MediaServerClient>()) return null;
+        if (_getIt.isRegistered<ConnectivityService>() &&
+            !_getIt<ConnectivityService>().canReachServer) {
+          return null;
+        }
+        final client = _getIt<MediaServerClient>();
+        return (
+          client: client,
+          serverId: _getIt<MediaServerClientFactory>().serverIdOf(client),
+        );
+      },
+      syncInFlight: () =>
+          _getIt.isRegistered<ConnectivityService>() &&
+          _getIt<ConnectivityService>().isSyncing,
+      playingItemId: currentPlayingItemId,
+    )..start(),
+    dispose: (service) => service.dispose(),
+  );
+  _getIt.registerLazySingleton(() => const ExternalPlayerService());
+
+  _registerUserScopedSingletons();
+}
+
+void _registerUserScopedSingletons() {
+  _getIt.registerLazySingleton(
+    () => MultiServerRepository(
+      _getIt<AuthenticationStore>(),
+      _getIt<CredentialStore>(),
+      _getIt<MediaServerClientFactory>(),
+      _getIt<SessionRepository>(),
+    ),
+  );
+  _getIt.registerLazySingleton(
+    () => UserViewsRepository(_getIt()),
+    dispose: (repository) => repository.dispose(),
+  );
+  _getIt.registerLazySingleton(
+    () => LibraryScopeService(_getIt(), _getIt<UserViewsRepository>()),
+  );
+  _getIt.registerLazySingleton(
+    () => BlockedContentGate(_getIt(), _getIt<UserPreferences>()),
+  );
+  _getIt.registerLazySingleton(() => GameLibraryRegistry());
+  _getIt.registerLazySingleton(() => SearchRepository(_getIt()));
+  _getIt.registerLazySingleton(() => ItemMutationRepository(_getIt()));
+  _getIt.registerLazySingleton(
+    () => RowDataSource(_getIt<MediaServerClient>()),
+  );
+  _getIt.registerLazySingleton(
+    () => UpcomingEpisodeService(),
+    dispose: (service) => service.dispose(),
+  );
+  _getIt.registerLazySingleton(
+    () => MdbListRepository(
+      _getIt<MediaServerClient>(),
+      _getIt<TmdbRepository>(),
+    ),
+    dispose: (repository) => repository.dispose(),
+  );
+  _getIt.registerLazySingleton(
+    () => TmdbRepository(_getIt<MediaServerClient>()),
+    dispose: (repository) => repository.dispose(),
+  );
+  _getIt.registerLazySingleton(
+    () => AnimeMarkerRepository(_getIt<MediaServerClient>()),
+    dispose: (repository) => repository.dispose(),
+  );
+  _getIt.registerLazySingleton(
+    () => MediaBarRepository(
+      _getIt<MediaServerClient>(),
+      _getIt<UserPreferences>(),
+    ),
+  );
+  _getIt.registerLazySingleton(
+    () => MediaBarViewModel(
+      _getIt<MediaBarRepository>(),
+      _getIt<MdbListRepository>(),
+      _getIt<UserPreferences>(),
+      _getIt<MediaServerClient>(),
+    ),
+  );
+  _getIt.registerLazySingleton(
+    () => HomeViewModel(
+      dataSource: _getIt<RowDataSource>(),
+      prefs: _getIt<UserPreferences>(),
+      client: _getIt<MediaServerClient>(),
+      mediaBarViewModel: _getIt<MediaBarViewModel>(),
+      multiServerRepo: _getIt<MultiServerRepository>(),
+    ),
+  );
+  _getIt.registerLazySingleton(
+    () => ThemeMusicService(
+      _getIt<MediaServerClient>(),
+      _getIt<UserPreferences>(),
+      _getIt<PlaybackManager>(),
+      _getIt<PlaybackArbiter>(),
+    ),
+  );
+  _getIt.registerLazySingletonAsync<SeerrRepository>(
+    () async => SeerrRepository(
+      _getIt<PreferenceStore>(),
+      _getIt<SessionRepository>(),
+      _getIt<MediaServerClient>(),
+    ),
+  );
+  _getIt.registerLazySingletonAsync<SeerrDiscoverViewModel>(
+    () async => SeerrDiscoverViewModel(
+      await _getIt.getAsync<SeerrRepository>(),
+      _getIt<SeerrPreferences>(),
+    ),
+  );
+}

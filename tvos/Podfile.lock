@@ -1,0 +1,16 @@
+PODS:
+  - sqflite_tvos (0.0.1)
+
+DEPENDENCIES:
+  - sqflite_tvos (from `/Users/radmuffin/.pub-cache/hosted/pub.dev/sqflite_tvos-0.0.1/tvos`)
+
+EXTERNAL SOURCES:
+  sqflite_tvos:
+    :path: "/Users/radmuffin/.pub-cache/hosted/pub.dev/sqflite_tvos-0.0.1/tvos"
+
+SPEC CHECKSUMS:
+  sqflite_tvos: c473ff0295bc0c18f416393eed404091eb1598a5
+
+PODFILE CHECKSUM: 5dded2b222ef1a92950045b662c04439efbc9bd3
+
+COCOAPODS: 1.16.2

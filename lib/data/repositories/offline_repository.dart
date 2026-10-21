@@ -1,0 +1,523 @@
+import 'dart:convert';
+
+import 'package:drift/drift.dart';
+
+import '../database/offline_database.dart';
+
+/// A download row without its metadata. Status: 1 in progress, 2 complete,
+/// 3 failed.
+typedef DownloadRef = ({
+  String itemId,
+  int downloadStatus,
+  String downloadSource,
+});
+
+/// A completed episode download, with what smart downloads needs to swap it.
+typedef DownloadedEpisodeRef = ({
+  String itemId,
+  String serverId,
+  String seriesId,
+  String qualityPreset,
+  DateTime? downloadedAt,
+});
+
+class OfflineRepository {
+  final OfflineDatabase _db;
+
+  OfflineRepository(this._db);
+
+  Future<void> upsertItem(DownloadedItemsCompanion item) async {
+    if (!item.itemId.present) {
+      await _db.into(_db.downloadedItems).insertOnConflictUpdate(item);
+      return;
+    }
+
+    final id = item.itemId.value;
+    await _db.transaction(() async {
+      await (_db.delete(_db.downloadedItems)
+            ..where((t) => t.itemId.equals(id)))
+          .go();
+      await _db.into(_db.downloadedItems).insertOnConflictUpdate(item);
+    });
+  }
+
+  Future<void> updateDownloadStatus(
+    String itemId,
+    int status, {
+    double? progress,
+    String? error,
+  }) async {
+    await (_db.update(_db.downloadedItems)
+          ..where((t) => t.itemId.equals(itemId)))
+        .write(DownloadedItemsCompanion(
+      downloadStatus: Value(status),
+      downloadProgress: progress != null ? Value(progress) : const Value.absent(),
+      errorMessage: Value(error),
+      downloadedAt: status == 2 ? Value(DateTime.now()) : const Value.absent(),
+    ));
+  }
+
+  Future<void> setLocalFilePath(String itemId, String path, {int? fileSize}) async {
+    await (_db.update(_db.downloadedItems)
+          ..where((t) => t.itemId.equals(itemId)))
+        .write(DownloadedItemsCompanion(
+      localFilePath: Value(path),
+      fileSizeBytes: fileSize != null ? Value(fileSize) : const Value.absent(),
+    ));
+  }
+
+  Future<void> setImagePaths(
+    String itemId, {
+    String? poster,
+    String? backdrop,
+    String? logo,
+    String? thumb,
+  }) async {
+    await (_db.update(_db.downloadedItems)
+          ..where((t) => t.itemId.equals(itemId)))
+        .write(DownloadedItemsCompanion(
+      posterPath: poster != null ? Value(poster) : const Value.absent(),
+      backdropPath: backdrop != null ? Value(backdrop) : const Value.absent(),
+      logoPath: logo != null ? Value(logo) : const Value.absent(),
+      thumbPath: thumb != null ? Value(thumb) : const Value.absent(),
+    ));
+  }
+
+  Future<void> updatePlaybackPosition(String itemId, int positionTicks) async {
+    await (_db.update(_db.downloadedItems)
+          ..where((t) => t.itemId.equals(itemId)))
+        .write(DownloadedItemsCompanion(
+      playbackPositionTicks: Value(positionTicks),
+      progressSynced: const Value(false),
+    ));
+  }
+
+  Future<void> markProgressSynced(String itemId) async {
+    await (_db.update(_db.downloadedItems)
+          ..where((t) => t.itemId.equals(itemId)))
+        .write(const DownloadedItemsCompanion(progressSynced: Value(true)));
+  }
+
+  /// Adopts a server position locally and marks it synced in a single write,
+  /// used when resolving an online/offline progress conflict. When
+  /// [metadataJson] is given it is written too, so the displayed UserData
+  /// (which the UI reads from metadata) stays consistent with the new ticks.
+  /// [serverId] limits the write to that server's row, as another server's
+  /// download can share an Emby id.
+  Future<void> setSyncedPlaybackPosition(
+    String itemId,
+    int positionTicks, {
+    String? metadataJson,
+    String? serverId,
+  }) async {
+    await (_db.update(_db.downloadedItems)
+          ..where((t) => serverId == null
+              ? t.itemId.equals(itemId)
+              : t.itemId.equals(itemId) & t.serverId.equals(serverId)))
+        .write(DownloadedItemsCompanion(
+      playbackPositionTicks: Value(positionTicks),
+      progressSynced: const Value(true),
+      metadataJson:
+          metadataJson == null ? const Value.absent() : Value(metadataJson),
+    ));
+  }
+
+  /// Merges [patch] into the stored item's UserData, with a null value
+  /// removing the key, so the offline UI shows a queued rating right away.
+  Future<void> patchUserData(String itemId, Map<String, dynamic> patch) async {
+    final item = await getItem(itemId);
+    if (item == null) return;
+
+    Map<String, dynamic> metadata;
+    try {
+      final decoded = jsonDecode(item.metadataJson);
+      metadata = decoded is Map<String, dynamic>
+          ? decoded
+          : <String, dynamic>{};
+    } catch (_) {
+      metadata = <String, dynamic>{};
+    }
+
+    final userData =
+        (metadata['UserData'] as Map?)?.cast<String, dynamic>() ??
+        <String, dynamic>{};
+    patch.forEach((key, value) {
+      if (value == null) {
+        userData.remove(key);
+      } else {
+        userData[key] = value;
+      }
+    });
+    metadata['UserData'] = userData;
+
+    await (_db.update(_db.downloadedItems)
+          ..where((t) => t.itemId.equals(itemId)))
+        .write(DownloadedItemsCompanion(metadataJson: Value(jsonEncode(metadata))));
+  }
+
+  // ---------------------------------------------------------------------
+  // Auto-download subscriptions
+
+  Expression<bool> _subscriptionKey(
+    $AutoDownloadSubscriptionsTable t, {
+    required String seriesId,
+    required String serverId,
+    required String userId,
+  }) =>
+      t.seriesId.equals(seriesId) &
+      t.serverId.equals(serverId) &
+      t.userId.equals(userId);
+
+  SimpleSelectStatement<
+    $AutoDownloadSubscriptionsTable,
+    AutoDownloadSubscription
+  >
+  _accountSubscriptions({required String serverId, required String userId}) =>
+      _db.select(_db.autoDownloadSubscriptions)
+        ..where((t) => t.serverId.equals(serverId) & t.userId.equals(userId))
+        ..orderBy([(t) => OrderingTerm.asc(t.seriesName)]);
+
+  Future<List<AutoDownloadSubscription>> getSubscriptions({
+    required String serverId,
+    required String userId,
+  }) => _accountSubscriptions(serverId: serverId, userId: userId).get();
+
+  Stream<List<AutoDownloadSubscription>> watchSubscriptions({
+    required String serverId,
+    required String userId,
+  }) => _accountSubscriptions(serverId: serverId, userId: userId).watch();
+
+  SimpleSelectStatement<
+    $AutoDownloadSubscriptionsTable,
+    AutoDownloadSubscription
+  >
+  _subscription({
+    required String seriesId,
+    required String serverId,
+    required String userId,
+  }) => _db.select(_db.autoDownloadSubscriptions)
+    ..where(
+      (t) => _subscriptionKey(
+        t,
+        seriesId: seriesId,
+        serverId: serverId,
+        userId: userId,
+      ),
+    );
+
+  Future<AutoDownloadSubscription?> getSubscription({
+    required String seriesId,
+    required String serverId,
+    required String userId,
+  }) => _subscription(
+    seriesId: seriesId,
+    serverId: serverId,
+    userId: userId,
+  ).getSingleOrNull();
+
+  Stream<AutoDownloadSubscription?> watchSubscription({
+    required String seriesId,
+    required String serverId,
+    required String userId,
+  }) => _subscription(
+    seriesId: seriesId,
+    serverId: serverId,
+    userId: userId,
+  ).watchSingleOrNull();
+
+  Future<void> upsertSubscription(AutoDownloadSubscriptionsCompanion row) {
+    return _db.into(_db.autoDownloadSubscriptions).insertOnConflictUpdate(row);
+  }
+
+  Future<void> updateSubscriptionCheck({
+    required String seriesId,
+    required String serverId,
+    required String userId,
+    required DateTime checkedAt,
+    required int queuedCount,
+    String? error,
+  }) async {
+    await (_db.update(_db.autoDownloadSubscriptions)..where(
+          (t) => _subscriptionKey(
+            t,
+            seriesId: seriesId,
+            serverId: serverId,
+            userId: userId,
+          ),
+        ))
+        .write(
+          AutoDownloadSubscriptionsCompanion(
+            lastCheckedAt: Value(checkedAt),
+            lastQueuedCount: Value(queuedCount),
+            lastError: Value(error),
+          ),
+        );
+  }
+
+  Future<void> deleteSubscription({
+    required String seriesId,
+    required String serverId,
+    required String userId,
+  }) async {
+    await (_db.delete(_db.autoDownloadSubscriptions)..where(
+          (t) => _subscriptionKey(
+            t,
+            seriesId: seriesId,
+            serverId: serverId,
+            userId: userId,
+          ),
+        ))
+        .go();
+  }
+
+  /// Every completed episode download that knows its series, without the
+  /// metadata blobs.
+  Future<List<DownloadedEpisodeRef>> getDownloadedEpisodes() async {
+    final t = _db.downloadedItems;
+    final query = _db.selectOnly(t)
+      ..addColumns([
+        t.itemId,
+        t.serverId,
+        t.seriesId,
+        t.qualityPreset,
+        t.downloadedAt,
+      ])
+      ..where(
+        t.downloadStatus.equals(2) &
+            t.type.equals('Episode') &
+            t.seriesId.isNotNull(),
+      );
+    return [
+      for (final row in await query.get())
+        (
+          itemId: row.read(t.itemId)!,
+          serverId: row.read(t.serverId)!,
+          seriesId: row.read(t.seriesId)!,
+          qualityPreset: row.read(t.qualityPreset)!,
+          downloadedAt: row.read(t.downloadedAt),
+        ),
+    ];
+  }
+
+  /// Id, status and source of every download row, without the metadata
+  /// blobs: what batch queueing and the auto-download check need.
+  Future<List<DownloadRef>> getDownloadRefs() async {
+    final t = _db.downloadedItems;
+    final rows = await (_db.selectOnly(
+      t,
+    )..addColumns([t.itemId, t.downloadStatus, t.downloadSource])).get();
+    return [
+      for (final row in rows)
+        (
+          itemId: row.read(t.itemId)!,
+          downloadStatus: row.read(t.downloadStatus)!,
+          downloadSource: row.read(t.downloadSource)!,
+        ),
+    ];
+  }
+
+  // ---------------------------------------------------------------------
+
+  Future<void> deleteItem(String itemId) async {
+    await (_db.delete(_db.downloadedItems)
+          ..where((t) => t.itemId.equals(itemId)))
+        .go();
+  }
+
+  Future<void> deleteSeriesItems(String seriesId) async {
+    await (_db.delete(_db.downloadedItems)
+          ..where((t) =>
+              t.itemId.equals(seriesId) | t.seriesId.equals(seriesId)))
+        .go();
+  }
+
+  Future<void> deleteSeasonItems(String seasonId) async {
+    await (_db.delete(_db.downloadedItems)
+          ..where((t) =>
+              t.itemId.equals(seasonId) | t.seasonId.equals(seasonId)))
+        .go();
+  }
+
+  Future<void> deleteAllItems() async {
+    await _db.delete(_db.downloadedItems).go();
+  }
+
+  Future<List<DownloadedItem>> getItems({
+    String? type,
+    bool onlyCompleted = false,
+  }) async {
+    final query = _db.select(_db.downloadedItems);
+    if (type != null) {
+      query.where((t) => t.type.equals(type));
+    }
+    if (onlyCompleted) {
+      query.where((t) => t.downloadStatus.equals(2));
+    }
+    return query.get();
+  }
+
+  Future<DownloadedItem?> getItem(String itemId) async {
+    final query = _db.select(_db.downloadedItems)
+      ..where((t) => t.itemId.equals(itemId))
+      ..orderBy([
+        (t) => OrderingTerm.desc(t.downloadStatus),
+        (t) => OrderingTerm.desc(t.downloadedAt),
+      ]);
+    final rows = await query.get();
+    return rows.isNotEmpty ? rows.first : null;
+  }
+
+  /// Every server's row for [itemId]. Emby ids are plain numbers, so two
+  /// servers can each have one.
+  Future<List<DownloadedItem>> getItemsWithId(String itemId) =>
+      (_db.select(_db.downloadedItems)
+            ..where((t) => t.itemId.equals(itemId)))
+          .get();
+
+  Future<bool> isAvailableOffline(String itemId) async {
+    final item = await getItem(itemId);
+    return item != null && item.downloadStatus == 2;
+  }
+
+  Future<List<DownloadedItem>> getUnsyncedProgress() async {
+    final query = _db.select(_db.downloadedItems)
+      ..where((t) => t.progressSynced.equals(false));
+    return query.get();
+  }
+
+  Future<List<DownloadedItem>> getSeriesEpisodes(String seriesId) async {
+    final query = _db.select(_db.downloadedItems)
+      ..where((t) =>
+          t.seriesId.equals(seriesId) &
+          t.type.equals('Episode'))
+      ..orderBy([
+        (t) => OrderingTerm.asc(t.parentIndexNumber),
+        (t) => OrderingTerm.asc(t.indexNumber),
+      ]);
+    return query.get();
+  }
+
+  Future<List<DownloadedItem>> getSeasonEpisodes(String seasonId) async {
+    final query = _db.select(_db.downloadedItems)
+      ..where((t) =>
+          t.seasonId.equals(seasonId) &
+          t.type.equals('Episode'))
+      ..orderBy([(t) => OrderingTerm.asc(t.indexNumber)]);
+    return query.get();
+  }
+
+  Future<List<DownloadedItem>> getDownloadedSeries() async {
+    final query = _db.select(_db.downloadedItems)
+      ..where((t) => t.type.equals('Series'));
+    return query.get();
+  }
+
+  Future<List<DownloadedItem>> getDownloadedMovies() async {
+    final query = _db.select(_db.downloadedItems)
+      ..where((t) =>
+          t.type.equals('Movie') &
+          t.downloadStatus.equals(2));
+    return query.get();
+  }
+
+  Future<int> getTotalStorageUsed() async {
+    final result = await _db.customSelect(
+      'SELECT COALESCE(SUM(file_size_bytes), 0) AS total FROM downloaded_items',
+    ).getSingle();
+    return result.read<int>('total');
+  }
+
+  Future<Map<String, int>> getCountsByType() async {
+    final items = await getItems();
+    final counts = <String, int>{};
+    for (final item in items) {
+      counts[item.type] = (counts[item.type] ?? 0) + 1;
+    }
+    return counts;
+  }
+
+  Stream<List<DownloadedItem>> watchItems({
+    String? type,
+    bool onlyCompleted = false,
+  }) {
+    final query = _db.select(_db.downloadedItems);
+    if (type != null) {
+      query.where((t) => t.type.equals(type));
+    }
+    if (onlyCompleted) {
+      query.where((t) => t.downloadStatus.equals(2));
+    }
+    return query.watch();
+  }
+
+  Stream<DownloadedItem?> watchItem(String itemId) {
+    final query = _db.select(_db.downloadedItems)
+      ..where((t) => t.itemId.equals(itemId))
+      ..orderBy([
+        (t) => OrderingTerm.desc(t.downloadStatus),
+        (t) => OrderingTerm.desc(t.downloadedAt),
+      ]);
+    return query.watch().map((rows) => rows.isNotEmpty ? rows.first : null);
+  }
+
+  Stream<int> watchTotalStorageUsed() {
+    return _db
+        .customSelect(
+          'SELECT COALESCE(SUM(file_size_bytes), 0) AS total FROM downloaded_items',
+          readsFrom: {_db.downloadedItems},
+        )
+        .watch()
+        .map((rows) => rows.first.read<int>('total'));
+  }
+
+  Stream<List<DownloadedItem>> watchDownloadedSeries() {
+    final query = _db.select(_db.downloadedItems)
+      ..where((t) => t.type.equals('Series'));
+    return query.watch();
+  }
+
+  Stream<List<DownloadedItem>> watchSeriesEpisodes(String seriesId) {
+    final query = _db.select(_db.downloadedItems)
+      ..where((t) =>
+          t.seriesId.equals(seriesId) &
+          t.type.equals('Episode'))
+      ..orderBy([
+        (t) => OrderingTerm.asc(t.parentIndexNumber),
+        (t) => OrderingTerm.asc(t.indexNumber),
+      ]);
+    return query.watch();
+  }
+
+  Stream<List<DownloadedItem>> watchSeasonEpisodes(String seasonId) {
+    final query = _db.select(_db.downloadedItems)
+      ..where((t) =>
+          t.seasonId.equals(seasonId) &
+          t.type.equals('Episode'))
+      ..orderBy([(t) => OrderingTerm.asc(t.indexNumber)]);
+    return query.watch();
+  }
+
+  Map<String, dynamic> rowToRawData(DownloadedItem row) {
+    return jsonDecode(row.metadataJson) as Map<String, dynamic>;
+  }
+
+  Future<void> updateItemPaths({
+    required String itemId,
+    required String serverId,
+    String? localFilePath,
+    String? posterPath,
+    String? backdropPath,
+    String? logoPath,
+    String? thumbPath,
+  }) async {
+    await (_db.update(_db.downloadedItems)
+          ..where((t) => t.itemId.equals(itemId) & t.serverId.equals(serverId)))
+        .write(DownloadedItemsCompanion(
+      localFilePath: localFilePath != null ? Value(localFilePath) : const Value.absent(),
+      posterPath: posterPath != null ? Value(posterPath) : const Value.absent(),
+      backdropPath: backdropPath != null ? Value(backdropPath) : const Value.absent(),
+      logoPath: logoPath != null ? Value(logoPath) : const Value.absent(),
+      thumbPath: thumbPath != null ? Value(thumbPath) : const Value.absent(),
+    ));
+  }
+}

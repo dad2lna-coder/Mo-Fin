@@ -1,0 +1,59 @@
+{
+  "originHash" : "5a8e87d5fb84781496cb81f74d4e004cc40f3ce65c13b15f4a538084ebe3abb2",
+  "pins" : [
+    {
+      "identity" : "aetherengine",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/RadicalMuffinMan/AetherEngine",
+      "state" : {
+        "revision" : "47cf2f94b38be8520b31d6e0aecdbf47ce7eb857"
+      }
+    },
+    {
+      "identity" : "ffmpegbuild",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/superuser404notfound/FFmpegBuild",
+      "state" : {
+        "revision" : "013c48bd4d3073428f31cade039ec4ed958d0ceb",
+        "version" : "3.7.1"
+      }
+    },
+    {
+      "identity" : "libass-build",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/mpvkit/libass-build",
+      "state" : {
+        "revision" : "e08eb5bb3be5137e845f781dc9477d1843f23261",
+        "version" : "0.17.5"
+      }
+    },
+    {
+      "identity" : "libdovi",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/superuser404notfound/LibDovi",
+      "state" : {
+        "revision" : "0d7cce1d6836a30d13a3a2326e50a153af53f014",
+        "version" : "2.1.0"
+      }
+    },
+    {
+      "identity" : "libtruehd",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/superuser404notfound/LibTrueHD",
+      "state" : {
+        "revision" : "e33939033345a467eede1947f038ed9d33eee5aa",
+        "version" : "2.2.1"
+      }
+    },
+    {
+      "identity" : "smbclient",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/kishikawakatsumi/SMBClient",
+      "state" : {
+        "revision" : "e636c2b2458930770932a36d311ec9d478575b90",
+        "version" : "0.3.1"
+      }
+    }
+  ],
+  "version" : 3
+}

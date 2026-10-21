@@ -1,0 +1,127 @@
+import 'syncplay_models.dart';
+
+sealed class ServerWebSocketMessage {
+  const ServerWebSocketMessage();
+}
+
+class LibraryChangedMessage extends ServerWebSocketMessage {
+  final List<String> itemsAdded;
+  final List<String> itemsUpdated;
+  final List<String> itemsRemoved;
+
+  const LibraryChangedMessage({
+    this.itemsAdded = const [],
+    this.itemsUpdated = const [],
+    this.itemsRemoved = const [],
+  });
+}
+
+class UserDataChangedMessage extends ServerWebSocketMessage {
+  final String userId;
+
+  /// One entry per changed item, holding the item's id under `ItemId` next to
+  /// the user data fields the server sent for it, such as `Played` and
+  /// `UnplayedItemCount`. The values are carried through so a client can patch
+  /// what it already shows instead of refetching the item.
+  final List<Map<String, dynamic>> userDataList;
+
+  const UserDataChangedMessage({
+    required this.userId,
+    this.userDataList = const [],
+  });
+
+  List<String> get itemIds => [
+    for (final entry in userDataList)
+      if (entry['ItemId'] != null) entry['ItemId'].toString(),
+  ];
+}
+
+class PlayMessage extends ServerWebSocketMessage {
+  final List<String> itemIds;
+  final int? startPositionTicks;
+  final String playCommand;
+  final int startIndex;
+  final int? audioStreamIndex;
+  final int? subtitleStreamIndex;
+  final String? mediaSourceId;
+
+  const PlayMessage({
+    required this.itemIds,
+    this.startPositionTicks,
+    this.playCommand = 'PlayNow',
+    this.startIndex = 0,
+    this.audioStreamIndex,
+    this.subtitleStreamIndex,
+    this.mediaSourceId,
+  });
+}
+
+class PlaystateMessage extends ServerWebSocketMessage {
+  final String command;
+  final int? seekPositionTicks;
+
+  const PlaystateMessage({required this.command, this.seekPositionTicks});
+}
+
+class GeneralCommandMessage extends ServerWebSocketMessage {
+  final String name;
+  final Map<String, String> arguments;
+
+  const GeneralCommandMessage({required this.name, this.arguments = const {}});
+}
+
+class ServerRestartingMessage extends ServerWebSocketMessage {
+  const ServerRestartingMessage();
+}
+
+class ServerShuttingDownMessage extends ServerWebSocketMessage {
+  const ServerShuttingDownMessage();
+}
+
+class SessionEndedMessage extends ServerWebSocketMessage {
+  final String sessionId;
+  const SessionEndedMessage({required this.sessionId});
+}
+
+class ScheduledTaskEndedMessage extends ServerWebSocketMessage {
+  final String taskId;
+  final String taskName;
+  final String status;
+
+  const ScheduledTaskEndedMessage({
+    required this.taskId,
+    required this.taskName,
+    required this.status,
+  });
+}
+
+class ServerEventMessage extends ServerWebSocketMessage {
+  final String type;
+  final Map<String, dynamic> data;
+
+  const ServerEventMessage({required this.type, this.data = const {}});
+}
+
+/// The session list a `SessionsStart` subscription pushes.
+class SessionsMessage extends ServerWebSocketMessage {
+  final List<Map<String, dynamic>> sessions;
+
+  const SessionsMessage(this.sessions);
+}
+
+/// The task list a `ScheduledTasksInfoStart` subscription pushes.
+class ScheduledTasksInfoMessage extends ServerWebSocketMessage {
+  final List<Map<String, dynamic>> tasks;
+
+  const ScheduledTasksInfoMessage(this.tasks);
+}
+
+class SyncPlayCommandMessage extends ServerWebSocketMessage {
+  final SyncPlayCommand command;
+  const SyncPlayCommandMessage(this.command);
+}
+
+class SyncPlayGroupUpdateMessage extends ServerWebSocketMessage {
+  final SyncPlayGroupUpdate update;
+  const SyncPlayGroupUpdateMessage(this.update);
+}

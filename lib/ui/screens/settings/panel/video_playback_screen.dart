@@ -1,0 +1,528 @@
+part of '../settings_side_panel.dart';
+
+class _VideoPlaybackScreen extends StatelessWidget {
+  const _VideoPlaybackScreen();
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    final prefs = GetIt.instance<UserPreferences>();
+    return Scaffold(
+      appBar: buildSettingsAppBar(context, Text(l10n.player)),
+      body: ListView(
+        children: [
+          const _SectionHeader('Media Player Behavior'),
+          adaptiveListSection(
+            children: [
+              SwitchPreferenceTile(
+                preference: UserPreferences.showDescriptionOnPause,
+                title: l10n.showDescriptionOnPause,
+                subtitle: l10n.dimVideoShowOverview,
+                icon: Icons.pause_circle_outline,
+              ),
+              EnumPreferenceTile<ZoomMode>(
+                preference: UserPreferences.playerZoomMode,
+                title: l10n.playerZoomMode,
+                description: l10n.settingsPlayerZoomDescription,
+                icon: Icons.zoom_out_map,
+                labelOf: (v) => switch (v) {
+                  ZoomMode.fit => l10n.fit,
+                  ZoomMode.autoCrop => l10n.autoCrop,
+                  ZoomMode.stretch => l10n.stretch,
+                },
+              ),
+              if (PlatformDetection.isIOS)
+                SwitchPreferenceTile(
+                  preference: UserPreferences.keepVideoClearOfDynamicIsland,
+                  title: l10n.keepVideoClearOfDynamicIsland,
+                  subtitle: l10n.keepVideoClearOfDynamicIslandDescription,
+                  icon: Icons.crop_free,
+                ),
+              if (letterboxCropSettingVisible()) ...[
+                SwitchPreferenceTile(
+                  preference: UserPreferences.cropBlackBars,
+                  title: l10n.cropBlackBars,
+                  subtitle: l10n.settingsCropBlackBarsDescription,
+                  icon: Icons.crop_16_9_outlined,
+                ),
+                IntPickerPreferenceTile(
+                  preference: UserPreferences.cropBlackBarsIntervalSeconds,
+                  title: l10n.cropBlackBarsRecropInterval,
+                  description: l10n.settingsCropBlackBarsIntervalDescription,
+                  icon: Icons.timelapse_outlined,
+                  options: {
+                    0: l10n.cropBlackBarsOnce,
+                    1: l10n.cropBlackBarsEverySecond,
+                    5: l10n.fiveSeconds,
+                    10: l10n.tenSeconds,
+                  },
+                ),
+              ],
+              _TvSettingsListTile(
+                leading: const Icon(Icons.timer_outlined),
+                title: Text(l10n.playbackTimeDisplay),
+                subtitle: Text(l10n.settingsPlaybackTimeDisplayDescription),
+                onTap: () => context.pushSettingsScreen(
+                  const _PlaybackTimeLayoutScreen(),
+                ),
+              ),
+              if (PlatformDetection.useDesktopUi)
+                EnumPreferenceTile<DesktopScrollWheelAction>(
+                  preference: UserPreferences.desktopScrollWheelAction,
+                  title: l10n.settingsScrollWheelAction,
+                  description: l10n.settingsScrollWheelActionDescription,
+                  icon: Icons.mouse_outlined,
+                  labelOf: (v) => switch (v) {
+                    DesktopScrollWheelAction.off => l10n.scrollWheelActionOff,
+                    DesktopScrollWheelAction.seek => l10n.scrollWheelActionSeek,
+                    DesktopScrollWheelAction.volume =>
+                      l10n.scrollWheelActionVolume,
+                  },
+                ),
+              StringPickerPreferenceTile(
+                preference: UserPreferences.resumeSubtractDuration,
+                title: l10n.resumeRewind,
+                description: l10n.settingsResumeRewindDescription,
+                icon: Icons.replay,
+                options: {
+                  '0': l10n.disabled,
+                  '5': l10n.fiveSeconds,
+                  '10': l10n.tenSeconds,
+                  '15': l10n.fifteenSeconds,
+                  '30': l10n.thirtySeconds,
+                },
+              ),
+              IntPickerPreferenceTile(
+                preference: UserPreferences.unpauseRewindDuration,
+                title: l10n.unpauseRewind,
+                description: l10n.settingsUnpauseRewindDescription,
+                icon: Icons.replay_circle_filled,
+                options: {
+                  0: l10n.disabled,
+                  5000: l10n.fiveSeconds,
+                  10000: l10n.tenSeconds,
+                  15000: l10n.fifteenSeconds,
+                  30000: l10n.thirtySeconds,
+                },
+              ),
+              IntPickerPreferenceTile(
+                preference: UserPreferences.skipBackLength,
+                title: l10n.skipBackLength,
+                description: l10n.settingsSkipBackLengthDescription,
+                icon: Icons.fast_rewind,
+                options: {
+                  1000: l10n.settingsOneSecond,
+                  3000: l10n.settingsThreeSeconds,
+                  5000: l10n.fiveSeconds,
+                  10000: l10n.tenSeconds,
+                  15000: l10n.fifteenSeconds,
+                  30000: l10n.thirtySeconds,
+                  45000: l10n.settingsFortyFiveSeconds,
+                  60000: l10n.settingsSixtySeconds,
+                },
+              ),
+              IntPickerPreferenceTile(
+                preference: UserPreferences.skipForwardLength,
+                title: l10n.skipForwardLength,
+                description: l10n.settingsSkipForwardLengthDescription,
+                icon: Icons.fast_forward,
+                options: {
+                  1000: l10n.settingsOneSecond,
+                  3000: l10n.settingsThreeSeconds,
+                  5000: l10n.fiveSeconds,
+                  10000: l10n.tenSeconds,
+                  15000: l10n.fifteenSeconds,
+                  30000: l10n.thirtySeconds,
+                  45000: l10n.settingsFortyFiveSeconds,
+                  60000: l10n.settingsSixtySeconds,
+                },
+              ),
+              SwitchPreferenceTile(
+                preference: UserPreferences.showChapterMarkers,
+                title: l10n.showChapterMarkers,
+                subtitle: l10n.showChapterMarkersDescription,
+                icon: Icons.straighten,
+              ),
+              if (PlatformDetection.useMobileUi) ...[
+                SwitchPreferenceTile(
+                  preference: UserPreferences.osdLockEnabled,
+                  title: l10n.osdLockButton,
+                  subtitle: l10n.osdLockButtonDescription,
+                  icon: Icons.lock,
+                ),
+                SwitchPreferenceTile(
+                  preference: UserPreferences.playerSwipeGestures,
+                  title: l10n.playerSwipeGestures,
+                  subtitle: l10n.playerSwipeGesturesDescription,
+                  icon: Icons.swipe_vertical,
+                ),
+              ],
+              _TvSettingsListTile(
+                leading: const Icon(Icons.tune),
+                title: Text(l10n.osdButtons),
+                subtitle: Text(l10n.osdButtonsDescription),
+                onTap: () =>
+                    context.pushSettingsScreen(const _OsdButtonsScreen()),
+              ),
+            ],
+          ),
+
+          _SectionHeader(l10n.trickPlay),
+          // Only this section reacts to the mode, so the rest of the page is
+          // not rebuilt every time any preference anywhere changes.
+          ListenableBuilder(
+            listenable: prefs,
+            builder: (context, _) {
+              final showsPreviews =
+                  prefs.get(UserPreferences.trickPlayMode) !=
+                  TrickplayMode.disabled;
+              return adaptiveListSection(
+                children: [
+                  EnumPreferenceTile<TrickplayMode>(
+                    preference: UserPreferences.trickPlayMode,
+                    title: l10n.trickPlay,
+                    description: l10n.showPreviewThumbnailsWhenSeeking,
+                    icon: Icons.image_search,
+                    labelOf: (v) => switch (v) {
+                      TrickplayMode.disabled => l10n.disabled,
+                      TrickplayMode.single => l10n.trickplayDisplayStyleSingle,
+                      TrickplayMode.strip => l10n.trickplayDisplayStyleStrip,
+                      TrickplayMode.full => l10n.trickplayModeFull,
+                    },
+                  ),
+                  // Everything the mode governs sits after the mode itself, so
+                  // turning it on adds rows below the one being used rather
+                  // than shifting it down and taking its focus with it.
+                  if (showsPreviews) ...[
+                    const TrickplaySettingsPreview(),
+                    SliderPreferenceTile(
+                      preference: UserPreferences.trickPlayPreviewScalePercent,
+                      title: l10n.trickplayPreviewScale,
+                      icon: Icons.photo_size_select_large_outlined,
+                      min: 10,
+                      max: 100,
+                      divisions: 18,
+                      labelOf: (v) => l10n.percentValue(v),
+                    ),
+                    SliderPreferenceTile(
+                      preference:
+                          UserPreferences.trickPlayVerticalPositionPercent,
+                      title: l10n.trickplayVerticalOffset,
+                      icon: Icons.height,
+                      min: 0,
+                      max: 100,
+                      divisions: 20,
+                      labelOf: (v) => l10n.percentValue(v),
+                    ),
+                    SwitchPreferenceTile(
+                      preference: UserPreferences.trickPlayFollowScrubPosition,
+                      title: l10n.trickplayFollowScrubPosition,
+                      subtitle: l10n.trickplayFollowScrubPositionSubtitle,
+                      icon: Icons.swipe,
+                    ),
+                    SwitchPreferenceTile(
+                      preference: UserPreferences.trickPlayPauseWhileScrubbing,
+                      title: l10n.trickplayPauseWhileScrubbing,
+                      subtitle: l10n.trickplayPauseWhileScrubbingSubtitle,
+                      icon: Icons.pause_circle_outline,
+                    ),
+                  ],
+                ],
+              );
+            },
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Manual override for the display HDR probe.
+///
+/// Detection only records an SDR panel when it can prove one is attached, so a
+/// TV that never identifies itself over EDID keeps whatever was detected
+/// before. That is the safe way to be wrong, but it needs an escape hatch: the
+/// user knows what their TV is, and their answer beats any heuristic.
+class _RedetectDisplayTile extends StatelessWidget {
+  const _RedetectDisplayTile();
+
+  Future<void> _redetect(BuildContext context) async {
+    final l10n = AppLocalizations.of(context);
+    final messenger = ScaffoldMessenger.of(context);
+    // Retried like startup detection, since a one-shot query can land while
+    // the HDMI chain is still negotiating.
+    final snapshot = await DisplayHdrProbe.queryWithRetry();
+    DisplayHdrProbe.apply(snapshot);
+    final formats = PlatformDetection.displayHdrTypesSnapshot;
+    messenger.showSnackBar(
+      SnackBar(
+        content: Text(
+          formats.isEmpty
+              ? l10n.settingsDisplayNoHdrDetected
+              : l10n.settingsDisplayRedetected(formats.join(', ')),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _markSdr(BuildContext context) async {
+    final l10n = AppLocalizations.of(context);
+    final messenger = ScaffoldMessenger.of(context);
+    await DisplayHdrProbe.recordUserAssertedSdr();
+    messenger.showSnackBar(
+      SnackBar(content: Text(l10n.settingsDisplayMarkedSdr)),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        _TvSettingsListTile(
+          leading: const Icon(Icons.hdr_auto),
+          title: Text(l10n.settingsRedetectDisplay),
+          subtitle: Text(l10n.settingsRedetectDisplayDescription),
+          onTap: () => _redetect(context),
+        ),
+        _TvSettingsListTile(
+          leading: const Icon(Icons.hdr_off),
+          title: Text(l10n.settingsDisplayIsSdr),
+          subtitle: Text(l10n.settingsDisplayIsSdrDescription),
+          onTap: () => _markSdr(context),
+        ),
+      ],
+    );
+  }
+}
+
+class _ExternalPlayerAppPickerTile extends StatefulWidget {
+  const _ExternalPlayerAppPickerTile();
+
+  @override
+  State<_ExternalPlayerAppPickerTile> createState() =>
+      _ExternalPlayerAppPickerTileState();
+}
+
+class _ExternalPlayerAppPickerTileState
+    extends State<_ExternalPlayerAppPickerTile> {
+  final _service = GetIt.instance<ExternalPlayerService>();
+  late final PreferenceBinding<String> _componentBinding;
+  List<ExternalPlayerApp> _players = const [];
+  bool _loading = false;
+  bool _pickerOpen = false;
+  late final FocusNode _focusNode;
+
+  @override
+  void initState() {
+    super.initState();
+    _focusNode = FocusNode();
+    final store = GetIt.instance<PreferenceStore>();
+    _componentBinding = PreferenceBinding(
+      store,
+      UserPreferences.externalPlayerComponentName,
+    );
+    unawaited(_loadPlayers());
+  }
+
+  @override
+  void dispose() {
+    _focusNode.dispose();
+    _componentBinding.dispose();
+    super.dispose();
+  }
+
+  Future<void> _loadPlayers() async {
+    if (_loading) return;
+    setState(() => _loading = true);
+    try {
+      final players = await _service.listPlayers();
+      if (!mounted) return;
+      setState(() {
+        _players = players;
+      });
+    } finally {
+      if (mounted) {
+        setState(() => _loading = false);
+      }
+    }
+  }
+
+  String _selectedLabel(String component) {
+    final normalized = component.trim();
+    if (normalized.isEmpty) {
+      return AppLocalizations.of(context).settingsAskEachTime;
+    }
+
+    for (final player in _players) {
+      if (player.component == normalized) {
+        return player.label;
+      }
+    }
+
+    return normalized;
+  }
+
+  Future<void> _showPicker(String current) async {
+    if (_pickerOpen) return;
+    _pickerOpen = true;
+    await _loadPlayers();
+    try {
+      if (!mounted) return;
+
+      final normalizedCurrent = current.trim();
+      final selectedIndex = _players.indexWhere(
+        (player) => player.component == normalizedCurrent,
+      );
+      final autofocusIndex = selectedIndex >= 0 ? selectedIndex : -1;
+      var picked = false;
+
+      final result = await showFocusRestoringDialog<String>(
+        context: context,
+        useRootNavigator: false,
+        builder: (dialogContext) => SimpleDialog(
+          title: Text(AppLocalizations.of(dialogContext).externalPlayerApp),
+          children: [
+            TvFocusHighlight(
+              builder: (_, _) => ListTile(
+                autofocus: normalizedCurrent.isEmpty,
+                leading: const Icon(Icons.help_outline),
+                title: Text(
+                  AppLocalizations.of(dialogContext).settingsAskEachTime,
+                ),
+                subtitle: Text(
+                  AppLocalizations.of(
+                    dialogContext,
+                  ).externalPlayerAskEachTimeSubtitle,
+                ),
+                trailing: normalizedCurrent.isEmpty
+                    ? const Icon(Icons.check)
+                    : null,
+                onTap: () {
+                  if (picked) return;
+                  picked = true;
+                  Navigator.pop(dialogContext, '');
+                },
+              ),
+            ),
+            ..._players.asMap().entries.map((entry) {
+              final index = entry.key;
+              final player = entry.value;
+              final selected = player.component == normalizedCurrent;
+              return TvFocusHighlight(
+                builder: (_, _) => ListTile(
+                  autofocus: index == autofocusIndex,
+                  leading: _ExternalPlayerAppIcon(player: player),
+                  title: Text(player.label),
+                  subtitle: Text(player.packageName),
+                  trailing: selected ? const Icon(Icons.check) : null,
+                  onTap: () {
+                    if (picked) return;
+                    picked = true;
+                    Navigator.pop(dialogContext, player.component);
+                  },
+                ),
+              );
+            }),
+          ],
+        ),
+      );
+
+      if (!mounted || result == null || result == _componentBinding.value) {
+        return;
+      }
+
+      _componentBinding.value = result;
+    } finally {
+      _pickerOpen = false;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return ValueListenableBuilder<String>(
+      valueListenable: _componentBinding,
+      builder: (context, component, _) {
+        final label = _loading
+            ? AppLocalizations.of(context).loadingInstalledPlayers
+            : _selectedLabel(component);
+        return Focus(
+          canRequestFocus: false,
+          skipTraversal: true,
+          onKeyEvent: (_, event) {
+            if (!event.logicalKey.isSelectKey) return KeyEventResult.ignored;
+            if (event is KeyDownEvent) {
+              _showPicker(component);
+            }
+            return KeyEventResult.handled;
+          },
+          child: TvFocusHighlight(
+            builder: (context, focused) => ListTile(
+              focusNode: _focusNode,
+              focusColor: Colors.transparent,
+              hoverColor: Colors.transparent,
+              leading: buildSettingsLeadingIconShell(
+                context,
+                icon: const Icon(Icons.apps),
+                focused: focused,
+                iconColor: focused
+                    ? AppColors.black.withValues(alpha: 0.54)
+                    : AppColorScheme.onSurface.withValues(alpha: 0.78),
+              ),
+              title: DefaultTextStyle.merge(
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: focused
+                      ? AppColors.black.withValues(alpha: 0.87)
+                      : AppColorScheme.onSurface,
+                ),
+                child: Text(AppLocalizations.of(context).externalPlayerApp),
+              ),
+              subtitle: DefaultTextStyle.merge(
+                style: TextStyle(
+                  fontSize: 12,
+                  color: focused
+                      ? AppColors.black.withValues(alpha: 0.54)
+                      : AppColorScheme.onSurface.withValues(alpha: 0.7),
+                ),
+                child: Text(
+                  AppLocalizations.of(context).externalPlayerAppDescription,
+                ),
+              ),
+              isThreeLine: true,
+              trailing: buildSettingsSelectionBubble(context, label, focused),
+              onTap: () => _showPicker(component),
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _ExternalPlayerAppIcon extends StatelessWidget {
+  final ExternalPlayerApp player;
+
+  const _ExternalPlayerAppIcon({required this.player});
+
+  @override
+  Widget build(BuildContext context) {
+    final bytes = player.iconPngBytes;
+    if (bytes == null || bytes.isEmpty) {
+      return const Icon(Icons.ondemand_video);
+    }
+
+    return ClipRRect(
+      borderRadius: AppRadius.circular(6),
+      child: Image.memory(
+        bytes,
+        width: 24,
+        height: 24,
+        fit: BoxFit.contain,
+        errorBuilder: (_, _, _) => const Icon(Icons.ondemand_video),
+      ),
+    );
+  }
+}

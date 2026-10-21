@@ -1,0 +1,427 @@
+import 'package:flutter/foundation.dart';
+import 'package:flutter/widgets.dart';
+
+import 'os_version_stub.dart' if (dart.library.io) 'os_version_io.dart';
+
+class PlatformDetection {
+  const PlatformDetection._();
+
+  /// The raw OS version string, empty on web where dart:io is unavailable.
+  static String get osVersion => osVersionRaw();
+
+  static const double _mobileFormFactorBreakpoint = 600;
+
+  static const bool isAppleTV = bool.fromEnvironment('MOONFIN_TVOS');
+
+  /// True for the dedicated Android TV flavor produced by the Android TV
+  /// build commands. Keep this separate from runtime TV detection: the flavor
+  /// is also a compile-time capability signal for features deliberately
+  /// enabled only in that package.
+  static const bool isForcedTv = bool.fromEnvironment('MOONFIN_FORCE_TV');
+
+  static bool get isAndroid =>
+      !kIsWeb && defaultTargetPlatform == TargetPlatform.android;
+  static bool get isIOS =>
+      !kIsWeb &&
+      !isAppleTV &&
+      defaultTargetPlatform == TargetPlatform.iOS;
+  static int get iosMajorVersion => isIOS ? osMajorVersion() : 0;
+  static int? _osMajorCache;
+  static int get osMajor => _osMajorCache ??= osMajorVersion();
+  static bool get isMacOS =>
+      !kIsWeb && defaultTargetPlatform == TargetPlatform.macOS;
+  static bool get isWindows =>
+      !kIsWeb && defaultTargetPlatform == TargetPlatform.windows;
+  static bool get isLinux =>
+      !kIsWeb && defaultTargetPlatform == TargetPlatform.linux;
+  static bool get isWeb => kIsWeb;
+
+  /// The ID this Flatpak was installed under, or null outside a Flatpak.
+  /// Flathub's ID isn't the native org.moonfin.linux.
+  static String? get flatpakAppId => isLinux ? linuxFlatpakAppId() : null;
+  static bool get isFlatpak => flatpakAppId != null;
+
+  static String get linuxSessionType => '';
+
+  static String get pathSeparator => isWindows ? '\\' : '/';
+
+  static bool get isLinuxWayland => linuxSessionType == 'wayland';
+  static bool get isLinuxX11 => linuxSessionType == 'x11';
+
+  static bool get isMobile => (isAndroid || isIOS) && !_isTv;
+  static bool get isDesktop => isMacOS || isWindows || isLinux;
+
+  /// True on Apple platforms (iOS/iPadOS/macOS) where the UI should adopt a
+  /// Cupertino/liquid-glass look. Apple TV is excluded — it uses the leanback
+  /// UI and is handled by [isAppleTV]/[useLeanbackUi].
+  static bool get isApple => isIOS || isMacOS;
+
+  static bool get isTV {
+    if (isAppleTV || isForcedTv) {
+      return true;
+    }
+    return switch (_interfaceLayout) {
+      InterfaceLayout.tv => true,
+      InterfaceLayout.desktop || InterfaceLayout.phone => false,
+      InterfaceLayout.automatic => _isTv,
+    };
+  }
+
+  static bool _isTv = false;
+  static void setTvMode(bool value) => _isTv = value;
+
+  /// The user's layout override. The compile time platforms above are never
+  /// overridden, so this only steers the two where detection has to guess.
+  static InterfaceLayout _interfaceLayout = InterfaceLayout.automatic;
+  static void setInterfaceLayout(InterfaceLayout value) =>
+      _interfaceLayout = value;
+  static bool get canOverrideInterfaceLayout => isAndroid || isDesktop;
+
+  /// Games play via EmulatorJS in a WebView everywhere except tvOS, which has
+  /// no WebKit and uses the native libretro bridge instead. Per-system support
+  /// on tvOS is gated by the bundled-core map in util/game_cores.dart.
+  static bool get gamesPlaybackSupported => true;
+
+  static final Set<String> _displayHdrTypes = <String>{};
+  static final Map<String, dynamic> _mediaCodecCapabilities =
+      <String, dynamic>{};
+  static final Map<String, dynamic> _deviceMemory = <String, dynamic>{};
+  static int? _uptimeAtProbeMs;
+  static final Stopwatch _sinceUptimeProbe = Stopwatch();
+  static String? _renderer;
+  static final Map<String, dynamic> _audioCapabilities = <String, dynamic>{};
+  static bool _hasDisplayHdrCapabilities = false;
+  static bool _hasDolbyVisionCodecCapabilities = false;
+  static bool _supportsDoViProfile5 = false;
+  static bool _supportsDoViProfile7 = false;
+  static bool _supportsDoViProfile8 = false;
+
+  /// Whether the display has ever answered the HDR probe. Without this a
+  /// panel that reported no HDR is indistinguishable from one that was
+  /// never asked.
+  static bool get hasDisplayHdrCapabilities => _hasDisplayHdrCapabilities;
+  static List<String> get displayHdrTypesSnapshot =>
+      List<String>.unmodifiable(_displayHdrTypes);
+
+  static bool get supportsAnyHdr => _displayHdrTypes.isNotEmpty;
+  static bool get supportsDolbyVision =>
+      _displayHdrTypes.contains('DOLBY_VISION');
+  static bool get supportsHdr10 =>
+      _displayHdrTypes.contains('HDR10') ||
+      _displayHdrTypes.contains('HDR10_PLUS');
+  static bool get supportsHdr10PlusDisplay =>
+      _displayHdrTypes.contains('HDR10_PLUS');
+
+  static bool get hasDolbyVisionCodecCapabilities =>
+      _hasDolbyVisionCodecCapabilities;
+  static bool get supportsDoViProfile5 => _supportsDoViProfile5;
+  static bool get supportsDoViProfile7 => _supportsDoViProfile7;
+  static bool get supportsDoViProfile8 => _supportsDoViProfile8;
+
+  static bool get hasAudioCapabilities => _audioCapabilities.isNotEmpty;
+  static Map<String, dynamic> get audioCapabilitiesSnapshot =>
+      Map<String, dynamic>.from(_audioCapabilities);
+  static bool get supportsAc3Audio => _audioCapabilityBool('supportsAc3');
+  static bool get supportsDtsAudio => _audioCapabilityBool('supportsDts');
+  static bool get supportsTrueHdAudio => _audioCapabilityBool('supportsTrueHd');
+  static bool get supportsEac3Audio =>
+      _audioCapabilityBool('canPassthroughEac3');
+  static bool get supportsDtsHdAudio =>
+      _audioCapabilityBool('canPassthroughDtsHd');
+  static int get maxPcmChannelsAudio => _audioCapabilityInt('maxPcmChannels');
+  static String get activeAudioRouteType =>
+      _audioCapabilityString('activeRouteType') ?? 'other';
+  static bool get routeSupportsHdAudio =>
+      _audioCapabilityBool('routeSupportsHdAudio');
+
+  static Map<String, dynamic> get mediaCodecCapabilitiesSnapshot =>
+      Map<String, dynamic>.from(_mediaCodecCapabilities);
+
+  static bool get supportsAvc => _capabilityBool('supportsAvc');
+  static bool get supportsAvcHigh10 => _capabilityBool('supportsAvcHigh10');
+  static int get avcMainLevel => _capabilityInt('avcMainLevel');
+  static int get avcHigh10Level => _capabilityInt('avcHigh10Level');
+
+  static bool get supportsHevc => _capabilityBool('supportsHevc');
+  static bool get supportsHevcMain10 => _capabilityBool('supportsHevcMain10');
+  static int get hevcMainLevel => _capabilityInt('hevcMainLevel');
+  static int get hevcMain10Level => _capabilityInt('hevcMain10Level');
+  static bool get supportsHevcDolbyVision =>
+      _capabilityBool('supportsHevcDolbyVision');
+  static bool get supportsHevcDolbyVisionEl =>
+      _capabilityBool('supportsHevcDolbyVisionEl');
+  static bool get supportsHevcHdr10 => _capabilityBool('supportsHevcHdr10');
+  static bool get supportsHevcHdr10Plus =>
+      _capabilityBool('supportsHevcHdr10Plus');
+
+  static bool get supportsAv1 => _capabilityBool('supportsAv1');
+  static bool get supportsAv1Main10 => _capabilityBool('supportsAv1Main10');
+  static bool get supportsAv1DolbyVision =>
+      _capabilityBool('supportsAv1DolbyVision');
+  static bool get supportsAv1Hdr10 => _capabilityBool('supportsAv1Hdr10');
+  static bool get supportsAv1Hdr10Plus =>
+      _capabilityBool('supportsAv1Hdr10Plus');
+
+  static bool get supportsVc1 => _capabilityBool('supportsVc1');
+  static bool get supportsMpeg4 => _capabilityBool('supportsMpeg4');
+
+  static int get maxResolutionAvcWidth =>
+      _resolutionInt('maxResolutionAvc', 'width');
+  static int get maxResolutionAvcHeight =>
+      _resolutionInt('maxResolutionAvc', 'height');
+  static int get maxResolutionHevcWidth =>
+      _resolutionInt('maxResolutionHevc', 'width');
+  static int get maxResolutionHevcHeight =>
+      _resolutionInt('maxResolutionHevc', 'height');
+  static int get maxResolutionAv1Width =>
+      _resolutionInt('maxResolutionAv1', 'width');
+  static int get maxResolutionAv1Height =>
+      _resolutionInt('maxResolutionAv1', 'height');
+  static int get maxResolutionVc1Width =>
+      _resolutionInt('maxResolutionVc1', 'width');
+  static int get maxResolutionVc1Height =>
+      _resolutionInt('maxResolutionVc1', 'height');
+
+  static Size? maxResolutionFor(String codec) {
+    final normalized = codec.trim().toLowerCase();
+    int width;
+    int height;
+    switch (normalized) {
+      case 'h264':
+      case 'avc':
+        width = maxResolutionAvcWidth;
+        height = maxResolutionAvcHeight;
+      case 'hevc':
+      case 'h265':
+        width = maxResolutionHevcWidth;
+        height = maxResolutionHevcHeight;
+      case 'av1':
+        width = maxResolutionAv1Width;
+        height = maxResolutionAv1Height;
+      case 'vc1':
+        width = maxResolutionVc1Width;
+        height = maxResolutionVc1Height;
+      default:
+        return null;
+    }
+
+    if (width <= 0 || height <= 0) {
+      return null;
+    }
+
+    return Size(width.toDouble(), height.toDouble());
+  }
+
+  static bool get knownHevcDoviHdr10PlusBug =>
+      _capabilityBool('knownHevcDoviHdr10PlusBug');
+
+  static String? get deviceModel => _capabilityString('deviceModel');
+  static String? get clientVersion => _capabilityString('clientVersion');
+  static String? get deviceBoard => _capabilityString('deviceBoard');
+  static String? get deviceHardware => _capabilityString('deviceHardware');
+  static String? get deviceSocModel => _capabilityString('deviceSocModel');
+
+  static void setDisplayHdrTypes(Iterable<String>? values) {
+    _hasDisplayHdrCapabilities = values != null;
+    _displayHdrTypes
+      ..clear()
+      ..addAll(
+        (values ?? const <String>[])
+            .map((value) => value.trim().toUpperCase())
+            .where((value) => value.isNotEmpty),
+      );
+  }
+
+  static void setMediaCodecCapabilities(Map<String, dynamic>? values) {
+    _mediaCodecCapabilities
+      ..clear()
+      ..addAll(values ?? const <String, dynamic>{});
+
+    _hasDolbyVisionCodecCapabilities = _mediaCodecCapabilities.isNotEmpty;
+    _supportsDoViProfile5 = _capabilityBool('supportsDvP5');
+    _supportsDoViProfile7 = _capabilityBool('supportsDvP7');
+    _supportsDoViProfile8 = _capabilityBool('supportsDvP8');
+  }
+
+  static void setDolbyVisionCodecCapabilities(Map<String, bool>? values) {
+    if (values == null) {
+      setMediaCodecCapabilities(null);
+      return;
+    }
+
+    final merged = Map<String, dynamic>.from(_mediaCodecCapabilities)
+      ..addAll(values);
+    setMediaCodecCapabilities(merged);
+  }
+
+  static void setAudioCapabilities(Map<String, dynamic>? values) {
+    _audioCapabilities
+      ..clear()
+      ..addAll(values ?? const <String, dynamic>{});
+  }
+
+  /// What the device reports about its own RAM. Empty until the probe answers,
+  /// and empty is read as "nothing known", never as "small".
+  static Map<String, dynamic> get deviceMemory =>
+      Map<String, dynamic>.unmodifiable(_deviceMemory);
+
+  static void setDeviceMemory(Map<String, dynamic>? values) {
+    _deviceMemory
+      ..clear()
+      ..addAll(values ?? const <String, dynamic>{});
+  }
+
+  /// How long the device has been up, not counting deep sleep. It's read from
+  /// SystemClock.uptimeMillis once at launch and moved forward by a Stopwatch,
+  /// which runs on the same clock on Android. Null until the probe answers.
+  static Duration? get systemUptime {
+    final atProbe = _uptimeAtProbeMs;
+    if (atProbe == null) return null;
+    return Duration(milliseconds: atProbe) + _sinceUptimeProbe.elapsed;
+  }
+
+  static void setSystemUptime(int? uptimeMs) {
+    _uptimeAtProbeMs = uptimeMs;
+    _sinceUptimeProbe
+      ..reset()
+      ..start();
+  }
+
+  /// Which renderer Android asked the engine for at launch and why, as the
+  /// platform side words it. Null until the probe answers, and on other
+  /// platforms.
+  static String? get renderer => _renderer;
+
+  static void setRenderer(String? value) => _renderer = value;
+
+  static bool _capabilityBool(String key) {
+    return _asBool(_mediaCodecCapabilities[key]);
+  }
+
+  static bool _audioCapabilityBool(String key) {
+    return _asBool(_audioCapabilities[key]);
+  }
+
+  static int _audioCapabilityInt(String key) {
+    final value = _audioCapabilities[key];
+    if (value is int) return value;
+    if (value is num) return value.toInt();
+    if (value is String) return int.tryParse(value) ?? 0;
+    return 0;
+  }
+
+  static String? _audioCapabilityString(String key) {
+    final value = _audioCapabilities[key];
+    final text = value?.toString().trim();
+    if (text == null || text.isEmpty || text.toLowerCase() == 'null') {
+      return null;
+    }
+    return text;
+  }
+
+  static bool _asBool(Object? value) {
+    if (value is bool) return value;
+    if (value is num) return value != 0;
+    if (value is String) {
+      final normalized = value.trim().toLowerCase();
+      return normalized == 'true' || normalized == '1';
+    }
+    return false;
+  }
+
+  static int _capabilityInt(String key) {
+    final value = _mediaCodecCapabilities[key];
+    if (value is int) return value;
+    if (value is num) return value.toInt();
+    if (value is String) return int.tryParse(value) ?? 0;
+    return 0;
+  }
+
+  static String? _capabilityString(String key) {
+    final value = _mediaCodecCapabilities[key];
+    final text = value?.toString().trim();
+    if (text == null || text.isEmpty || text.toLowerCase() == 'null') {
+      return null;
+    }
+    return text;
+  }
+
+  static int _resolutionInt(String key, String field) {
+    final dynamic raw = _mediaCodecCapabilities[key];
+    if (raw is Map) {
+      final dynamic value = raw[field];
+      if (value is int) return value;
+      if (value is num) return value.toInt();
+      if (value is String) return int.tryParse(value) ?? 0;
+    }
+    return 0;
+  }
+
+  static Size? get _screenLogicalSize {
+    final view = WidgetsBinding.instance.platformDispatcher.implicitView;
+    if (view == null) return null;
+    final pixelRatio = view.devicePixelRatio == 0 ? 1.0 : view.devicePixelRatio;
+    return view.physicalSize / pixelRatio;
+  }
+
+  static bool get _isMobilePlatformSignal {
+    if (isAndroid || isIOS) return true;
+    if (kIsWeb) {
+      return defaultTargetPlatform == TargetPlatform.android ||
+          defaultTargetPlatform == TargetPlatform.iOS;
+    }
+    return false;
+  }
+
+  static bool get _hasMobileFormFactor {
+    if (_interfaceLayout == InterfaceLayout.phone) return true;
+    if (_interfaceLayout == InterfaceLayout.desktop) return false;
+    if (isDesktop) return false;
+    if (isAndroid || isIOS) return true;
+    final size = _screenLogicalSize;
+    if (size == null) return _isMobilePlatformSignal;
+    if (size.shortestSide <= 0) return _isMobilePlatformSignal;
+    return size.shortestSide < _mobileFormFactorBreakpoint;
+  }
+
+  /// Whether to use a 10-foot (lean-back) UI optimized for remote control.
+  static bool get useLeanbackUi => isTV;
+  static bool get useDesktopUi => !_hasMobileFormFactor && !isTV;
+  static bool get useMobileUi => _hasMobileFormFactor && !isTV;
+
+  /// Offline media is available on phones, tablets, desktops, and Android TV.
+  /// Other TV platforms do not currently provide the download backend.
+  static bool get supportsOfflineDownloads => !isTV || isAndroid || isForcedTv;
+
+  static bool get useNativeVideoSurface => isAndroid && isTV;
+
+  /// Volume is driven by the remote through AudioTrack, so the player's own
+  /// mixer should stay wide open rather than restoring a saved level.
+  ///
+  /// The same expression as [useNativeVideoSurface] today, but a different
+  /// question - keep them apart.
+  static bool get playerVolumeIsSystemManaged => isAndroid && isTV;
+
+  /// Whether this platform can give mpv its own window for HDR output.
+  ///
+  /// Deliberately separate from [useNativeVideoSurface] rather than widening
+  /// it with an `isWindows` term: that getter is gated on [isTV], which is
+  /// user-overridable on desktop through [canOverrideInterfaceLayout], so any
+  /// Windows user picking the TV layout would activate this by accident.
+  ///
+  /// This only says the platform is capable. Whether the window is actually
+  /// used is decided per session - see `HdrOutputController`.
+  /// [UserPreferences.videoRenderer] is the off switch. There is deliberately
+  /// no compile-time one.
+  static bool get supportsNativeHdrWindow => isWindows;
+
+  /// Apple platforms use the shared AVPlayer-based preview/theme channels
+  /// (`moonfin/appletv_preview`, `moonfin/appletv_theme_music`) instead of a
+  /// media_kit Player for inline trailers, home-row previews and theme music.
+  static bool get useApplePreviewPlayer => isAppleTV || isIOS || isMacOS;
+}
+
+/// Which layout to build, where [automatic] leaves it to platform detection.
+/// Stored per device and never synced, since it exists to correct one
+/// device's wrong guess.
+enum InterfaceLayout { automatic, tv, desktop, phone }

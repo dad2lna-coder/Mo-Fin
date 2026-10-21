@@ -1,0 +1,395 @@
+import 'dart:math' as math;
+
+import 'package:custom_tv_text_field/custom_tv_text_field.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:get_it/get_it.dart';
+import 'package:moonfin_design/moonfin_design.dart';
+
+import '../../l10n/app_localizations.dart';
+import '../../preference/user_preferences.dart';
+import '../../util/platform_detection.dart';
+import 'marquee_text.dart';
+import 'overlay_sheet.dart';
+
+Future<T?> showStyledPlayerDialog<T>(
+  BuildContext context, {
+  required String title,
+  String? subtitle,
+  required Widget Function(BuildContext ctx) builder,
+  bool showCancel = false,
+  double maxWidth = 440,
+  bool useRootNavigator = true,
+  bool barrierDismissible = true,
+}) {
+  return showFocusRestoringDialog<T>(
+    context: context,
+    useRootNavigator: useRootNavigator,
+    barrierDismissible: barrierDismissible,
+    builder: (dialogContext) {
+      final mediaQuery = MediaQuery.of(dialogContext);
+
+      return ValueListenableBuilder<bool>(
+        valueListenable: CustomTVTextField.isKeyboardVisibleNotifier,
+        builder: (context, isKeyboardVisible, _) {
+          final isTv = PlatformDetection.isTV;
+          final shiftUp = isKeyboardVisible && isTv;
+          final keyboardSpace = shiftUp ? 360.0 : 0.0;
+          final effectiveBottomInset = math.max(
+            mediaQuery.viewInsets.bottom,
+            keyboardSpace,
+          );
+          final maxDialogHeight = mediaQuery.size.height -
+              mediaQuery.padding.vertical -
+              effectiveBottomInset -
+              24;
+
+          final inner = playerDialogPanel(
+            constraints: BoxConstraints(
+              minWidth: 340,
+              maxWidth: maxWidth,
+              maxHeight: maxDialogHeight,
+            ),
+            padding: const EdgeInsets.symmetric(vertical: 20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Padding(
+                  padding: EdgeInsets.fromLTRB(24, 0, 24, subtitle != null ? 4 : 12),
+                  child: Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      title,
+                      style: const TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ),
+                ),
+                if (subtitle != null)
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(24, 0, 24, 12),
+                    child: Align(
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        subtitle,
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: Colors.white.withValues(alpha: 0.54),
+                        ),
+                      ),
+                    ),
+                  ),
+                Container(height: 1, color: Colors.white.withValues(alpha: 0.08)),
+                const SizedBox(height: 8),
+                Flexible(child: builder(dialogContext)),
+                if (showCancel) ...[
+                  const SizedBox(height: 4),
+                  Container(height: 1, color: Colors.white.withValues(alpha: 0.08)),
+                  const SizedBox(height: 4),
+                  _TrackRow(
+                    option: TrackOption(label: AppLocalizations.of(dialogContext).cancel),
+                    isSelected: false,
+                    onTap: () => Navigator.pop(dialogContext),
+                    dimmed: true,
+                  ),
+                ],
+              ],
+            ),
+          );
+
+          return Dialog(
+            alignment: shiftUp ? const Alignment(0, -0.85) : Alignment.center,
+            insetAnimationDuration: const Duration(milliseconds: 200),
+            insetAnimationCurve: Curves.easeOutCubic,
+            insetPadding: shiftUp
+                ? const EdgeInsets.fromLTRB(40, 20, 40, 360)
+                : const EdgeInsets.symmetric(horizontal: 40, vertical: 24),
+            backgroundColor: Colors.transparent,
+            child: inner,
+          );
+        },
+      );
+    },
+  );
+}
+
+/// The panel the player's dialogs sit in, on glass when the theme uses it.
+Widget playerDialogPanel({
+  required BoxConstraints constraints,
+  required EdgeInsets padding,
+  required Widget child,
+}) {
+  final glass = AppColorScheme.isGlass;
+  final panel = Container(
+    constraints: constraints,
+    decoration: glass
+        ? null
+        : BoxDecoration(
+            color: AppColorScheme.surface.withValues(alpha: 0.9),
+            borderRadius: AppRadius.circular(20),
+            border: Border.fromBorderSide(
+              ThemeRegistry.active.borders.chipBorder,
+            ),
+          ),
+    padding: padding,
+    child: child,
+  );
+  return glass
+      ? GlassSurface(
+          cornerRadius: 20,
+          reinforced: true,
+          fallbackColor: Colors.transparent,
+          child: panel,
+        )
+      : panel;
+}
+
+class TrackOption {
+  final String label;
+  final String? subtitle;
+  final int? labelMaxLines;
+
+  /// Lines the detail line may run to before it is cut short. One is right for
+  /// a track's own description; a remote subtitle result carries enough - the
+  /// format, the rating, the framerate - that one line loses the end of it.
+  final int subtitleMaxLines;
+
+  /// Short labels shown as pills under the detail line. What goes here is what
+  /// decides the choice rather than describes it, so it survives however narrow
+  /// the row gets instead of being the first thing cut off the end.
+  final List<String> badges;
+  final bool scrollLabel;
+  final bool scrollSubtitle;
+
+  /// Shown in place of the selection mark, for a row that opens something
+  /// rather than picks a track.
+  final IconData? icon;
+
+  const TrackOption({
+    required this.label,
+    this.subtitle,
+    this.labelMaxLines = 1,
+    this.subtitleMaxLines = 1,
+    this.badges = const <String>[],
+    this.scrollLabel = false,
+    this.scrollSubtitle = false,
+    this.icon,
+  });
+}
+
+class TrackSelectorDialog {
+  TrackSelectorDialog._();
+
+  static Future<int?> show(
+    BuildContext context, {
+    required String title,
+    required List<TrackOption> options,
+    int? selectedIndex,
+    Widget? footer,
+    bool useRootNavigator = true,
+  }) {
+    return showStyledPlayerDialog<int>(
+      context,
+      title: title,
+      showCancel: true,
+      useRootNavigator: useRootNavigator,
+      // The footer rides along as the last row rather than sitting under the
+      // list, so a long track list keeps the full height and the footer is
+      // something you scroll down to instead of something in the way.
+      builder: (dialogCtx) => ListView.builder(
+        shrinkWrap: true,
+        itemCount: options.length + (footer == null ? 0 : 1),
+        itemBuilder: (_, i) => i == options.length
+            ? footer!
+            : _TrackRow(
+                option: options[i],
+                isSelected: selectedIndex == i,
+                autofocus:
+                    selectedIndex == i || (selectedIndex == null && i == 0),
+                onTap: () => Navigator.pop(dialogCtx, i),
+              ),
+      ),
+    );
+  }
+}
+
+class _TrackRow extends StatefulWidget {
+  final TrackOption option;
+  final bool isSelected;
+  final VoidCallback onTap;
+  final bool autofocus;
+  final bool dimmed;
+
+  const _TrackRow({
+    required this.option,
+    required this.isSelected,
+    required this.onTap,
+    this.autofocus = false,
+    this.dimmed = false,
+  });
+
+  @override
+  State<_TrackRow> createState() => _TrackRowState();
+}
+
+class _TrackRowState extends State<_TrackRow> {
+  final _prefs = GetIt.instance<UserPreferences>();
+  final _focusNode = FocusNode();
+  bool _isFocused = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _focusNode.addListener(() => setState(() => _isFocused = _focusNode.hasFocus));
+  }
+
+  @override
+  void dispose() {
+    _focusNode.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final focusColor = Color(_prefs.get(UserPreferences.focusColor).colorValue);
+    final labelColor = widget.dimmed
+      ? Colors.white.withValues(alpha: 0.5)
+      : Colors.white.withValues(alpha: _isFocused ? 0.95 : 0.8);
+    final subtitleColor = widget.dimmed
+      ? Colors.white.withValues(alpha: 0.35)
+      : Colors.white.withValues(alpha: _isFocused ? 0.72 : 0.6);
+
+    return Focus(
+      focusNode: _focusNode,
+      autofocus: widget.autofocus,
+      onKeyEvent: (_, event) {
+        if (event is KeyDownEvent &&
+            (event.logicalKey == LogicalKeyboardKey.select ||
+                event.logicalKey == LogicalKeyboardKey.enter)) {
+          widget.onTap();
+          return KeyEventResult.handled;
+        }
+        return KeyEventResult.ignored;
+      },
+      child: GestureDetector(
+        onTap: widget.onTap,
+        child: Container(
+          width: double.infinity,
+          color: _isFocused ? focusColor.withValues(alpha: 0.2) : Colors.transparent,
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+          child: Row(
+            children: [
+              if (widget.option.icon case final icon?)
+                Padding(
+                  padding: const EdgeInsets.only(right: 12),
+                  child: Icon(icon, color: Colors.white70, size: 20),
+                )
+              else if (widget.isSelected)
+                Padding(
+                  padding: const EdgeInsets.only(right: 12),
+                  child: Icon(Icons.check_circle, color: AppColorScheme.accent, size: 20),
+                )
+              else
+                const Padding(
+                  padding: EdgeInsets.only(right: 12),
+                  child: Icon(Icons.radio_button_unchecked, color: Colors.white38, size: 20),
+                ),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    if (widget.option.scrollLabel)
+                      MarqueeText(
+                        text: widget.option.label,
+                        style: TextStyle(fontSize: 16, color: labelColor),
+                      )
+                    else
+                      Text(
+                        widget.option.label,
+                        style: TextStyle(fontSize: 16, color: labelColor),
+                        maxLines: widget.option.labelMaxLines,
+                        overflow:
+                            widget.option.labelMaxLines == 1
+                                ? TextOverflow.ellipsis
+                                : null,
+                      ),
+                    if (widget.option.subtitle != null)
+                      (widget.option.scrollSubtitle
+                          ? MarqueeText(
+                              text: widget.option.subtitle!,
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: subtitleColor,
+                              ),
+                            )
+                          : Text(
+                              widget.option.subtitle!,
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: subtitleColor,
+                              ),
+                              maxLines: widget.option.subtitleMaxLines,
+                              overflow: TextOverflow.ellipsis,
+                            )),
+                    if (widget.option.badges.isNotEmpty)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 6),
+                        child: Wrap(
+                          spacing: 6,
+                          runSpacing: 6,
+                          children: widget.option.badges
+                              .map((badge) => _OptionBadge(
+                                    label: badge,
+                                    dimmed: widget.dimmed,
+                                  ))
+                              .toList(growable: false),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// A pill under a track row, in the same shape as the audio quality badge so
+/// the two read as the same kind of mark.
+class _OptionBadge extends StatelessWidget {
+  final String label;
+  final bool dimmed;
+
+  const _OptionBadge({required this.label, required this.dimmed});
+
+  @override
+  Widget build(BuildContext context) {
+    final accent = AppColorScheme.accent;
+    final alpha = dimmed ? 0.3 : 0.55;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+      decoration: BoxDecoration(
+        color: AppColorScheme.onSurface.withValues(alpha: 0.10),
+        borderRadius: AppRadius.circular(11),
+        border: Border.all(color: accent.withValues(alpha: alpha), width: 1),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+          fontSize: 11,
+          fontWeight: FontWeight.w700,
+          letterSpacing: 0.3,
+          color: Color.alphaBlend(
+            accent.withValues(alpha: dimmed ? 0.5 : 0.85),
+            Colors.white,
+          ),
+        ),
+      ),
+    );
+  }
+}

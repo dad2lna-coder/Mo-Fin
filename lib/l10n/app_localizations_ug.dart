@@ -1,0 +1,15240 @@
+// ignore: unused_import
+import 'package:intl/intl.dart' as intl;
+
+import 'app_localizations.dart';
+
+// ignore_for_file: type=lint
+
+/// The translations for Uighur Uyghur (`ug`).
+class AppLocalizationsUg extends AppLocalizations {
+  AppLocalizationsUg([String locale = 'ug']) : super(locale);
+
+  @override
+  String get appTitle => 'Moonfin';
+
+  @override
+  String get animeMarkerFiller => 'Filler';
+
+  @override
+  String get animeMarkerMixed => 'Mixed';
+
+  @override
+  String get animeMarkerAnimeCanon => 'Anime Canon';
+
+  @override
+  String get animeMarkerMangaCanon => 'Manga Canon';
+
+  @override
+  String get animeMarkerSubbed => 'Subbed';
+
+  @override
+  String get animeMarkerDubbed => 'Dubbed';
+
+  @override
+  String get animeMarkerSubbedAndDubbed => 'Subbed/Dubbed';
+
+  @override
+  String get animeMarkerPending => 'Pending';
+
+  @override
+  String get animeMarkerRecap => 'Recap';
+
+  @override
+  String get interfaceLanguage => 'كۆرۈنمە يۈز تىلى';
+
+  @override
+  String get systemLanguageDefault => 'سىستېما سۈكۈتتىكىسى';
+
+  @override
+  String get signIn => 'تىزىملىتىڭ';
+
+  @override
+  String get empty => 'قۇرۇق';
+
+  @override
+  String connectingToServer(String serverName) {
+    return '$serverName غا ئۇلىنىۋاتىدۇ';
+  }
+
+  @override
+  String get quickConnect => 'Quick Connect';
+
+  @override
+  String get password => 'پارول';
+
+  @override
+  String get username => 'ئىشلەتكۈچى ئىسمى';
+
+  @override
+  String get email => 'ئېلخەت';
+
+  @override
+  String get quickConnectInstruction =>
+      'مۇلازىمېتىرنىڭ تور باشقۇرۇش سۇپىسىغا بۇ كودنى كىرگۈزۈڭ:';
+
+  @override
+  String get quickConnectScanHint =>
+      'Or scan this with a phone that\'s signed in to your server';
+
+  @override
+  String get quickConnectTapOrScanHint =>
+      'Tap to approve in your browser, or scan this with another device';
+
+  @override
+  String get timesUpTitle => 'Time\'s up';
+
+  @override
+  String get timesUpMessage => 'This account isn\'t available right now.';
+
+  @override
+  String timesUpResumesToday(String time) {
+    return 'You can use it again today at $time.';
+  }
+
+  @override
+  String timesUpResumesTomorrow(String time) {
+    return 'You can use it again tomorrow at $time.';
+  }
+
+  @override
+  String timesUpResumesOn(String day, String time) {
+    return 'You can use it again on $day at $time.';
+  }
+
+  @override
+  String get waitingForAuthorization => 'ھوقۇقنى ساقلاش ...';
+
+  @override
+  String get back => 'قايتىش';
+
+  @override
+  String get serverUnavailable => 'مۇلازىمېتىرنى ئىشلەتكىلى بولمايدۇ';
+
+  @override
+  String get loginFailed => 'كىرىش مەغلۇب بولدى';
+
+  @override
+  String get loginForbidden =>
+      'This account can\'t sign in right now. It may be outside its allowed hours, locked or disabled. Try again later or ask an administrator.';
+
+  @override
+  String quickConnectUnavailable(String detail) {
+    return 'QuickConnect نى ئىشلەتكىلى بولمايدۇ: $detail';
+  }
+
+  @override
+  String quickConnectUnavailableWithStatus(String status, String detail) {
+    return 'QuickConnect نى ئىشلەتكىلى بولمايدۇ ($status): $detail';
+  }
+
+  @override
+  String get whosWatching => 'كىم كۆرۈۋاتىدۇ؟';
+
+  @override
+  String get addUser => 'ئىشلەتكۈچى قوشۇڭ';
+
+  @override
+  String get selectServer => 'مۇلازىمېتىرنى تاللاڭ';
+
+  @override
+  String appVersionFooter(String version) {
+    return 'Moonfin نەشرى $version';
+  }
+
+  @override
+  String get savedServers => 'ساقلانغان مۇلازىمېتىرلار';
+
+  @override
+  String get discoveredServers => 'مۇلازىمېتىرنى بايقىدى';
+
+  @override
+  String get noneFound => 'تېپىلمىدى';
+
+  @override
+  String get unableToConnectToServer => 'مۇلازىمېتىرغا ئۇلىنالمىدى';
+
+  @override
+  String get addServer => 'مۇلازىمېتىرنى قوشۇڭ';
+
+  @override
+  String get embyConnect => 'Emby ئۇلىنىش';
+
+  @override
+  String get removeServer => 'مۇلازىمېتىرنى ئۆچۈرۈڭ';
+
+  @override
+  String removeServerConfirmation(String serverName) {
+    return '«$serverName» مۇلازىمېتىرلىرىڭىزدىن چىقىرىۋېتىلسۇنمۇ؟';
+  }
+
+  @override
+  String get cancel => 'بىكار قىلىش';
+
+  @override
+  String get remove => 'چىقىرىۋېتىش';
+
+  @override
+  String get connectToServer => 'مۇلازىمېتىرغا ئۇلاڭ';
+
+  @override
+  String get serverAddress => 'مۇلازىمېتىر ئادرېسى';
+
+  @override
+  String get serverAddressHint => 'https://your-server.example.com';
+
+  @override
+  String get connect => 'ئۇلاڭ';
+
+  @override
+  String get secureStorageUnavailable => 'بىخەتەر ساقلاشنى ئىشلەتكىلى بولمايدۇ';
+
+  @override
+  String get secureStorageUnavailableMessage =>
+      'Moonfin سىستېمىڭىزنىڭ ئاچقۇچلىرىنى زىيارەت قىلالمىدى. كىرىشنى داۋاملاشتۇرغىلى بولىدۇ ، ئەمما ئاچقۇچ ئېچىلمىغۇچە بىخەتەر بەلگە ساقلاشنى ئىشلەتكىلى بولمايدۇ.';
+
+  @override
+  String get ok => 'ماقۇل';
+
+  @override
+  String get settingsAppearanceTheme => 'ئەپ تېمىسى';
+
+  @override
+  String get detailScreenStyle => 'تەپسىلات ئېكرانى ئۇسلۇبى';
+
+  @override
+  String get detailScreenStyleSubtitle =>
+      'كلاسسىك — moonfin نىڭ ئەسلى ئوتتۇرىغا توغرىلانغان ئورۇنلاشتۇرۇلۇشى. زامانىۋى — ماسلىشىشچان كىنو ئۇسلۇبىدىكى ئورۇنلاشتۇرۇلۇش.';
+
+  @override
+  String get detailScreenStyleMoonfin => 'كلاسسىك';
+
+  @override
+  String get detailScreenStyleModern => 'زامانىۋى';
+
+  @override
+  String get detailScreenStyleSpotlight => 'Spotlight';
+
+  @override
+  String get spotlightMoreActions => 'More Actions';
+
+  @override
+  String get spotlightCastCrewStudios => 'Cast, Crew, and Studios';
+
+  @override
+  String get spotlightChaptersExtras => 'Chapters and Extras';
+
+  @override
+  String get spotlightFileDetails => 'File Details';
+
+  @override
+  String get spotlightSimilarRecommendations => 'Similar and Recommendations';
+
+  @override
+  String get spotlightSeasonsEpisodes => 'Seasons and Episodes';
+
+  @override
+  String get spotlightMoreEpisodes => 'More Episodes';
+
+  @override
+  String get spotlightFilmography => 'Filmography';
+
+  @override
+  String get spotlightCollectionsCard => 'Collections';
+
+  @override
+  String get spotlightPlaylistOrder => 'Playlist Order';
+
+  @override
+  String get spotlightMoviesAndShows => 'Movies & Shows';
+
+  @override
+  String get spotlightSimilarSeerr => 'Similar (Seerr)';
+
+  @override
+  String get spotlightRecommendationsSeerr => 'Recommendations (Seerr)';
+
+  @override
+  String spotlightPeopleCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count people',
+      one: '1 person',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String spotlightFactsCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count facts',
+      one: '1 fact',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String spotlightTagsCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count tags',
+      one: '1 tag',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String spotlightStudiosCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count studios',
+      one: '1 studio',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String spotlightChaptersCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count chapters',
+      one: '1 chapter',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String spotlightExtrasCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count extras',
+      one: '1 extra',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String spotlightSeasonsCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count seasons',
+      one: '1 season',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String spotlightEpisodesCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count episodes',
+      one: '1 episode',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String spotlightMoviesCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count movies',
+      one: '1 movie',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String spotlightShowsCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count shows',
+      one: '1 show',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String spotlightTracksCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count tracks',
+      one: '1 track',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String spotlightItemsCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count items',
+      one: '1 item',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String spotlightAlbumsCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count albums',
+      one: '1 album',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String spotlightCollectionsCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count collections',
+      one: '1 collection',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String spotlightTitlesCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count titles',
+      one: '1 title',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get detailScreenStyleNouveau => 'Nouveau';
+
+  @override
+  String get detailScreenStyleMinimalist => 'Minimalist';
+
+  @override
+  String get expandedTabs => 'كېڭەيتىلگەن بەتكۈچلەر';
+
+  @override
+  String get expandedTabsSubtitle =>
+      'بەتكۈچلەرنى كۆرگەندە مەزمۇنىنى ئۆزلۈكىدىن كۆرسىتىدۇ. تاقىۋەتسىڭىز، ھەر بىر بەتكۈچنى قولدا ئېچىپ-ياپىسىز.';
+
+  @override
+  String get showTechnicalDetails => 'تېخنىكىلىق تەپسىلاتلار كۆرسىتىلسۇنمۇ؟';
+
+  @override
+  String get showTechnicalDetailsSubtitle =>
+      'لەۋھە خۇلاسىسىدە كودېك، ئېنىقلىق ۋە ئېقىم ئۇچۇرلىرىنى كۆرسىتىدۇ';
+
+  @override
+  String get recommendationSystem => 'تەۋسىيە سىستېمىسى';
+
+  @override
+  String get recommendationSystemSubtitle =>
+      'Moonfin Recommends يەرلىك ئامبار ئالگورىتمىنى ياكى توردىكى TMDb ئوخشاشلىق ئۆلچەملىرىنى ئىشلىتىڭ. ئەسكەرتىش: توردىكى تەۋسىيەلەرگە Seerr بىرىكمىسى كېرەك.';
+
+  @override
+  String get recommendationSystemMoonfin => 'Moonfin Recommends';
+
+  @override
+  String get recommendationSystemJellyfin => 'Jellyfin Recommends';
+
+  @override
+  String get recommendationSystemTmdb => 'TMDb ئوخشاشلىقى';
+
+  @override
+  String get recommendationsApplyParentalRatingCap =>
+      'ياش چەكلىمىسى چېكى قوللىنىلسۇنمۇ؟';
+
+  @override
+  String get recommendationsApplyParentalRatingCapSubtitle =>
+      'Moonfin Recommends تەۋسىيەلىرىنى نىشان مېدىيانىڭ ياش چەكلىمىسى بويىچە چەكلەيدۇ';
+
+  @override
+  String get interfaceStyle => 'كۆرۈنمە يۈز ئۇسلۇبى';
+
+  @override
+  String get interfaceStyleSubtitle =>
+      'ئاپتوماتىك ئۈسكۈنىڭىزگە ماسلىشىدۇ. مۇئەييەن كۆرۈنۈشنى تاللاش ئۈچۈن Apple ياكى Material نى تاللاڭ.';
+
+  @override
+  String get interfaceStyleAutomatic => 'ئاپتوماتىك';
+
+  @override
+  String get interfaceStyleApple => 'Apple';
+
+  @override
+  String get interfaceStyleMaterial => 'Material';
+
+  @override
+  String get interfaceLayout => 'Interface Layout';
+
+  @override
+  String get interfaceLayoutSubtitle =>
+      'Override the detected layout when this device is read wrong. Restart Moonfin for changes to take effect.';
+
+  @override
+  String get interfaceLayoutAutomatic => 'Automatic';
+
+  @override
+  String get interfaceLayoutTv => 'TV';
+
+  @override
+  String get interfaceLayoutDesktop => 'Desktop';
+
+  @override
+  String get interfaceLayoutPhone => 'Phone';
+
+  @override
+  String get glassQuality => 'ئەينەك سۈپىتى';
+
+  @override
+  String get oledMode => 'OLED Mode';
+
+  @override
+  String get oledModeSubtitle =>
+      'Deepen blacks and enrich artwork. Best on OLED displays.';
+
+  @override
+  String get oledModeSubtle => 'Subtle';
+
+  @override
+  String get oledModeVivid => 'Vivid';
+
+  @override
+  String get glassQualitySubtitle =>
+      'ئاپتوماتىك بۇ ئۈسكۈنىگە ئەڭ ماس ئەينەك ئۈنۈمىنى تاللايدۇ. تولۇق ھەقىقىي گۇڭگالاشتۇرۇشنى ئىشلىتىدۇ؛ يېنىكلىتىلگەن GPU قۇۋۋىتىنى تېجەيدىغان يېنىك ئەينەكنى ئىشلىتىدۇ.';
+
+  @override
+  String get glassQualityAuto => 'ئاپتوماتىك';
+
+  @override
+  String get glassQualityFull => 'تولۇق';
+
+  @override
+  String get glassQualityReduced => 'يېنىكلىتىلگەن';
+
+  @override
+  String get performanceMode => 'Performance';
+
+  @override
+  String get performanceModeSubtitle =>
+      'Auto measures this device and holds back on the ones short on memory, which keeps fewer images in memory and leaves trailers as still images. Takes full effect on the next launch.';
+
+  @override
+  String get performanceModeAuto => 'Auto';
+
+  @override
+  String get performanceModeStandard => 'Standard';
+
+  @override
+  String get performanceModeReduced => 'Reduced';
+
+  @override
+  String get rendererMode => 'Renderer';
+
+  @override
+  String get rendererModeSubtitle =>
+      'Auto uses Impeller on boxes whose graphics run it smoothly and Skia everywhere else. Pick Skia if animations or video look wrong. Takes effect on the next launch.';
+
+  @override
+  String get rendererModeAuto => 'Auto';
+
+  @override
+  String get rendererModeSkia => 'Skia';
+
+  @override
+  String get trailerPreviewHeldBack =>
+      'Off because Performance is set to Reduced for this device';
+
+  @override
+  String get settingsAppearanceThemeSubtitle =>
+      'بۇ دېتالنى قايتا قوزغىماي Moonfin بىلەن Neon Pulse نى ئالماشتۇرۇڭ';
+
+  @override
+  String get customThemeTitle => 'ئىختىيارى تېما';
+
+  @override
+  String get customThemeSubtitle =>
+      'ئىختىيارى تېمىلار Moonfin نىڭ كۆرۈنۈش ئېلېمېنتلىرىنى ئۆزگەرتىدۇ. ئۇسلۇبىڭىزغا ماس بىرىنى تاللاڭ.';
+
+  @override
+  String get keyboardPreferSystemIme => 'سىستېما ھەرپتاختىسىنى ئالدىن ئىشلىتىش';
+
+  @override
+  String get keyboardPreferSystemImeDescription =>
+      'تېكىست كىرگۈزۈشتە سۈكۈتتە ئۈسكۈنىڭىزنىڭ كىرگۈزگۈچىنى ئىشلىتىدۇ';
+
+  @override
+  String get controller => 'Controller';
+
+  @override
+  String get gamepadNavigation => 'Gamepad Navigation';
+
+  @override
+  String get gamepadNavigationDescription =>
+      'Let a connected game controller move focus and select items';
+
+  @override
+  String get themeMoonfin => 'Moonfin';
+
+  @override
+  String get themeMoonfinSubtitle =>
+      'ھازىرقى Moonfin قارىسىڭىز ھەممىڭىز ياخشى كۆرۈپ قالدىڭىز';
+
+  @override
+  String get themeNeonPulse => 'نېئون پۇلس';
+
+  @override
+  String get themeNeonPulseSubtitle =>
+      'Magenta پارقىراقلىقى ، سىئەن تېكىستى ۋە تېخىمۇ كۈچلۈك خروم سېلىشتۇرمىسى بىلەن Synthwave ئۇسلۇبى';
+
+  @override
+  String get themeGlass => 'ئەينەك';
+
+  @override
+  String get themeGlassSubtitle =>
+      'لەيلىمە گىرادىيېنت تەگلىك، تۇمانلاشقان يۈزلەر ۋە Apple كۆكى بېزىكى بار سۇيۇق ئەينەك ئۇسلۇبى';
+
+  @override
+  String get theme8BitHero => '8-بىت قەھرىمان';
+
+  @override
+  String get theme8BitHeroSubtitle =>
+      'قويۇق رەڭ تاختىسى، بۆلەكسىمان گىرۋەكلەر، قاتتىق سايىلەر ۋە پىكسېل خەت نۇسخىسى بار رېترو پىكسېل ئۇسلۇبى';
+
+  @override
+  String get embyConnectSignInSubtitle =>
+      'Emby ئۇلىنىش ھېساباتىڭىز بىلەن كىرىڭ';
+
+  @override
+  String get emailOrUsername => 'ئېلېكترونلۇق خەت ياكى ئىشلەتكۈچى ئىسمى';
+
+  @override
+  String get selectAServer => 'مۇلازىمېتىرنى تاللاڭ';
+
+  @override
+  String get tryAgain => 'قايتا سىناڭ';
+
+  @override
+  String get noLinkedServers =>
+      'بۇ Emby ئۇلىنىش ھېساباتىغا ئۇلانغان مۇلازىمېتىر يوق';
+
+  @override
+  String get invalidEmbyConnectCredentials => 'ئىناۋەتسىز Emby كىنىشكىنى ئۇلاڭ';
+
+  @override
+  String get invalidEmbyConnectLogin =>
+      'ئىناۋەتسىز Emby ئۇلىنىش ئىشلەتكۈچى ئىسمى ياكى پارولى';
+
+  @override
+  String get embyConnectExchangeNotSupported =>
+      'مۇلازىمېتىر Emby Connect ئالماشتۇرۇشنى قوللىمايدۇ';
+
+  @override
+  String get embyConnectNetworkError =>
+      'Emby Connect ياكى تاللانغان مۇلازىمېتىر بىلەن ئالاقىلاشقاندا تور خاتالىقى';
+
+  @override
+  String get loadingLinkedServers =>
+      'ئۇلانغان مۇلازىمېتىرلارنى يۈكلەۋاتىدۇ ...';
+
+  @override
+  String get connectingToServerEllipsis => 'مۇلازىمېتىرغا ئۇلىنىش ...';
+
+  @override
+  String get noReachableAddress => 'يەتكىلى بولىدىغان ئادرېس تەمىنلەنمىدى';
+
+  @override
+  String get invalidServerExchangeResponse =>
+      'مۇلازىمېتىر ئالماشتۇرۇش نۇقتىسىنىڭ ئىناۋەتسىز ئىنكاسى';
+
+  @override
+  String unableToConnectTo(String target) {
+    return '$target غا ئۇلانغىلى بولمىدى';
+  }
+
+  @override
+  String get exitApp => 'چىقىش Moonfin?';
+
+  @override
+  String get exitAppConfirmation => 'چېكىنىشنى خالامسىز؟';
+
+  @override
+  String get exit => 'چىقىش';
+
+  @override
+  String get gameMenu => 'تىزىملىك';
+
+  @override
+  String get gamePaused => 'ۋاقىتلىق توختىتىلدى';
+
+  @override
+  String get gameSaveState => 'ھالەتنى ساقلاش';
+
+  @override
+  String get games => 'ئويۇنلار';
+
+  @override
+  String get gameLoadState => 'ھالەتنى يۈكلەش';
+
+  @override
+  String get gameFastForward => 'تېز ئالدىغا سۈرۈش';
+
+  @override
+  String get gameOrientation => 'Game orientation';
+
+  @override
+  String get gameOrientationSubtitle =>
+      'Screen orientation while playing games';
+
+  @override
+  String get landscape => 'Landscape';
+
+  @override
+  String get portrait => 'Portrait';
+
+  @override
+  String get gameEmulatorSettings => 'ئېمۇلياتور تەڭشەكلىرى';
+
+  @override
+  String get gameNoCoreOptions =>
+      'بۇ يادرونىڭ تەڭشىگىلى بولىدىغان تاللانمىلىرى يوق.';
+
+  @override
+  String get gameHoldToOpenMenu => 'تىزىملىكنى ئېچىش ئۈچۈن بېسىپ تۇرۇڭ';
+
+  @override
+  String get gameKeepPlaying => 'Keep playing';
+
+  @override
+  String get gameSaveAndExit => 'Save & exit';
+
+  @override
+  String get gameExitGame => 'Exit game';
+
+  @override
+  String get gameSavingBeforeExit => 'Saving…';
+
+  @override
+  String get gameSaveFailedStillPlaying =>
+      'Could not save state. Still playing.';
+
+  @override
+  String get gamePlaybackUnsupported =>
+      'بۇ ئۈسكۈنە ئويۇن ئوينىتىشنى تېخى قوللىمايدۇ.';
+
+  @override
+  String get noHomeRowsLoaded => 'ھېچقانداق ئۆي قۇرلىرىنى يۈكلەشكە بولمايدۇ';
+
+  @override
+  String get noHomeRowsHint =>
+      'ئاكتىپ ئائىلە بۆلەكلىرىنى يېڭىلاش ياكى ئازايتىشنى سىناپ بېقىڭ.';
+
+  @override
+  String get retryHomeRows => 'ئۆي قۇرلىرىنى قايتا سىناڭ';
+
+  @override
+  String get guide => 'يېتەكچى';
+
+  @override
+  String get recordings => 'خاتىرىلەنگەن پروگراممىلار';
+
+  @override
+  String get schedule => 'ۋاقىت جەدۋىلى';
+
+  @override
+  String get series => 'تېلېۋىزىيە تىياتىرلىرى';
+
+  @override
+  String get noItemsFound => 'ھېچقانداق نەرسە تېپىلمىدى';
+
+  @override
+  String get home => 'باش بەت';
+
+  @override
+  String get browseAll => 'ھەممىنى كۆرۈڭ';
+
+  @override
+  String get genres => 'ژانىرلار';
+
+  @override
+  String get collectionPlaceholder => 'يىغىش تۈرلىرى بۇ يەردە كۆرۈنىدۇ';
+
+  @override
+  String get browseByLetter => 'خەت ئارقىلىق كۆرۈڭ';
+
+  @override
+  String get alphabeticalBrowsePlaceholder => 'ئېلىپبە كۆرۈش بۇ يەردە كۆرۈنىدۇ';
+
+  @override
+  String get suggestions => 'تەكلىپ';
+
+  @override
+  String get suggestionsPlaceholder =>
+      'تەكلىپ قىلىنغان تۈرلەر بۇ يەردە كۆرۈنىدۇ';
+
+  @override
+  String get failedToLoadLibraries => 'كۈتۈپخانىلارنى يۈكلىيەلمىدى';
+
+  @override
+  String get noLibrariesFound => 'كۈتۈپخانىلار تېپىلمىدى';
+
+  @override
+  String get library => 'مېدىيا ئامبىرى';
+
+  @override
+  String get displaySettings => 'تەڭشەكلەرنى كۆرسىتىش';
+
+  @override
+  String get allGenres => 'بارلىق ژانىرلار';
+
+  @override
+  String get noGenresFound => 'ھېچقانداق ژانىر تېپىلمىدى';
+
+  @override
+  String failedToLoadFolderError(String error) {
+    return 'قىسقۇچ يۈكلىنەلمىدى: $error';
+  }
+
+  @override
+  String get thisFolderIsEmpty => 'بۇ ھۆججەت قىسقۇچ قۇرۇق';
+
+  @override
+  String itemCountLabel(int count) {
+    return '$count تۈر';
+  }
+
+  @override
+  String get failedToLoadFavorites => 'ياقتۇرىدىغانلارنى يۈكلىيەلمىدى';
+
+  @override
+  String get retry => 'قايتا سىناڭ';
+
+  @override
+  String get noFavoritesYet => 'ياقتۇرىدىغانلار تېخى يوق';
+
+  @override
+  String get favorites => 'ياقتۇرىدىغانلار';
+
+  @override
+  String totalCountItems(int count) {
+    return '$count تۈر';
+  }
+
+  @override
+  String get continuing => 'داۋاملاشتۇرۇش';
+
+  @override
+  String get ended => 'ئاخىرلاشتى';
+
+  @override
+  String get sortAndFilter => 'تەرتىپلەش ۋە سۈزۈش';
+
+  @override
+  String get type => 'تىپ';
+
+  @override
+  String get sortBy => 'تەرتىپلەش ئاساسى';
+
+  @override
+  String get display => 'كۆرسىتىش';
+
+  @override
+  String get imageType => 'رەسىم تىپى';
+
+  @override
+  String get posterSize => 'ئېلان چوڭلۇقى';
+
+  @override
+  String get small => 'كىچىك';
+
+  @override
+  String get medium => 'ئوتتۇراھال';
+
+  @override
+  String get large => 'چوڭ';
+
+  @override
+  String get extraLarge => 'قوشۇمچە چوڭ';
+
+  @override
+  String get uiScaleGrandparents => 'Grandparents';
+
+  @override
+  String get uiScaleGreatGrandparents => 'Great-Grandparents';
+
+  @override
+  String get scrollDirection => 'Scroll Direction';
+
+  @override
+  String get scrollDirectionVertical => 'Vertical';
+
+  @override
+  String get scrollDirectionHorizontal => 'Horizontal';
+
+  @override
+  String libraryGenresTitle(String name) {
+    return '$name — ژانىرلار';
+  }
+
+  @override
+  String get views => 'كۆرۈنۈشلەر';
+
+  @override
+  String get albums => 'Album';
+
+  @override
+  String get albumArtists => 'پىلاستىنكا سەنئەتكارلىرى';
+
+  @override
+  String get artists => 'سەنئەتكارلار';
+
+  @override
+  String get bookmarks => 'خەتكۈچلەر';
+
+  @override
+  String get noSavedBookmarks =>
+      'بۇ ماۋزۇ ئۈچۈن ھازىرغىچە ساقلانغان خەتكۈچ يوق.';
+
+  @override
+  String get openBook => 'ئوچۇق كىتاب';
+
+  @override
+  String get chapter => 'باب';
+
+  @override
+  String get page => 'بەت';
+
+  @override
+  String get bookmark => 'خەتكۈچ';
+
+  @override
+  String get justNow => 'ھازىر';
+
+  @override
+  String minutesAgo(int count) {
+    return '$count مىنۇت ئىلگىرى';
+  }
+
+  @override
+  String hoursAgo(int count) {
+    return '$count سائەت ئىلگىرى';
+  }
+
+  @override
+  String daysAgo(int count) {
+    return '$count كۈن ئىلگىرى';
+  }
+
+  @override
+  String get discoverySubjects => 'بايقاش سۇبيېكتى';
+
+  @override
+  String get pickDiscoverySubjects =>
+      '«بايقاش» تا قايسى مەزمۇننى كۆرسىتىدىغانلىقىنى تاللاڭ.';
+
+  @override
+  String get apply => 'قوللىنىش';
+
+  @override
+  String get openLink => 'ئۇلىنىشنى ئېچىڭ';
+
+  @override
+  String get scanWithYourPhone => 'تېلېفونىڭىز بىلەن سايىلەڭ';
+
+  @override
+  String get audiobookGenres => 'ئۈندىدار ژانىرى';
+
+  @override
+  String get pickAudiobookGenres =>
+      'Audiobook بايقاشتا قايسى ژانىرلارنى كۆرسىتىشنى تاللاڭ.';
+
+  @override
+  String get discoverAudiobooks => 'ئۈندىدارنى بايقاش';
+
+  @override
+  String get librivoxDescription => 'LibriVox دىكى داڭلىق ئاممىۋى تور نامى.';
+
+  @override
+  String titlesCount(int count) {
+    return '$count ئەسەر';
+  }
+
+  @override
+  String get scrollLeft => 'سولغا يۆتكەڭ';
+
+  @override
+  String get scrollRight => 'ئوڭغا يۆتكەڭ';
+
+  @override
+  String get scrollToTop => 'Scroll to top';
+
+  @override
+  String get couldNotLoadGenre => 'ھازىر بۇ ژانىرنى يۈكلىيەلمىدى.';
+
+  @override
+  String get continueReading => 'داۋاملىق ئوقۇش';
+
+  @override
+  String get savedHighlights => 'ساقلانغان يارقىن نۇقتىلار';
+
+  @override
+  String get continueListening => 'داۋاملىق ئاڭلاڭ';
+
+  @override
+  String get listen => 'ئاڭلاڭ';
+
+  @override
+  String get resume => 'داۋاملاشتۇرۇش';
+
+  @override
+  String get failedToLoadLibrary => 'كۈتۈپخانىنى يۈكلىيەلمىدى';
+
+  @override
+  String get popularNow => 'ھازىر مودا';
+
+  @override
+  String get savedForLater => 'كېيىن ساقلاندى';
+
+  @override
+  String get topListens => 'ئەڭ كۆپ ئاڭلانغانلار';
+
+  @override
+  String get unreadDiscoveries => 'ئوقۇلمىغان بايقاشلار';
+
+  @override
+  String get pickUpAgain => 'قايتا تاللاڭ';
+
+  @override
+  String get bookHighlightsDescription =>
+      'كىتابلىرىڭىز يارقىن نۇقتىلار ، ياقتۇرىدىغان ياكى ئوقۇش ئىلگىرىلەشلىرى بار.';
+
+  @override
+  String get handPickedFromLibrary => 'كۈتۈپخانىڭىزدىن قولدا تاللانغان.';
+
+  @override
+  String get handPickedFromListeningQueue =>
+      'ئاڭلاش سېپىڭىزدىن قولدا تاللانغان.';
+
+  @override
+  String get booksWithHighlights =>
+      'يارقىن نۇقتىلار ، ياقتۇرىدىغانلار ياكى ئوقۇش ئىلگىرىلەشلىرى بار كىتابلار.';
+
+  @override
+  String get jumpBackNarration => 'ئورنىڭىزنى ئوۋلىماي بايانغا قايتىڭ.';
+
+  @override
+  String get unreadBooksReady =>
+      'ئوقۇلمىغان كىتابلار كېيىنكى جىمجىت سائەت ئۈچۈن تەييار.';
+
+  @override
+  String get quickAccessFavorites =>
+      'سىز قايتىپ كەلگەن كىتابلارنى تېز زىيارەت قىلىڭ.';
+
+  @override
+  String get searchAudiobooks => 'ئۈندىدارنى ئىزدەڭ';
+
+  @override
+  String get searchYourLibrary => 'كۈتۈپخانىڭىزنى ئىزدەڭ';
+
+  @override
+  String get pickUpStory => 'سىز قالدۇرغان ھېكايىنى ئېلىڭ';
+
+  @override
+  String get savedPlacesChapters =>
+      'ساقلىغان جايلىرىڭىز ۋە تاماملانمىغان بابلىرىڭىز';
+
+  @override
+  String authorsCount(int count) {
+    return '$count ئاپتور';
+  }
+
+  @override
+  String genresCount(int count) {
+    return '$count ژانىر';
+  }
+
+  @override
+  String percentCompleted(int percent) {
+    return '$percent% تاماملاندى';
+  }
+
+  @override
+  String get readyWhenYouAre => 'تەييار بولغاندا تەييار';
+
+  @override
+  String get details => 'تەپسىلاتى';
+
+  @override
+  String get listeningRoom => 'ئاڭلاش ئۆيى';
+
+  @override
+  String get bookmarksAndProgress => 'خەتكۈچ ۋە ئىلگىرىلەش';
+
+  @override
+  String titlesArrangedForBrowsing(int count) {
+    return 'ئوقۇشقا قولايلىق كۆرۈش ئۈچۈن $count ئەسەر تىزىلدى.';
+  }
+
+  @override
+  String get titles => 'ماۋزۇلار';
+
+  @override
+  String get allTitles => 'بارلىق ماۋزۇلار';
+
+  @override
+  String get authors => 'ئاپتورلار';
+
+  @override
+  String get browseByAuthor => 'ئاپتور تەرىپىدىن كۆرۈڭ';
+
+  @override
+  String get browseByGenre => 'ژانىرغا قاراڭ';
+
+  @override
+  String get discover => 'بايقاش';
+
+  @override
+  String get trendingTitlesOpenLibrary =>
+      'تېما Open Library دىن تېما بويىچە يۈزلىنىش.';
+
+  @override
+  String get noBookmarkedItems => 'تېخى خەتكۈچلەنمىگەن تۈرلەر يوق';
+
+  @override
+  String get nothingMatchesSection =>
+      'بۇ بۆلەككە تېخى ماس كەلمەيدۇ. باشقا بەتكۈچنى سىناپ بېقىڭ ياكى كۈتۈپخانا ماسقەدەملەش ئاخىرلاشقاندىن كېيىن قايتىپ كېلىڭ.';
+
+  @override
+  String get audiobooks => 'ئۈندىدار';
+
+  @override
+  String noLabelFound(String label) {
+    return '$label تېپىلمىدى';
+  }
+
+  @override
+  String get folder => 'ھۆججەت قىسقۇچ';
+
+  @override
+  String get filters => 'سۈزگۈچ';
+
+  @override
+  String get readingStatus => 'ئوقۇش ھالىتى';
+
+  @override
+  String get playedStatus => 'ئوينىغان ھالەت';
+
+  @override
+  String get readStatus => 'ئوقۇ';
+
+  @override
+  String get watched => 'كۆرۈلگەن';
+
+  @override
+  String get unread => 'ئوقۇمىغان';
+
+  @override
+  String get unwatched => 'كۆرۈلمىگەن';
+
+  @override
+  String get seriesStatus => 'يۈرۈشلۈك ھالىتى';
+
+  @override
+  String get allLibraries => 'بارلىق كۇتۇپخانىلار';
+
+  @override
+  String get books => 'كىتابلار';
+
+  @override
+  String get latestBooks => 'ئەڭ يېڭى كىتابلار';
+
+  @override
+  String get latestAudiobooks => 'ئەڭ يېڭى ئاۋازلىق كىتابلار';
+
+  @override
+  String get latestComics => 'Latest Comics';
+
+  @override
+  String get comics => 'Comics';
+
+  @override
+  String bookSeriesItemCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count كىتاب',
+      one: '1 كىتاب',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get bookFormatBook => 'كىتاب';
+
+  @override
+  String get bookFormatAudiobook => 'ئاۋازلىق كىتاب';
+
+  @override
+  String get bookFormatComic => 'Comic';
+
+  @override
+  String get noBooksFound => 'بۇ ئاپتور ئۈچۈن ھېچقانداق كىتاب تېپىلمىدى.';
+
+  @override
+  String get noBooksFoundDescription =>
+      'This library does not contain any books, audiobooks, or comics yet.';
+
+  @override
+  String bookPercentRead(int percent) {
+    return '$percent% ئوقۇلدى';
+  }
+
+  @override
+  String bookTimeLeft(String time) {
+    return '$time قالدى';
+  }
+
+  @override
+  String get bookHeroRead => 'ئوقۇش';
+
+  @override
+  String get bookHeroListen => 'ئاڭلاش';
+
+  @override
+  String get author => 'ئاپتور';
+
+  @override
+  String get unknownAuthor => 'نامەلۇم ئاپتور';
+
+  @override
+  String get uncategorized => 'تۈرگە ئايرىلمىغان';
+
+  @override
+  String get overview => 'ئومۇمىي چۈشەنچە';
+
+  @override
+  String get noLibrivoxDescription =>
+      'بۇ ماۋزۇ ئۈچۈن LibriVox تەمىنلىگەن ھېچقانداق چۈشەندۈرۈش يوق.';
+
+  @override
+  String get readers => 'ئوقۇرمەنلەر';
+
+  @override
+  String get openLinks => 'ئۇلىنىشلارنى ئېچىڭ';
+
+  @override
+  String get librivoxPage => 'LibriVox بېتى';
+
+  @override
+  String get internetArchive => 'Internet Archive';
+
+  @override
+  String get rssFeed => 'RSS قانىلى';
+
+  @override
+  String get downloadZip => 'Zip نى چۈشۈرۈڭ';
+
+  @override
+  String sectionCountLabel(int count) {
+    return '$count بۆلەك';
+  }
+
+  @override
+  String firstPublished(int year) {
+    return 'تۇنجى نەشرى $year';
+  }
+
+  @override
+  String get noOpenLibraryOverview =>
+      'بۇ ماۋزۇ ئۈچۈن Open Library دىن ئومۇمىي چۈشەنچە يوق.';
+
+  @override
+  String get subjects => 'تېما';
+
+  @override
+  String get all => 'ھەممىسى';
+
+  @override
+  String booksCount(int count) {
+    return '$count كىتاب';
+  }
+
+  @override
+  String get couldNotLoadSubject => 'بۇ تېمىنى ھازىرچە يۈكلىيەلمىدى.';
+
+  @override
+  String get audiobookDetails => 'ئۈندىدار تەپسىلاتى';
+
+  @override
+  String authorsCountTitle(int count) {
+    return '$count ئاپتور';
+  }
+
+  @override
+  String audiobookCountLabel(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count ئاۋازلىق كىتاب',
+      one: '1 ئاۋازلىق كىتاب',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get trackList => 'ئىز تىزىملىكى';
+
+  @override
+  String get itemListPlaceholder => 'تۈر تىزىملىكى بۇ يەردە كۆرۈنىدۇ';
+
+  @override
+  String get failedToLoad => 'يۈكلەش مەغلۇپ بولدى';
+
+  @override
+  String get delete => 'ئۆچۈرۈش';
+
+  @override
+  String get save => 'ساقلاش';
+
+  @override
+  String get moreLikeThis => 'بۇنىڭغا ئوخشاش';
+
+  @override
+  String get castAndCrew => 'ئارتىسلار ۋە خادىملار';
+
+  @override
+  String get collection => 'توپلام';
+
+  @override
+  String get episodes => 'بۆلۈملەر';
+
+  @override
+  String get nextUp => 'كېيىنكىسى';
+
+  @override
+  String get seasons => 'پەسىللەر';
+
+  @override
+  String get chapters => 'باب';
+
+  @override
+  String get features => 'ئالاھىدە مەزمۇنلار';
+
+  @override
+  String get movies => 'كىنولار';
+
+  @override
+  String get musicVideos => 'مۇزىكا سىنلىرى';
+
+  @override
+  String get other => 'باشقىلىرى';
+
+  @override
+  String get discography => 'ئالبوملار';
+
+  @override
+  String get similarArtists => 'مۇشۇنىڭغا ئوخشاش سەنئەتكارلار';
+
+  @override
+  String get tableOfContents => 'مەزمۇن جەدۋىلى';
+
+  @override
+  String get tracklist => 'ئىز قوغلاش تىزىملىكى';
+
+  @override
+  String discNumber(int number) {
+    return 'دىسكا $number';
+  }
+
+  @override
+  String get biography => 'تەرجىمىھالى';
+
+  @override
+  String get authorDetails => 'ئاپتور تەپسىلاتلىرى';
+
+  @override
+  String get noOverviewAvailable => 'بۇ ماۋزۇغا ھازىرچە ئومۇمىي چۈشەنچە يوق.';
+
+  @override
+  String get noBiographyAvailable => 'بۇ ئاپتورنىڭ تەرجىمىھالى يوق.';
+
+  @override
+  String get unableToLoadAuthorDetails =>
+      'ئاپتور تەپسىلاتلىرىنى ھازىرچە يۈكلىيەلمىدى.';
+
+  @override
+  String published(int year) {
+    return 'نەشرى $year';
+  }
+
+  @override
+  String get publicationDateUnknown => 'ئېلان قىلىنغان ۋاقتى نامەلۇم';
+
+  @override
+  String seasonCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count پەسىل',
+      one: '1 پەسىل',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String endsAt(String time) {
+    return '$time دە ئاخىرلىشىدۇ';
+  }
+
+  @override
+  String get items => 'تۈرلەر';
+
+  @override
+  String get extras => 'قوشۇمچىلار';
+
+  @override
+  String get additionalParts => 'Additional Parts';
+
+  @override
+  String get behindTheScenes => 'سەھنە ئارقىسى';
+
+  @override
+  String get deletedScenes => 'ئۆچۈرۈلگەن كۆرۈنۈشلەر';
+
+  @override
+  String get featurettes => 'قىسقا تونۇشتۇرمىلار';
+
+  @override
+  String get interviews => 'سۆھبەتلەر';
+
+  @override
+  String get scenes => 'كۆرۈنۈشلەر';
+
+  @override
+  String get shorts => 'قىسقا فىلىملەر';
+
+  @override
+  String get trailers => 'ئالدىن كۆرۈنۈشلەر';
+
+  @override
+  String timeRemaining(String time) {
+    return '$time قالدى';
+  }
+
+  @override
+  String endsIn(String time) {
+    return '$time دىن كېيىن ئاخىرلىشىدۇ';
+  }
+
+  @override
+  String get view => 'كۆرۈش';
+
+  @override
+  String get resumeReading => 'ئوقۇشنى ئەسلىگە كەلتۈرۈش';
+
+  @override
+  String get read => 'ئوقۇ';
+
+  @override
+  String resumeFrom(String position) {
+    return '$position دىن داۋاملاشتۇرۇش';
+  }
+
+  @override
+  String get play => 'قويۇش';
+
+  @override
+  String get startOver => 'باشلاش';
+
+  @override
+  String get restart => 'قايتا قوزغىتىڭ';
+
+  @override
+  String get readOffline => 'تورسىز ئوقۇش';
+
+  @override
+  String get playOffline => 'Offline نى ئويناڭ';
+
+  @override
+  String get audio => 'ئاۋاز';
+
+  @override
+  String get subtitles => 'ئېكران خېتى';
+
+  @override
+  String get version => 'نەشرى';
+
+  @override
+  String get cast => 'ئېكرانغا چىقىرىش';
+
+  @override
+  String get castMembers => 'Cast';
+
+  @override
+  String get trailer => 'ئالدىن كۆرۈنۈش';
+
+  @override
+  String get finished => 'تاماملاندى';
+
+  @override
+  String get favorited => 'ياقتۇرىدىغان';
+
+  @override
+  String get favorite => 'ئامراق';
+
+  @override
+  String get playlist => 'قويۇش تىزىملىكى';
+
+  @override
+  String get downloaded => 'چۈشۈرۈلدى';
+
+  @override
+  String get finalizingDownload => 'Finalizing…';
+
+  @override
+  String get queuedDownload => 'Queued';
+
+  @override
+  String queuedMoreCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count more queued',
+      one: '1 more queued',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get downloadAll => 'ھەممىنى چۈشۈرۈڭ';
+
+  @override
+  String get download => 'چۈشۈرۈش';
+
+  @override
+  String get deleteDownloaded => 'چۈشۈرۈشنى ئۆچۈرۈڭ';
+
+  @override
+  String get goToSeries => 'يۈرۈشلۈككە بېرىڭ';
+
+  @override
+  String get editMetadata => 'Metadata نى تەھرىرلەڭ';
+
+  @override
+  String get less => 'ئاز';
+
+  @override
+  String get more => 'تېخىمۇ كۆپ';
+
+  @override
+  String get deleteItem => 'تۈرنى ئۆچۈرۈڭ';
+
+  @override
+  String get deletePlaylist => 'Playlist نى ئۆچۈرۈڭ';
+
+  @override
+  String get deletePlaylistMessage =>
+      'بۇ قويۇش تىزىملىكىنى مۇلازىمېتىردىن ئۆچۈرەمسىز؟';
+
+  @override
+  String get deleteItemMessage => 'بۇ تۈرنى مۇلازىمېتىردىن ئۆچۈرەمسىز؟';
+
+  @override
+  String get failedToDeletePlaylist => 'قويۇش تىزىملىكىنى ئۆچۈرەلمىدى';
+
+  @override
+  String get failedToDeleteItem => 'تۈرنى ئۆچۈرەلمىدى';
+
+  @override
+  String failedToDeleteItemWithError(String error) {
+    return 'Deletion operation failed with the following error: $error';
+  }
+
+  @override
+  String get renamePlaylist => 'قويۇش تىزىملىكىنىڭ نامىنى ئۆزگەرتىڭ';
+
+  @override
+  String get playlistName => 'قويۇش تىزىملىكى';
+
+  @override
+  String get deleteDownloadedAlbum => 'چۈشۈرۈلگەن پىلاستىنكىنى ئۆچۈرۈڭ';
+
+  @override
+  String deleteDownloadedTracksMessage(String title) {
+    return '«$title» نىڭ چۈشۈرۈلگەن ناخشىلىرى ئۆچۈرۈلسۇنمۇ؟';
+  }
+
+  @override
+  String get downloadedTracksDeleted => 'چۈشۈرۈلگەن ئىزلار ئۆچۈرۈلدى';
+
+  @override
+  String get downloadedTracksDeleteFailed =>
+      'چۈشۈرۈلگەن بەزى ئىزلارنى ئۆچۈرگىلى بولمىدى';
+
+  @override
+  String get noTracksLoaded => 'ھېچقانداق يۈك يوق';
+
+  @override
+  String noItemsLoaded(String itemLabel) {
+    return '$itemLabel يۈكلەنمىدى';
+  }
+
+  @override
+  String downloadingTitle(String title, int count) {
+    return '$title چۈشۈرۈلۈۋاتىدۇ ($count تۈر)...';
+  }
+
+  @override
+  String deleteConfirmMessage(String name) {
+    return '«$name» مۇلازىمېتىردىن راستىنلا ئۆچۈرۈلسۇنمۇ؟ بۇ مەشغۇلاتنى ئەسلىگە قايتۇرغىلى بولمايدۇ.';
+  }
+
+  @override
+  String get itemDeleted => 'تۈر ئۆچۈرۈلدى';
+
+  @override
+  String get noPlayableTrailerFound =>
+      'قويغىلى بولىدىغان يۈك ماشىنىسى تېپىلمىدى.';
+
+  @override
+  String unsupportedBookFormat(String extension) {
+    return 'قوللىمايدىغان كىتاب فورماتى: .$extension';
+  }
+
+  @override
+  String get audioTrack => 'ئاۋاز يولى';
+
+  @override
+  String get subtitleTrack => 'ئېكران خېتى يولى';
+
+  @override
+  String get none => 'يوق';
+
+  @override
+  String get downloadSubtitlesLabel => 'Subtitles نى چۈشۈرۈڭ ...';
+
+  @override
+  String get searchOpenSubtitlesPlugin =>
+      'OpenSubtitles قىستۇرمىسىنى ئىشلىتىپ ئىزدەڭ';
+
+  @override
+  String get downloadSubtitles => 'Subtitles نى چۈشۈرۈڭ';
+
+  @override
+  String get searchingSubtitles => 'Searching for subtitles…';
+
+  @override
+  String get fetchingSubtitles => 'Fetching subtitles';
+
+  @override
+  String get downloadingSubtitle => 'Downloading subtitle…';
+
+  @override
+  String get selectedSubtitleInvalid => 'تاللانغان تارماق ئىناۋەتسىز.';
+
+  @override
+  String subtitleDownloadedSelected(String name) {
+    return 'ئېكران خېتى چۈشۈرۈلۈپ تاللاندى: $name';
+  }
+
+  @override
+  String get subtitleDownloadedPending =>
+      'Subtitle download. Jellyfin بۇ نەرسىنى يېڭىلىغاندا بىر ئاز ۋاقىت كېتىشى مۇمكىن.';
+
+  @override
+  String noRemoteSubtitlesFound(String language) {
+    return '$language ئۈچۈن توردىن ئېكران خېتى تېپىلمىدى.';
+  }
+
+  @override
+  String get selectVersion => 'نەشرىنى تاللاڭ';
+
+  @override
+  String versionNumber(int number) {
+    return 'نەشر $number';
+  }
+
+  @override
+  String get downloadAllQuality => 'ھەممىنى چۈشۈرۈش - سۈپەت';
+
+  @override
+  String get downloadQuality => 'سۈپەتنى چۈشۈرۈش';
+
+  @override
+  String get originalFileNoReencoding => 'ئەسلى ھۆججەت ، قايتا كودلاش يوق';
+
+  @override
+  String get originalFilesNoReencoding => 'ئەسلى ھۆججەتلەر ، قايتا كودلاش يوق';
+
+  @override
+  String get noEpisodesLoaded => 'ھېچقانداق بۆلەك يۈكلەنمىدى';
+
+  @override
+  String get downloadScopeTitle => 'What to download';
+
+  @override
+  String get downloadAllEpisodes => 'All episodes';
+
+  @override
+  String get downloadUnwatchedEpisodes => 'All unwatched episodes';
+
+  @override
+  String get downloadAllMovies => 'All movies';
+
+  @override
+  String get downloadUnwatchedMovies => 'All unwatched movies';
+
+  @override
+  String get downloadScopeLoading => 'Loading items...';
+
+  @override
+  String get downloadScopeLoadFailed => 'Could not load items to download';
+
+  @override
+  String downloadEstimateTotal(String size) {
+    return '~$size total';
+  }
+
+  @override
+  String downloadBytesOfTotal(String received, String total) {
+    return '$received of $total';
+  }
+
+  @override
+  String downloadSpeed(String speed) {
+    return '$speed/s';
+  }
+
+  @override
+  String downloadSizeTotal(String size) {
+    return '$size total';
+  }
+
+  @override
+  String downloadEstimateUnknownCount(int count) {
+    return '$count unknown';
+  }
+
+  @override
+  String downloadingItem(String name, String quality) {
+    return '$name چۈشۈرۈلۈۋاتىدۇ ($quality)...';
+  }
+
+  @override
+  String get deleteDownloadedFiles => 'چۈشۈرۈلگەن ھۆججەتلەرنى ئۆچۈرۈڭ';
+
+  @override
+  String deleteLocalFilesMessage(String typeLabel) {
+    return '$typeLabel نىڭ يەرلىك ھۆججەتلىرى ئۆچۈرۈلسۇنمۇ؟\n\nبۇ ساقلاش بوشلۇقىنى بىكارلايدۇ. كېيىن قايتا چۈشۈرەلەيسىز.';
+  }
+
+  @override
+  String get downloadedFilesDeleted => 'چۈشۈرۈلگەن ھۆججەتلەر ئۆچۈرۈلدى';
+
+  @override
+  String get failedToDeleteFiles => 'ھۆججەتلەرنى ئۆچۈرەلمىدى';
+
+  @override
+  String get deleteFiles => 'ھۆججەتلەرنى ئۆچۈرۈڭ';
+
+  @override
+  String get director => 'رېژىسسور';
+
+  @override
+  String get starring => 'STARRING';
+
+  @override
+  String get directors => 'رېژىسسورلار';
+
+  @override
+  String get writer => 'سىنارىيەچى';
+
+  @override
+  String get writers => 'يازغۇچىلار';
+
+  @override
+  String get studio => 'ئىستۇدىيە';
+
+  @override
+  String studioMoreCount(int count) {
+    return 'يەنە +$count';
+  }
+
+  @override
+  String totalEpisodes(int count) {
+    return '$count بۆلۈم';
+  }
+
+  @override
+  String episodeProgress(int watched, int total) {
+    return '$watched / $total';
+  }
+
+  @override
+  String episodeLabel(int number) {
+    return '$number-بۆلۈم';
+  }
+
+  @override
+  String chapterNumber(int number) {
+    return '$number-باب';
+  }
+
+  @override
+  String trackCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count ناخشا',
+      one: '1 ناخشا',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String chapterCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count باب',
+      one: '1 باب',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String born(String date) {
+    return 'تۇغۇلغان: $date';
+  }
+
+  @override
+  String died(String date) {
+    return 'ۋاپات بولغان: $date';
+  }
+
+  @override
+  String age(int age) {
+    return 'يېشى: $age';
+  }
+
+  @override
+  String get showLess => 'ئازراق كۆرسەت';
+
+  @override
+  String get readMore => 'تېخىمۇ كۆپ ئوقۇڭ';
+
+  @override
+  String get shuffle => 'تەرتىپسىز قويۇش';
+
+  @override
+  String get shuffleAll => 'Shuffle All';
+
+  @override
+  String get shuffleAllMusic => 'بارلىق مۇزىكىنى تەرتىپسىز قويۇش';
+
+  @override
+  String get carSignInPrompt => 'تېلېفونىڭىزدا Moonfin غا كىرىڭ';
+
+  @override
+  String get carServerUnreachable => 'مۇلازىمېتىرىڭىزغا ئۇلانغىلى بولمىدى';
+
+  @override
+  String downloadsCount(int count) {
+    return '$count قېتىم چۈشۈرۈلگەن';
+  }
+
+  @override
+  String get perfectMatch => 'مۇكەممەل ماسلاشتۇرۇش';
+
+  @override
+  String get aiTranslated => 'AI Translated';
+
+  @override
+  String get machineTranslated => 'Machine Translated';
+
+  @override
+  String get hearingImpaired => 'SDH';
+
+  @override
+  String framerateFps(String rate) {
+    return '$rate fps';
+  }
+
+  @override
+  String channelsCount(int count) {
+    return '$count قانال';
+  }
+
+  @override
+  String get mono => 'مونو';
+
+  @override
+  String get stereo => 'ستېرېئو';
+
+  @override
+  String remoteSubtitlePermissionError(String action) {
+    return 'توردىن ئېكران خېتى $action مەشغۇلاتىغا بۇ ئىشلەتكۈچىنىڭ Jellyfin ئېكران خېتى باشقۇرۇش ھوقۇقى كېرەك.';
+  }
+
+  @override
+  String remoteSubtitleNotFoundError(String action) {
+    return 'توردىن ئېكران خېتى $action ئۈچۈن بۇ تۈر مۇلازىمېتىردىن تېپىلمىدى.';
+  }
+
+  @override
+  String remoteSubtitleDetailError(String action, String detail) {
+    return 'توردىن ئېكران خېتى $action مەغلۇپ بولدى: $detail';
+  }
+
+  @override
+  String remoteSubtitleHttpError(String action, int status) {
+    return 'توردىن ئېكران خېتى $action مەغلۇپ بولدى (HTTP $status).';
+  }
+
+  @override
+  String remoteSubtitleGenericError(String action) {
+    return 'توردىكى ئېكران خېتىنى $action قىلىش مەغلۇپ بولدى.';
+  }
+
+  @override
+  String deleteSeriesFiles(String name) {
+    return '«$name» نىڭ بارلىق چۈشۈرۈلگەن بۆلۈملىرى';
+  }
+
+  @override
+  String get deleteSeasonFiles => 'بۇ مەۋسۇمدىكى بارلىق چۈشۈرۈلگەن بۆلەكلەر';
+
+  @override
+  String get stillWatching => 'يەنىلا كۆرۈۋاتامسىز؟';
+
+  @override
+  String get unableToLoadTrailerStream => 'يول ئېقىمىنى يۈكلىيەلمىدى.';
+
+  @override
+  String get trailerTimedOut => 'يۈك ماشىنىسى يۈكلەۋاتقاندا ۋاقتى ئۆتۈپ كەتتى.';
+
+  @override
+  String get playbackFailedForTrailer => 'بۇ يولدا قويۇش مەغلۇب بولدى.';
+
+  @override
+  String photoCountOf(int current, int total) {
+    return '$current / $total';
+  }
+
+  @override
+  String get castingUnavailableOffline =>
+      'تورسىز قويۇش جەريانىدا رول ئالغىلى بولمايدۇ.';
+
+  @override
+  String castActionFailed(String label, String error) {
+    return '$label مەشغۇلاتى مەغلۇپ بولدى: $error';
+  }
+
+  @override
+  String failedToSetCastVolume(String error) {
+    return 'ئېكرانغا يوللاش ئاۋاز مىقدارىنى تەڭشەش مەغلۇپ بولدى: $error';
+  }
+
+  @override
+  String castControlsTitle(String label) {
+    return '$label كونتروللىرى';
+  }
+
+  @override
+  String get deviceVolume => 'ئۈسكۈنىنىڭ ھەجىمى';
+
+  @override
+  String get unavailable => 'ئىشلەتكىلى بولمايدۇ';
+
+  @override
+  String get pause => 'ۋاقىتلىق توختىتىش';
+
+  @override
+  String get syncPosition => 'ماس قەدەم ئورنى';
+
+  @override
+  String stopCast(String label) {
+    return '$label نى توختىتىش';
+  }
+
+  @override
+  String get queueIsEmpty => 'ئۆچرەت قۇرۇق';
+
+  @override
+  String trackNumber(int number) {
+    return '$number-ناخشا';
+  }
+
+  @override
+  String get remotePlayback => 'يىراقتىن قويۇش';
+
+  @override
+  String get castingToGoogleCast => 'Google Cast غا قۇيۇش';
+
+  @override
+  String get castingViaAirPlay => 'AirPlay ئارقىلىق قۇيۇش';
+
+  @override
+  String get castingViaDlna => 'DLNA ئارقىلىق قۇيۇش';
+
+  @override
+  String secondsCount(int seconds) {
+    return '$seconds سېكۇنت';
+  }
+
+  @override
+  String get longPressToUnlock => 'قۇلۇپنى ئۇزۇن بېسىڭ';
+
+  @override
+  String get off => 'تاقاق';
+
+  @override
+  String streamTypeFallback(String streamType, int number) {
+    return '$streamType $number';
+  }
+
+  @override
+  String get auto => 'ئاپتوماتىك';
+
+  @override
+  String bitrateValueMbps(int mbps) {
+    return '$mbps Mbps';
+  }
+
+  @override
+  String get bitrateOverride => 'بىت نىسبىتى قولدا بەلگىلەنگەن';
+
+  @override
+  String get audioDelay => 'ئاۋاز كېچىكتۈرۈش';
+
+  @override
+  String delayMinusMs(int value) {
+    return '-${value}ms';
+  }
+
+  @override
+  String delayPlusMs(int value) {
+    return '+${value}ms';
+  }
+
+  @override
+  String get subtitleDelay => 'ئېكران خېتى كېچىكتۈرۈش';
+
+  @override
+  String get reset => 'ئەسلىگە قايتۇرۇش';
+
+  @override
+  String get unknown => 'نامەلۇم';
+
+  @override
+  String get playbackInformation => 'قويۇش ئۇچۇرى';
+
+  @override
+  String get showMpvStats => 'Show mpv Statistics (Shift+I)';
+
+  @override
+  String get hideMpvStats => 'Hide mpv Statistics (Shift+I)';
+
+  @override
+  String get keyboardShortcutsTitle => 'Keyboard shortcuts';
+
+  @override
+  String get keyboardShortcutsSubtitle =>
+      'Keys for the app, video player and reader';
+
+  @override
+  String get keyboardShortcutsPlayerHint =>
+      'Press ? or F1 while a video plays to see this list without leaving the player.';
+
+  @override
+  String get keyboardShortcutsSectionApp => 'Everywhere';
+
+  @override
+  String get keyboardShortcutsSectionAppScope => 'On any screen';
+
+  @override
+  String get keyboardShortcutsSectionPlayer => 'Video player';
+
+  @override
+  String get keyboardShortcutsSectionPlayerScope =>
+      'While a video is open, playing or paused';
+
+  @override
+  String get keyboardShortcutsSectionReader => 'Book and comic reader';
+
+  @override
+  String get keyboardShortcutsSectionReaderScope =>
+      'While reading a book or comic';
+
+  @override
+  String get keyNameArrowKeys => 'Arrow keys';
+
+  @override
+  String get keyNameSpace => 'Space';
+
+  @override
+  String get keyNameEnter => 'Enter';
+
+  @override
+  String get keyNameEsc => 'Esc';
+
+  @override
+  String get keyNameBackspace => 'Backspace';
+
+  @override
+  String get keyNameDelete => 'Delete';
+
+  @override
+  String get keyNamePageUp => 'Page Up';
+
+  @override
+  String get keyNamePageDown => 'Page Down';
+
+  @override
+  String get keyNameHome => 'Home';
+
+  @override
+  String get keyNameEnd => 'End';
+
+  @override
+  String get keyNameShift => 'Shift';
+
+  @override
+  String get keyNameCtrl => 'Ctrl';
+
+  @override
+  String get keyNameAlt => 'Alt';
+
+  @override
+  String get keyNameScrollWheel => 'Scroll wheel';
+
+  @override
+  String get shortcutMoveFocus => 'Move between items';
+
+  @override
+  String get shortcutActivate => 'Open the selected item';
+
+  @override
+  String get shortcutGoBack => 'Go back';
+
+  @override
+  String get shortcutToggleFullscreen => 'Fullscreen on or off';
+
+  @override
+  String get shortcutQuit => 'Quit Moonfin';
+
+  @override
+  String get shortcutPlayPause => 'Play or pause';
+
+  @override
+  String get shortcutShowControlsOrPlayPause =>
+      'Show controls, or play/pause if shown';
+
+  @override
+  String get shortcutSeekBack => 'Seek back (hold for bigger jumps)';
+
+  @override
+  String get shortcutSeekForward => 'Seek forward (hold for bigger jumps)';
+
+  @override
+  String get shortcutVolumeUp => 'Volume up';
+
+  @override
+  String get shortcutVolumeDown => 'Volume down';
+
+  @override
+  String get shortcutMute => 'Mute or unmute';
+
+  @override
+  String get shortcutToggleSubtitles => 'Subtitles on or off';
+
+  @override
+  String get shortcutSlower => 'Slow down';
+
+  @override
+  String get shortcutFaster => 'Speed up';
+
+  @override
+  String get shortcutPlaybackInfo => 'Show playback information';
+
+  @override
+  String get shortcutMpvStats => 'mpv statistics on or off';
+
+  @override
+  String get shortcutRecropBlackBars => 'Recrop black bars';
+
+  @override
+  String get shortcutLeaveFullscreenOrStop =>
+      'Exit fullscreen, or stop if not fullscreen';
+
+  @override
+  String get shortcutHideControls => 'Hide controls';
+
+  @override
+  String get shortcutStopPlayback => 'Stop playback';
+
+  @override
+  String get shortcutNextItem => 'Next item';
+
+  @override
+  String get shortcutPreviousItem => 'Previous item';
+
+  @override
+  String get shortcutSkipSegment => 'Skip intro or credits when offered';
+
+  @override
+  String get shortcutShowShortcuts => 'Show this list';
+
+  @override
+  String get shortcutNextPage => 'Next page';
+
+  @override
+  String get shortcutPreviousPage => 'Previous page';
+
+  @override
+  String get shortcutScrollPage => 'Scroll the page (ebooks)';
+
+  @override
+  String get shortcutFirstPage => 'First page, or start of chapter';
+
+  @override
+  String get shortcutLastPage => 'Last page, or end of chapter';
+
+  @override
+  String get shortcutZoom => 'Zoom in or out (comics)';
+
+  @override
+  String get shortcutResetZoom => 'Reset zoom (comics)';
+
+  @override
+  String get playback => 'قويۇش';
+
+  @override
+  String get playMethod => 'ئويناش ئۇسۇلى';
+
+  @override
+  String get directPlay => 'بىۋاسىتە قويۇش';
+
+  @override
+  String get directStream => 'بىۋاسىتە ئېقىم';
+
+  @override
+  String get transcoding => 'كود ئۆزگەرتىش';
+
+  @override
+  String get transcodeReasons => 'Transcode سەۋەبلىرى';
+
+  @override
+  String get player => 'قويغۇچ';
+
+  @override
+  String get container => 'كونتېينېر';
+
+  @override
+  String get bitrate => 'بىت نىسبىتى';
+
+  @override
+  String get video => 'سىن';
+
+  @override
+  String get resolution => 'قارار';
+
+  @override
+  String get hdr => 'HDR';
+
+  @override
+  String get hdrOutput => 'HDR output';
+
+  @override
+  String hdrOutputActive(String format) {
+    return 'Active — $format';
+  }
+
+  @override
+  String get hdrOutputActiveTonemapped =>
+      'Active — tone-mapped to SDR for this display';
+
+  @override
+  String get hdrOutputContentSdr => 'Inactive — content is SDR';
+
+  @override
+  String get hdrOutputDisabled => 'Inactive — turned off in settings';
+
+  @override
+  String get hdrOutputFailed =>
+      'Inactive — could not start, using the standard path';
+
+  @override
+  String get videoRenderer => 'Video Renderer';
+
+  @override
+  String get videoRendererDescription =>
+      'Native window gives the smoothest motion and sends HDR to the display untouched. Try another option if video misbehaves.';
+
+  @override
+  String get videoRendererNativeWindow => 'Native window (recommended)';
+
+  @override
+  String get videoRendererNativeHdrOnly => 'Native window for HDR only';
+
+  @override
+  String get videoRendererInApp => 'In-app (legacy)';
+
+  @override
+  String get codec => 'كودېك';
+
+  @override
+  String get videoBitrate => 'سىن بىت نىسبىتى';
+
+  @override
+  String get track => 'ئاۋاز يولى';
+
+  @override
+  String get channels => 'قاناللار';
+
+  @override
+  String get audioBitrate => 'ئاۋاز بىت نىسبىتى';
+
+  @override
+  String get sampleRate => 'ئۈلگە نىسبىتى';
+
+  @override
+  String get format => 'فورماتى';
+
+  @override
+  String get external => 'سىرتقى';
+
+  @override
+  String get embedded => 'قىستۇرما';
+
+  @override
+  String castSessionError(String protocol) {
+    return '$protocol سېئانس خاتالىقى';
+  }
+
+  @override
+  String failedToLoadBookDetails(String error) {
+    return 'كىتاب تەپسىلاتلىرى يۈكلىنەلمىدى: $error';
+  }
+
+  @override
+  String get epubUnavailableOnPlatform =>
+      'بۇ سۇپىدا EPUB نى كۆرسىتىش تېخىچە يوق.';
+
+  @override
+  String formatCannotRenderInApp(String extension) {
+    return 'بۇ فورماتنى (.$extension) ئەپ ئىچىدە تېخى كۆرسەتكىلى بولمايدۇ.';
+  }
+
+  @override
+  String get embeddedRenderingUnavailable =>
+      'قىستۇرما ھۆججەتلەرنى بۇ سۇپىدا ئىشلەتكىلى بولمايدۇ.';
+
+  @override
+  String get couldNotOpenExternalViewer => 'سىرتقى كۆرگۈچنى ئاچالمىدى.';
+
+  @override
+  String failedToOpenInAppReader(String error) {
+    return 'ئەپ ئىچىدىكى ئوقۇغۇچ ئېچىلمىدى: $error';
+  }
+
+  @override
+  String bookmarkAlreadySaved(String label) {
+    return '$label دا خەتكۈش ئاللىبۇرۇن ساقلانغان.';
+  }
+
+  @override
+  String bookmarkAdded(String label) {
+    return 'خەتكۈش قوشۇلدى: $label';
+  }
+
+  @override
+  String get noBookmarksYet =>
+      'خەتكۈچ يوق.\nئورنىڭىزنى ساقلاش ئۈچۈن ئوقۇۋاتقاندا خەتكۈچ سىنبەلگىسىنى چېكىڭ.';
+
+  @override
+  String get noTableOfContentsAvailable => 'جەدۋەل يوق';
+
+  @override
+  String pageLabel(int number) {
+    return '$number-بەت';
+  }
+
+  @override
+  String get position => 'ئورنى';
+
+  @override
+  String get bookReader => 'كىتاب ئوقۇغۇچ';
+
+  @override
+  String formatExtension(String extension) {
+    return 'فورماتى: .$extension';
+  }
+
+  @override
+  String percentRead(String percent) {
+    return '$percent% ئوقۇلدى';
+  }
+
+  @override
+  String get updating => 'يېڭىلاش ...';
+
+  @override
+  String get markUnread => 'ئوقۇلمىغان بەلگە';
+
+  @override
+  String get markAsRead => 'ئوقۇش دەپ بەلگە قويۇڭ';
+
+  @override
+  String get reloadReader => 'Reader Reader';
+
+  @override
+  String get noPagesFound => 'ھېچقانداق بەت تېپىلمىدى.';
+
+  @override
+  String get failedToDecodePageImage => 'بەت رەسىمىنى يېشىش مەغلۇب بولدى.';
+
+  @override
+  String resetZoom(String zoom) {
+    return 'چوڭايتىشنى ئەسلىگە قايتۇرۇش (${zoom}x)';
+  }
+
+  @override
+  String get singlePage => 'يەككە بەت';
+
+  @override
+  String get twoPageSpread => 'ئىككى بەتلىك تارقىلىش';
+
+  @override
+  String get addBookmark => 'خەتكۈچ قوشۇڭ';
+
+  @override
+  String get bookmarksEllipsis => 'خەتكۈچلەر ...';
+
+  @override
+  String get markedAsRead => 'ئوقۇشقا بەلگە قويۇلغان';
+
+  @override
+  String get markedAsUnread => 'ئوقۇلمىغان دەپ بەلگە قويۇلغان';
+
+  @override
+  String failedToUpdateReadState(String error) {
+    return 'ئوقۇلغان ھالەتنى يېڭىلاش مەغلۇپ بولدى: $error';
+  }
+
+  @override
+  String get themeSystem => 'تېما: سىستېما';
+
+  @override
+  String get themeLight => 'تېما: نۇر';
+
+  @override
+  String get themeDark => 'تېما: قاراڭغۇ';
+
+  @override
+  String get themeSepia => 'تېما: سېپىيە';
+
+  @override
+  String get invertColorsFixedLayout =>
+      'رەڭلەرنى ئۆزگەرتىش (مۇقىم ئورۇنلاشتۇرۇش)';
+
+  @override
+  String get invertColorsPdf => 'رەڭلەرنى ئۆزگەرتىش (PDF)';
+
+  @override
+  String get preparingInAppReader => 'ئەپ ئوقۇغۇچ تەييارلاش ...';
+
+  @override
+  String get pdfDataNotAvailable => 'PDF سانلىق مەلۇماتلىرى يوق.';
+
+  @override
+  String get readerFallbackModeActive => 'ئوقۇرمەنلەرنىڭ چېكىنىش ھالىتى ئاكتىپ';
+
+  @override
+  String platformCannotHostDocumentEngine(String extension) {
+    return 'بۇ سۇپا $extension ھۆججەتلىرى ئۈچۈن قىستۇرما پۈتۈك ماتورىنى قوللىمايدۇ.';
+  }
+
+  @override
+  String get reloadReaderPlatformHint =>
+      'قوللايدىغان سۇپا نىشانىغا (ئاندىرويىد ، iOS ، macOS) غا ئالماشتۇرغاندىن كېيىن قايتا يۈكلىگۈچنى ئىشلىتىڭ.';
+
+  @override
+  String get openExternally => 'سىرتقا ئېچىڭ';
+
+  @override
+  String get noEpubChaptersFound => 'EPUB بابى تېپىلمىدى.';
+
+  @override
+  String get readerNotReady => 'ئوقۇرمەن تەييار ئەمەس.';
+
+  @override
+  String get seriesRecordings => 'تىياتىر خاتىرىلەنمىلىرى';
+
+  @override
+  String get now => 'ھازىر';
+
+  @override
+  String get sports => 'تەنھەرىكەت';
+
+  @override
+  String get news => 'خەۋەرلەر';
+
+  @override
+  String get kids => 'بالىلار';
+
+  @override
+  String get premiere => 'تۇنجى قويۇلۇش';
+
+  @override
+  String get guideRepeatBadge => 'Repeat';
+
+  @override
+  String get guideTimeline => 'يېتەكچى ۋاقىت';
+
+  @override
+  String failedToLoadGuide(String error) {
+    return 'پروگرامما جەدۋىلى يۈكلىنەلمىدى: $error';
+  }
+
+  @override
+  String get noChannelsFound => 'ھېچقانداق قانال تېپىلمىدى';
+
+  @override
+  String get noProgramData => 'No program data';
+
+  @override
+  String get liveBadge => 'بىۋاسىتە';
+
+  @override
+  String get liveTvJumpToLive => 'Jump to Live';
+
+  @override
+  String guideNextProgram(String time, String title) {
+    return 'كېيىنكىسى: $time  $title';
+  }
+
+  @override
+  String guideMinutesLeft(int minutes) {
+    return '$minutes مىنۇت قالدى';
+  }
+
+  @override
+  String guideHoursLeft(int hours) {
+    return '$hours سائەت قالدى';
+  }
+
+  @override
+  String guideHoursMinutesLeft(int hours, int minutes) {
+    return '$hours سائەت $minutes مىنۇت قالدى';
+  }
+
+  @override
+  String get movie => 'كىنو';
+
+  @override
+  String get removedFromFavoriteChannels =>
+      'ياقتۇرىدىغان قاناللاردىن چىقىرىۋېتىلدى';
+
+  @override
+  String get addedToFavoriteChannels => 'ياقتۇرىدىغان قاناللارغا قوشۇلدى';
+
+  @override
+  String get failedToUpdateFavoriteChannel =>
+      'ياقتۇرىدىغان قانالنى يېڭىلاش مەغلۇب بولدى';
+
+  @override
+  String get unfavoriteChannel => 'ياقتۇرمايدىغان قانال';
+
+  @override
+  String get favoriteChannel => 'ياقتۇرىدىغان قانال';
+
+  @override
+  String get record => 'خاتىرىلەش';
+
+  @override
+  String nextSeriesRecording(String dateTime) {
+    return 'Next series recording: $dateTime';
+  }
+
+  @override
+  String get noUpcomingSeriesRecording =>
+      'Series recording is scheduled, but the guide has no upcoming episodes';
+
+  @override
+  String get recordCurrentEpisode => 'Record This Episode';
+
+  @override
+  String get recordCurrentProgram => 'Record This Program';
+
+  @override
+  String get cancelCurrentRecording => 'Cancel This Recording';
+
+  @override
+  String get cancelRecordingAction => 'خاتىرىلەشنى بىكار قىلىش';
+
+  @override
+  String get programSetToRecord => 'پروگرامما خاتىرىلەشكە بەلگىلەندى';
+
+  @override
+  String get recordingCancelled => 'خاتىرىلەش بىكار قىلىندى';
+
+  @override
+  String get unableToCreateRecording => 'خاتىرىلەش قۇرغىلى بولمىدى';
+
+  @override
+  String get recordSeries => 'Record Series';
+
+  @override
+  String get seriesSetToRecord => 'Series set to record';
+
+  @override
+  String get seriesRecordingCancelled => 'Series recording cancelled';
+
+  @override
+  String get unableToCreateSeriesRecording =>
+      'Unable to create series recording';
+
+  @override
+  String get watch => 'كۆرۈش';
+
+  @override
+  String get watchChannelLive => 'Watch channel live';
+
+  @override
+  String get close => 'تاقاش';
+
+  @override
+  String failedToPlayChannel(String name) {
+    return '$name نى قويغىلى بولمىدى';
+  }
+
+  @override
+  String get playbackStreamLost =>
+      'Playback stopped and could not be recovered.';
+
+  @override
+  String get playbackVideoUnsupported =>
+      'This device can\'t play this video\'s format. Try an external player.';
+
+  @override
+  String liveReconnecting(int attempt, int total) {
+    return 'Reconnecting… ($attempt of $total)';
+  }
+
+  @override
+  String get failedToLoadRecordings => 'خاتىرىلەرنى يۈكلىيەلمىدى';
+
+  @override
+  String get scheduledInNext24Hours =>
+      'كېيىنكى 24 سائەت ئىچىدە ئورۇنلاشتۇرۇلغان';
+
+  @override
+  String get recentRecordings => 'يېقىنقى خاتىرىلەر';
+
+  @override
+  String get tvSeries => 'تېلېۋىزىيە تىياتىرلىرى';
+
+  @override
+  String get failedToLoadSchedule => 'ۋاقىت جەدۋىلىنى يۈكلىيەلمىدى';
+
+  @override
+  String get noScheduledRecordings => 'پىلانلانغان خاتىرىلەر يوق';
+
+  @override
+  String get cancelRecording => 'خاتىرىلەشنى ئەمەلدىن قالدۇرامسىز؟';
+
+  @override
+  String cancelScheduledRecordingOf(String name) {
+    return '«$name» نىڭ پىلانلانغان خاتىرىلىشى بىكار قىلىنسۇنمۇ؟';
+  }
+
+  @override
+  String get no => 'ياق';
+
+  @override
+  String get yesCancel => 'ھەئە ، بىكار قىلىڭ';
+
+  @override
+  String get failedToCancelRecording => 'خاتىرىلەشنى ئەمەلدىن قالدۇرمىدى';
+
+  @override
+  String get failedToLoadSeriesRecordings =>
+      'يۈرۈشلۈك خاتىرىلەرنى يۈكلىيەلمىدى';
+
+  @override
+  String get noSeriesRecordings => 'يۈرۈشلۈك خاتىرىلەر يوق';
+
+  @override
+  String get cancelSeriesRecording => 'يۈرۈشلۈك خاتىرىلەرنى ئەمەلدىن قالدۇرۇڭ';
+
+  @override
+  String get cancelSeriesRecordingQuestion =>
+      'يۈرۈشلۈك خاتىرىلەرنى بىكار قىلامسىز؟';
+
+  @override
+  String stopRecordingName(String name) {
+    return '«$name» نى خاتىرىلەش توختىتىلسۇنمۇ؟';
+  }
+
+  @override
+  String get failedToCancelSeriesRecording =>
+      'يۈرۈشلۈك خاتىرىلەرنى ئەمەلدىن قالدۇرمىدى';
+
+  @override
+  String get searchThisLibrary => 'بۇ كۇتۇپخانىنى ئىزدەڭ ...';
+
+  @override
+  String get searchEllipsis => 'ئىزدەش ...';
+
+  @override
+  String noResultsForQuery(String query) {
+    return '«$query» ئۈچۈن نەتىجە يوق';
+  }
+
+  @override
+  String searchFailedError(String error) {
+    return 'ئىزدەش مەغلۇپ بولدى: $error';
+  }
+
+  @override
+  String get seerr => 'Seerr';
+
+  @override
+  String get seerrAccountType => 'Seerr ھېسابات تىپى';
+
+  @override
+  String get jellyfinAccount => 'Jellyfin';
+
+  @override
+  String get localAccount => 'يەرلىك';
+
+  @override
+  String get savedMedia => 'ساقلانغان مېدىيا';
+
+  @override
+  String get tvShows => 'TV Show';
+
+  @override
+  String get music => 'مۇزىكا';
+
+  @override
+  String get musicAlbums => 'مۇزىكا پىلاستىنكىسى';
+
+  @override
+  String get noMediaInFilter => 'بۇ سۈزگۈچتە ھېچقانداق مېدىيا يوق';
+
+  @override
+  String get noDownloadedMediaYet => 'تېخى چۈشۈرۈلگەن مېدىيا يوق';
+
+  @override
+  String get browseLibrary => 'كۈتۈپخانىنى كۆرۈڭ';
+
+  @override
+  String get deleteDownload => 'چۈشۈرۈشنى ئۆچۈرۈڭ';
+
+  @override
+  String removeItemAndFiles(String name) {
+    return '«$name» ۋە ھۆججەتلىرى چىقىرىۋېتىلسۇنمۇ؟';
+  }
+
+  @override
+  String tracksCount(int count) {
+    return '$count ناخشا';
+  }
+
+  @override
+  String get album => 'ئالبوم';
+
+  @override
+  String get playAlbum => 'پىلاستىنكا قويۇڭ';
+
+  @override
+  String failedToLoadAlbum(String error) {
+    return 'ئالبوم يۈكلىنەلمىدى: $error';
+  }
+
+  @override
+  String noDownloadedTracksForAlbum(String name) {
+    return '$name ئۈچۈن چۈشۈرۈلگەن ناخشا تېپىلمىدى.';
+  }
+
+  @override
+  String get season => 'پەسىل';
+
+  @override
+  String get errorLoadingEpisodes => 'بۆلەكلەرنى يۈكلەشتە خاتالىق';
+
+  @override
+  String get noDownloadedEpisodes => 'چۈشۈرۈلگەن قىسىم يوق';
+
+  @override
+  String get deleteEpisode => 'بۆلەكنى ئۆچۈرۈڭ';
+
+  @override
+  String removeName(String name) {
+    return '«$name» چىقىرىۋېتىلسۇنمۇ؟';
+  }
+
+  @override
+  String durationMinutes(int minutes) {
+    return '$minutes مىنۇت';
+  }
+
+  @override
+  String seasonEpisodeLabel(int season, int episode) {
+    return 'S$season E$episode';
+  }
+
+  @override
+  String episodeNumber(int number) {
+    return '$number-بۆلۈم';
+  }
+
+  @override
+  String get seriesNotFound => 'يۈرۈشلۈك تېپىلمىدى';
+
+  @override
+  String get errorLoadingSeries => 'يۈكلەش يۈرۈشلۈكلىرى';
+
+  @override
+  String get downloadedEpisodes => 'چۈشۈرۈلگەن بۆلەكلەر';
+
+  @override
+  String seasonNumber(int number) {
+    return '$number-پەسىل';
+  }
+
+  @override
+  String seasonChip(int number) {
+    return 'S$number';
+  }
+
+  @override
+  String get specials => 'ئالاھىدە';
+
+  @override
+  String get deleteSeason => 'مەۋسۇمنى ئۆچۈرۈڭ';
+
+  @override
+  String deleteAllEpisodesInSeason(String season) {
+    return '$season دىكى بارلىق چۈشۈرۈلگەن بۆلۈملەر ئۆچۈرۈلسۇنمۇ؟';
+  }
+
+  @override
+  String episodeCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count بۆلۈم',
+      one: '1 بۆلۈم',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get storageManagement => 'ساقلاش باشقۇرۇش';
+
+  @override
+  String get storageBreakdown => 'ساقلاش بوشلۇقى تەپسىلاتى';
+
+  @override
+  String get downloadedItems => 'چۈشۈرۈلگەن تۈرلەر';
+
+  @override
+  String get activeDownloads => 'Active Downloads';
+
+  @override
+  String savedMediaCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count items',
+      one: '1 item',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String savedMediaOfLimit(String used, String limit) {
+    return '$used of $limit';
+  }
+
+  @override
+  String get savedMediaSelectItems => 'Select items';
+
+  @override
+  String get savedMediaNoDownloads => 'Nothing saved yet';
+
+  @override
+  String get savedMediaNoDownloadsDetail =>
+      'Downloads you start appear here and play without a connection.';
+
+  @override
+  String get savedMediaNoActiveDownloads => 'Nothing downloading right now';
+
+  @override
+  String get savedMediaNoResults => 'No downloads match that search';
+
+  @override
+  String get savedMediaPlayFromStart => 'Play from start';
+
+  @override
+  String get savedMediaGoToDetails => 'Go to details';
+
+  @override
+  String get savedMediaDeleteDownload => 'Delete download';
+
+  @override
+  String savedMediaDeleteSeason(String season) {
+    return 'Delete $season';
+  }
+
+  @override
+  String savedMediaDeleteEpisodes(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Delete $count episodes',
+      one: 'Delete 1 episode',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get savedMediaOpenShow => 'Open show';
+
+  @override
+  String get savedMediaPlayNextUnwatched => 'Play next unwatched';
+
+  @override
+  String get savedMediaRead => 'Read';
+
+  @override
+  String get savedMediaCancelDownload => 'Cancel download';
+
+  @override
+  String get sortBySize => 'Size';
+
+  @override
+  String get sortByName => 'Name';
+
+  @override
+  String get sortByDateAdded => 'Date added';
+
+  @override
+  String get storageLimit => 'ساقلاش چەكلىمىسى';
+
+  @override
+  String get noLimit => 'چەكلىمىسى يوق';
+
+  @override
+  String get deleteAllDownloads => 'بارلىق چۈشۈرۈشلەرنى ئۆچۈرۈڭ';
+
+  @override
+  String get deleteAllDownloadsWarning =>
+      'بۇ چۈشۈرۈلگەن بارلىق مېدىيا ھۆججەتلىرىنى ئۆچۈرۈۋېتىدۇ ، ئەمەلدىن قالدۇرغىلى بولمايدۇ.';
+
+  @override
+  String get deleteAll => 'ھەممىنى ئۆچۈرۈڭ';
+
+  @override
+  String get deleteSelected => 'تاللانغاننى ئۆچۈرۈڭ';
+
+  @override
+  String deleteSelectedCount(int count) {
+    return '$count چۈشۈرۈلگەن تۈر ئۆچۈرۈلسۇنمۇ؟';
+  }
+
+  @override
+  String get musicAndAudiobooks => 'مۇزىكا ۋە ئاۋازلىق كىتاب';
+
+  @override
+  String get images => 'سۈرەتلەر';
+
+  @override
+  String get database => 'ساندان';
+
+  @override
+  String ofStorageLimit(String limit) {
+    return '$limit چېكىدىن';
+  }
+
+  @override
+  String get settings => 'تەڭشەك';
+
+  @override
+  String get settingsSearchHint => 'Search settings';
+
+  @override
+  String get authentication => 'دەلىللەش';
+
+  @override
+  String get autoLoginServerManagement =>
+      'ئاپتوماتىك كىرىش ، مۇلازىمېتىر باشقۇرۇش';
+
+  @override
+  String get pinCode => 'PIN كودى';
+
+  @override
+  String get setUpPinCodeProtection => 'PIN كود قوغداشنى تەڭشەڭ';
+
+  @override
+  String get parentalControls => 'ئاتا-ئانىلارنىڭ كونتروللۇقى';
+
+  @override
+  String get contentRatingRestrictions => 'مەزمۇن دەرىجىسىنى چەكلەش';
+
+  @override
+  String get bitRateResolutionBehavior => 'بىت نىسبىتى، ئېنىقلىق، ھەرىكەت';
+
+  @override
+  String get languageSizeAppearance => 'تىل ، چوڭ-كىچىكلىكى ، كۆرۈنۈشى';
+
+  @override
+  String get qualityStorage => 'سۈپەت ، ساقلاش';
+
+  @override
+  String get mediaRequestIntegration => 'مېدىيا بىر گەۋدىلىشىشنى تەلەپ قىلىدۇ';
+
+  @override
+  String get switchServer => 'مۇلازىمېتىرنى ئالماشتۇرۇش';
+
+  @override
+  String get signOut => 'چېكىنىش';
+
+  @override
+  String get versionLicenses => 'نەشرى ، ئىجازەتنامە';
+
+  @override
+  String get account => 'ھېسابات';
+
+  @override
+  String get signInAndSecurity => 'كىرىش ۋە بىخەتەرلىك';
+
+  @override
+  String get administration => 'باشقۇرۇش';
+
+  @override
+  String get serverSettingsUsersLibraries =>
+      'مۇلازىمېتىر تەڭشىكى ، ئىشلەتكۈچى ، كۈتۈپخانىلار';
+
+  @override
+  String get customization => 'خاسلاشتۇرۇش';
+
+  @override
+  String get themeAndLayout => 'تېما ۋە ئورۇنلاشتۇرۇش';
+
+  @override
+  String get videoAndSubtitles => 'سىن ۋە ئېكران خېتى';
+
+  @override
+  String get pluginAndRequests => 'قىستۇرما ۋە تەلەپلەر';
+
+  @override
+  String get customizeAccountPlaybackInterface =>
+      'ھېسابات ، قويۇش ۋە كۆرۈنمە يۈز ھەرىكىتىنى خاسلاشتۇرۇڭ';
+
+  @override
+  String optionsCount(int count) {
+    return '$count تاللانما';
+  }
+
+  @override
+  String get themeAndAppearance => 'تېما ۋە كۆرۈنۈش';
+
+  @override
+  String get focusBorderColor => 'فوكۇس چېگرا رەڭگى';
+
+  @override
+  String get watchedIndicators => 'كۆزىتىلگەن كۆرسەتكۈچ';
+
+  @override
+  String get always => 'ھەمىشە';
+
+  @override
+  String get mixedRowsOnly => 'Mixed rows only';
+
+  @override
+  String get hideUnwatched => 'كۆزىتىلمىگەننى يوشۇر';
+
+  @override
+  String get episodesOnly => 'بۆلۈملەرلا';
+
+  @override
+  String get never => 'ھەرگىز بولمايدۇ';
+
+  @override
+  String get focusExpansionAnimation => 'فوكۇس كېڭەيتىش كارتون فىلىمى';
+
+  @override
+  String get desktopUiScale => 'ئۈستەل يۈزى UI ئۆلچىمى';
+
+  @override
+  String get scaleFocusedCards =>
+      'تارازا فوكۇسلانغان ياكى يانتۇ كارتا ۋە كاھىش';
+
+  @override
+  String get backgroundBackdrops => 'تەگلىك ئارقا كۆرۈنۈش';
+
+  @override
+  String get showBackdropImages =>
+      'ئارقا كۆرۈنۈشتىكى رەسىملەرنى مەزمۇننىڭ ئارقىسىدا كۆرسىتىڭ';
+
+  @override
+  String get seriesThumbnails => 'Series Thumbnails';
+
+  @override
+  String get seriesThumbnailsDescription =>
+      'پەقەت بۆلەكلەر: ھەر بىر قۇر رەسىم تىپىغا ماس كېلىدىغان يۈرۈشلۈك سەنئەت ئەسەرلىرىنى ئىشلىتىڭ';
+
+  @override
+  String get homeRowInfoOverlay => 'باش بەت ئۇچۇرى';
+
+  @override
+  String get showTitleMetadataOnHomeRows =>
+      'ئائىلە قۇرلىرىنى كۆرگەندە ماۋزۇ ۋە مېتا سانلىق مەلۇماتنى كۆرسىتىڭ';
+
+  @override
+  String get clockDisplay => 'سائەت كۆرسىتىش';
+
+  @override
+  String get inMenus => 'تىزىملىكلەردە';
+
+  @override
+  String get inVideo => 'سىندا';
+
+  @override
+  String get seasonalEffects => 'پەسىل خاراكتېرلىك ئۈنۈم';
+
+  @override
+  String get seasonalEffectsDescription =>
+      'كۆرۈنۈش ئۈنۈمى ۋە پەسىللىك بېزەكلەر';
+
+  @override
+  String get loadingAnimation => 'Loading Animation';
+
+  @override
+  String get loadingAnimationDescription =>
+      'Customize the loading animations used throughout Moonfin';
+
+  @override
+  String get loadingAnimationConfiguration => 'Loading Animation Configuration';
+
+  @override
+  String get loadingAnimationImage => 'Image';
+
+  @override
+  String get loadingAnimationImageMoonfinLogo => 'Moonfin Logo';
+
+  @override
+  String get loadingAnimationImageSpinner => 'Spinner';
+
+  @override
+  String get loadingAnimationImageRunner => 'Runner';
+
+  @override
+  String get loadingAnimationImageMoonPhases => 'Moon Phases';
+
+  @override
+  String get loadingAnimationImageMoonfinPhases => 'Moonfin Phases';
+
+  @override
+  String get loadingAnimationImageNeonfinPhases => 'Neonfin Phases';
+
+  @override
+  String get loadingAnimationSize => 'Animation Size';
+
+  @override
+  String get loadingAnimationSizeThumbnail => 'Thumbnail';
+
+  @override
+  String get loadingAnimationSizeSmall => 'Small';
+
+  @override
+  String get loadingAnimationSizeMedium => 'Medium';
+
+  @override
+  String get loadingAnimationSizeLarge => 'Large';
+
+  @override
+  String get loadingAnimationPosition => 'Animation Position';
+
+  @override
+  String get loadingAnimationPositionTopLeft => 'Top-Left';
+
+  @override
+  String get loadingAnimationPositionTopCenter => 'Top-Center';
+
+  @override
+  String get loadingAnimationPositionTopRight => 'Top-Right';
+
+  @override
+  String get loadingAnimationPositionMiddleLeft => 'Middle-Left';
+
+  @override
+  String get loadingAnimationPositionMiddle => 'Middle';
+
+  @override
+  String get loadingAnimationPositionMiddleRight => 'Middle-Right';
+
+  @override
+  String get loadingAnimationPositionBottomLeft => 'Bottom-Left';
+
+  @override
+  String get loadingAnimationPositionBottomCenter => 'Bottom-Center';
+
+  @override
+  String get loadingAnimationPositionBottomRight => 'Bottom-Right';
+
+  @override
+  String get loadingAnimationPositionBouncing => 'Bouncing';
+
+  @override
+  String get loadingAnimationSpeed => 'Animation Speed';
+
+  @override
+  String get loadingAnimationSpeedSlow => 'Slow';
+
+  @override
+  String get loadingAnimationSpeedModerate => 'Moderate';
+
+  @override
+  String get loadingAnimationSpeedFast => 'Fast';
+
+  @override
+  String get loadingAnimationSpeedUltra => 'Ultra';
+
+  @override
+  String get showLoadingAnimationText => 'Show Text';
+
+  @override
+  String get loadingAnimationPreview => 'Preview';
+
+  @override
+  String get snow => 'قار';
+
+  @override
+  String get fireworks => 'پوجاڭزا';
+
+  @override
+  String get confetti => 'رەڭلىك قەغەزلەر';
+
+  @override
+  String get fallingLeaves => 'يىقىلىپ چۈشۈش';
+
+  @override
+  String get seasonalChristmas => 'Christmas';
+
+  @override
+  String get seasonalPetals => 'Spring Petals';
+
+  @override
+  String get seasonalFireflies => 'Fireflies';
+
+  @override
+  String get seasonalHalloween => 'Halloween';
+
+  @override
+  String get seasonalDensity => 'Density';
+
+  @override
+  String get seasonalDensityLight => 'Light';
+
+  @override
+  String get seasonalDensityNormal => 'Normal';
+
+  @override
+  String get seasonalDensityHeavy => 'Heavy';
+
+  @override
+  String get seasonalRow => 'Seasonal Row';
+
+  @override
+  String get seasonalRowDescription =>
+      'Show a row of holiday movies from your library, with Seerr suggestions when available.';
+
+  @override
+  String get seasonalRowSubtitle => 'Seasonal';
+
+  @override
+  String get seasonalRowCountry => 'Country';
+
+  @override
+  String get seasonalRowCountryAuto => 'Automatic';
+
+  @override
+  String get countryUnitedStates => 'United States';
+
+  @override
+  String get countryCanada => 'Canada';
+
+  @override
+  String get seasonalRowCountryOther => 'Other';
+
+  @override
+  String get seasonalRowHolidays => 'Holidays';
+
+  @override
+  String get seasonalRowHolidaysHint => 'Untick a holiday to hide its row.';
+
+  @override
+  String get holidayNewYear => 'New Year\'s';
+
+  @override
+  String get holidayValentines => 'Valentine\'s Day';
+
+  @override
+  String get holidayEaster => 'Easter';
+
+  @override
+  String get holidayPride => 'Pride';
+
+  @override
+  String get holidayHalloween => 'Halloween';
+
+  @override
+  String get holidayThanksgiving => 'Thanksgiving';
+
+  @override
+  String get holidayChristmas => 'Christmas Movies';
+
+  @override
+  String get holidayLunarNewYear => 'Lunar New Year';
+
+  @override
+  String get holidayDiwali => 'Diwali';
+
+  @override
+  String get themeMusic => 'تېما مۇزىكىسى';
+
+  @override
+  String get playThemeMusicOnDetailPages =>
+      'باشتېما مۇزىكىسىنى تەپسىلىي بەتلەردە قويۇڭ';
+
+  @override
+  String get themeMusicVolume => 'تېما مۇزىكا ھەجىمى';
+
+  @override
+  String percentValue(int value) {
+    return '$value%';
+  }
+
+  @override
+  String get themeMusicOnHomeRows => 'ئائىلە قۇرلىرىدىكى تېما مۇزىكىسى';
+
+  @override
+  String get playWhenBrowsingHomeScreen => 'ئائىلە ئېكرانىنى كۆرگەندە ئويناڭ';
+
+  @override
+  String get loopThemeMusic => 'تېما مۇزىكىسىنى تەكرارلاش';
+
+  @override
+  String get loopThemeMusicSubtitle =>
+      'بىر قېتىملا قويماي، ناخشىنى تەكرار قويىدۇ';
+
+  @override
+  String get detailsBackgroundBlur => 'تەپسىلاتى ئارقا كۆرۈنۈش';
+
+  @override
+  String get detailsBackgroundOpacity => 'Background Opacity';
+
+  @override
+  String pixelValue(int value) {
+    return '${value}px';
+  }
+
+  @override
+  String get browsingBackgroundBlur => 'ئارقا كۆرۈنۈشنى كۆرۈش';
+
+  @override
+  String get maxStreamingBitrate => 'ئەڭ يۇقىرى ئېقىم بىت نىسبىتى';
+
+  @override
+  String get maxResolution => 'ئەڭ يۇقىرى ئېنىقلىق';
+
+  @override
+  String get playerZoomMode => 'قويغۇچ چوڭايتىش ھالىتى';
+
+  @override
+  String get settingsScrollWheelAction => 'مائۇس سىيرىش چاقى';
+
+  @override
+  String get settingsScrollWheelActionDescription =>
+      'قويۇش جەريانىدا مائۇس چاقىنى سىن ئۈستىدە سىيرىغاندا نېمە بولىدىغانلىقىنى تاللاڭ.';
+
+  @override
+  String get scrollWheelActionOff => 'تاقاق';
+
+  @override
+  String get scrollWheelActionSeek => 'ئاتلاش (ئالدىغا / كەينىگە)';
+
+  @override
+  String get scrollWheelActionVolume => 'ئاۋاز مىقدارى';
+
+  @override
+  String get playerTooltipVolume => 'ئاۋاز مىقدارى';
+
+  @override
+  String get fit => 'Fit';
+
+  @override
+  String get autoCrop => 'ئاپتوماتىك كېسىش';
+
+  @override
+  String get cropBlackBars => 'Crop Black Bars';
+
+  @override
+  String get settingsCropBlackBarsDescription =>
+      'Detect encoded letterbox bars after playback starts, crop them, then fill the screen. Recrop from the player zoom button.';
+
+  @override
+  String get cropBlackBarsRecropInterval => 'Recrop Interval';
+
+  @override
+  String get cropBlackBarsOnce => 'Once at start';
+
+  @override
+  String get cropBlackBarsEverySecond => 'Every second';
+
+  @override
+  String get settingsCropBlackBarsIntervalDescription =>
+      'Follow aspect ratio changes during playback.';
+
+  @override
+  String get playerRecroppingBlackBars => 'Recropping black bars';
+
+  @override
+  String get stretch => 'سوزۇش';
+
+  @override
+  String get refreshRateSwitching => 'باھا ئالماشتۇرۇشنى يېڭىلاش';
+
+  @override
+  String get disabled => 'تاقالغان';
+
+  @override
+  String get manual => 'Manual';
+
+  @override
+  String get autoDetect => 'Auto Detect';
+
+  @override
+  String get scaleOnTv => 'تېلېۋىزوردىكى كۆلەم';
+
+  @override
+  String get scaleOnDevice => 'ئۈسكۈنىدىكى كۆلەم';
+
+  @override
+  String get trickPlay => 'Trick Play';
+
+  @override
+  String get showPreviewThumbnailsWhenSeeking =>
+      'ئىزدىگەندە ئالدىن كۆرۈش كىچىك كۆرۈنۈشىنى كۆرسىتىڭ';
+
+  @override
+  String get trickplayDisplayStyleSingle => 'Single Thumbnail';
+
+  @override
+  String get trickplayDisplayStyleStrip => 'Filmstrip';
+
+  @override
+  String get trickplayModeFull => 'Full Screen';
+
+  @override
+  String get trickplaySettingsPreviewHint =>
+      'Drag the slider to preview scrubbing';
+
+  @override
+  String get trickplayPreviewScale => 'Preview Size';
+
+  @override
+  String get trickplayVerticalOffset => 'Distance From Seekbar';
+
+  @override
+  String get trickplayFollowScrubPosition => 'Follow Scrub Position';
+
+  @override
+  String get trickplayFollowScrubPositionSubtitle =>
+      'Preview slides along the seekbar as you scrub, instead of staying centered';
+
+  @override
+  String get trickplayPauseWhileScrubbing => 'Pause While Scrubbing';
+
+  @override
+  String get trickplayPauseWhileScrubbingSubtitle =>
+      'Playback pauses while you seek and resumes when you press play. Turn this off to keep playing and jump straight to the new spot';
+
+  @override
+  String get showDescriptionOnPause => 'توختاپ قېلىشنى چۈشەندۈرۈڭ';
+
+  @override
+  String get dimVideoShowOverview =>
+      'توختاپ قالغاندا سىننى كۆرسىتىش ۋە ئومۇمىي تېكىستنى كۆرسىتىش';
+
+  @override
+  String get showChapterMarkers => 'Chapter Marks';
+
+  @override
+  String get showChapterMarkersDescription =>
+      'Mark where each chapter starts on the seek bar';
+
+  @override
+  String get osdLockButton => 'OSD قۇلۇپلاش كۇنۇپكىسى';
+
+  @override
+  String get osdLockButtonDescription =>
+      'ئۇزۇن ۋاقىت بېسىلغۇچە چەكمە كىرگۈزۈشنى چەكلەيدىغان قۇلۇپ كۇنۇپكىسىنى كۆرسىتىڭ';
+
+  @override
+  String get playerSwipeGestures => 'Volume and Brightness Swipes';
+
+  @override
+  String get playerSwipeGesturesDescription =>
+      'Slide up or down on the player to change brightness on the left and volume on the right';
+
+  @override
+  String get osdButtons => 'Player Buttons';
+
+  @override
+  String get osdButtonsDescription => 'Choose which buttons the player shows';
+
+  @override
+  String get osdButtonsSectionDescription =>
+      'Playback controls are always shown. Everything below is up to you, and each kind of device keeps its own list.';
+
+  @override
+  String get detailButtons => 'Action Buttons';
+
+  @override
+  String get detailButtonsDescription =>
+      'Choose which buttons the details screen shows';
+
+  @override
+  String get detailButtonsSectionDescription =>
+      'Play is always first and the locked buttons are always shown. Everything else is up to you, and each kind of device keeps its own list.';
+
+  @override
+  String get actionButtonsOnScreen => 'Action Buttons on Screen';
+
+  @override
+  String get actionButtonsOnScreenDescription =>
+      'Customize how many action buttons appear before folding into the More Actions menu.';
+
+  @override
+  String get actionButtonsOnScreenAuto => 'Auto (Theme Default)';
+
+  @override
+  String get actionButtonsOnScreenPlayOnly => '1 (Play only)';
+
+  @override
+  String get actionButtonsOnScreenAll => 'All (Horizontal Scroll)';
+
+  @override
+  String get detailMetadata => 'Metadata Row';
+
+  @override
+  String get detailMetadataDescription =>
+      'Choose and reorder what metadata the details screen shows';
+
+  @override
+  String get detailMetadataSectionDescription =>
+      'Turn metadata items on or off, and arrange the order they appear on the details screen. Each kind of device keeps its own list.';
+
+  @override
+  String get detailMetadataYear => 'Release Year';
+
+  @override
+  String get detailMetadataParentalRating => 'Parental Rating';
+
+  @override
+  String get detailMetadataRuntimeAndSeasons => 'Runtime & Seasons';
+
+  @override
+  String get detailMetadataStatus => 'Series Status';
+
+  @override
+  String get detailMetadataStatusSubtitle =>
+      'Shows whether the series is continuing, ended, or returning';
+
+  @override
+  String get detailMetadataGenres => 'Genres';
+
+  @override
+  String get detailMetadataSeerrAvailability => 'Seerr Availability';
+
+  @override
+  String get detailMetadataSeerrAvailabilitySubtitle =>
+      'Shows request and media availability status from Seerr';
+
+  @override
+  String get detailMetadataUpcomingEpisodeDate => 'Upcoming Episodes';
+
+  @override
+  String get detailMetadataUpcomingEpisodeDateSubtitle =>
+      'Uses Sonarr and TMDB to show upcoming release dates';
+
+  @override
+  String get detailSections => 'Sections';
+
+  @override
+  String get detailSectionsDescription =>
+      'Choose which parts of the Details screen to show';
+
+  @override
+  String get detailSectionsScreenDescription =>
+      'Only the sections the current Details screen style can show are listed. Hiding one hides it in every style that has it.';
+
+  @override
+  String get detailSectionGroupHeader => 'Header';
+
+  @override
+  String get detailSectionGroupSections => 'Sections';
+
+  @override
+  String get detailSectionGroupPerson => 'Person pages';
+
+  @override
+  String get detailSectionGroupCollection => 'Collection pages';
+
+  @override
+  String get detailSectionGroupOther => 'Other';
+
+  @override
+  String get detailSectionLogo => 'Logo';
+
+  @override
+  String get detailSectionLogoSubtitle => 'Shows the title as text when off';
+
+  @override
+  String get detailSectionTagline => 'Tagline';
+
+  @override
+  String get detailSectionPoster => 'Poster';
+
+  @override
+  String get detailSectionVersionBadge => 'Version badge';
+
+  @override
+  String get detailSectionUpNext => 'Next Up';
+
+  @override
+  String get detailSectionLyrics => 'Lyrics';
+
+  @override
+  String get detailSectionCast => 'Cast';
+
+  @override
+  String get detailSectionCastSubtitle => 'Also on collection pages';
+
+  @override
+  String get detailSectionCrew => 'Directors & writers';
+
+  @override
+  String get detailSectionStudios => 'Studios';
+
+  @override
+  String get detailSectionChapters => 'Chapters';
+
+  @override
+  String get detailSectionExtras => 'Extras';
+
+  @override
+  String get detailSectionCollections => 'Collections';
+
+  @override
+  String get detailSectionMoreLikeThis => 'More Like This';
+
+  @override
+  String get detailSectionMoreLikeThisSubtitle =>
+      'Also similar albums and artists';
+
+  @override
+  String get detailSectionMoreEpisodes => 'More episodes';
+
+  @override
+  String get detailSectionMoreEpisodesSubtitle => 'On episode pages';
+
+  @override
+  String get detailSectionMediaInfo => 'Media info';
+
+  @override
+  String get detailSectionMediaInfoSubtitle =>
+      'File, streams and Direct Play check';
+
+  @override
+  String get detailSectionSeerrGenresTags => 'Genres & tags';
+
+  @override
+  String get detailSectionSeerrStats => 'Stats';
+
+  @override
+  String get detailSectionSeerrRecommendations => 'Recommendations';
+
+  @override
+  String get detailSectionSeerrSimilar => 'Similar titles';
+
+  @override
+  String get detailSectionSeerrCollection => 'Collection banner';
+
+  @override
+  String get detailSectionSeerrPersonAppearances => 'Appearances';
+
+  @override
+  String get detailSectionSeerrPersonCrew => 'Crew credits';
+
+  @override
+  String get detailSectionPersonPagesSubtitle => 'On person pages';
+
+  @override
+  String get detailSectionBiography => 'Biography';
+
+  @override
+  String get detailSectionBirthplace => 'Birthplace';
+
+  @override
+  String get detailSectionGuestAppearances => 'Guest appearances';
+
+  @override
+  String get detailSectionMusicVideos => 'Music videos';
+
+  @override
+  String get detailSectionPlaylistOrder => 'Playlist order';
+
+  @override
+  String get detailSectionBookGenres => 'Book genres';
+
+  @override
+  String get detailSectionPhotoExif => 'Photo details';
+
+  @override
+  String upcomingEpisodeNext(String date, int season, int episode) {
+    return 'Next: $date (S$season:E$episode)';
+  }
+
+  @override
+  String get upcomingEpisodeToday => 'Today';
+
+  @override
+  String get upcomingEpisodeTomorrow => 'Tomorrow';
+
+  @override
+  String get moveUp => 'Move Up';
+
+  @override
+  String get moveDown => 'Move Down';
+
+  @override
+  String get buttonOrderHint =>
+      'Use the arrows to change the order. On a remote, left and right move the highlighted button. Switching one off drops it below the rest.';
+
+  @override
+  String get buttonShownInSyncPlayGroup =>
+      'Only shows while you\'re in a SyncPlay group';
+
+  @override
+  String get orientationLock => 'Orientation Lock';
+
+  @override
+  String get fullscreen => 'Fullscreen';
+
+  @override
+  String get audioBehavior => 'ئاۋاز ھەرىكىتى';
+
+  @override
+  String get downmixToStereo => 'ستېرېئوغا تۆۋەنلىتىش';
+
+  @override
+  String get defaultAudioLanguage => 'كۆڭۈلدىكى ئاۋاز تىلى';
+
+  @override
+  String get fallbackAudioLanguage => 'زاپاس ئاۋاز تىلى';
+
+  @override
+  String get preferDefaultAudioTrack => 'سۈكۈتتىكى ئاۋاز يولىنى ئالدىن تاللاش';
+
+  @override
+  String get preferDefaultAudioTrackDescription =>
+      'يەرلىكلەشتۈرۈلگەن دۇبلياژدىن كۆرە ئەسلى ئاۋاز يولىنى ئالدىن تاللايدۇ.';
+
+  @override
+  String get preferAudioDescription =>
+      'ئاۋازلىق چۈشەندۈرۈش يوللىرىنى ئالدىن تاللاش';
+
+  @override
+  String get preferAudioDescriptionDescription =>
+      'نورمال يوللاردىن كۆرە ئاۋازلىق چۈشەندۈرۈش يوللىرىنى ئالدىن تاللايدۇ.';
+
+  @override
+  String get transcodingAudio => 'كود ئۆزگەرتىش (ئاۋاز)';
+
+  @override
+  String get directStreamRemux => 'بىۋاسىتە ئېقىم (Remux)';
+
+  @override
+  String get transcodingBitrateOrResolution =>
+      'كود ئۆزگەرتىش (بىت نىسبىتى ياكى ئېنىقلىق)';
+
+  @override
+  String get transcodingVideoAndAudio => 'كود ئۆزگەرتىش (سىن ۋە ئاۋاز)';
+
+  @override
+  String get transcodingVideo => 'كود ئۆزگەرتىش (سىن)';
+
+  @override
+  String get autoServerDefault => 'ئاپتوماتىك (مۇلازىمېتىر سۈكۈتتىكى)';
+
+  @override
+  String get english => 'ئىنگىلىزچە';
+
+  @override
+  String get spanish => 'ئىسپانچە';
+
+  @override
+  String get french => 'فىرانسۇزچە';
+
+  @override
+  String get german => 'گېرمانچە';
+
+  @override
+  String get italian => 'ئىتالىيانچە';
+
+  @override
+  String get portuguese => 'پورتۇگال تىلى';
+
+  @override
+  String get japanese => 'ياپون';
+
+  @override
+  String get korean => 'كورېيە';
+
+  @override
+  String get chinese => 'خەنزۇچە';
+
+  @override
+  String get russian => 'رۇسچە';
+
+  @override
+  String get arabic => 'ئەرەبچە';
+
+  @override
+  String get hindi => 'ھىندىچە';
+
+  @override
+  String get dutch => 'گوللاندىيە';
+
+  @override
+  String get swedish => 'شىۋىتسىيە';
+
+  @override
+  String get norwegian => 'نورۋېگچە';
+
+  @override
+  String get danish => 'دانىيەچە';
+
+  @override
+  String get finnish => 'فىنلاندىيە';
+
+  @override
+  String get polish => 'پولشا';
+
+  @override
+  String get ac3Passthrough => 'AC3 بىۋاسىتە ئۆتكۈزۈش';
+
+  @override
+  String get dtsPassthrough => 'DTS بىۋاسىتە ئۆتكۈزۈش';
+
+  @override
+  String get trueHdSupport => 'TrueHD قوللاش';
+
+  @override
+  String get enableDtsPassthrough =>
+      'Bitstream DTS ئاۋاز پەقەت AVR غا; قوبۇللىغۇچنى قوللاش ۋە DTS مەنبە يولىنى تەلەپ قىلىدۇ';
+
+  @override
+  String get settingsAudioFallbackCodec => 'زاپاس ئاۋاز كودېكى';
+
+  @override
+  String get settingsAudioFallbackCodecDescription =>
+      'مەنبە ئېقىمنى بىۋاسىتە قويغىلى ياكى بىۋاسىتە ئۆتكۈزگىلى بولمىغاندا، كۆپ قاناللىق ئاۋازنى كود ئۆزگەرتىدىغان نىشان فورماتنى تاللاڭ.';
+
+  @override
+  String get settingsAudioFallbackCodecAuto => 'ئاپتوماتىك تونۇش\n(تەۋسىيە)';
+
+  @override
+  String get settingsAudioFallbackCodecAac => 'AAC\n(سۈكۈتتىكى)';
+
+  @override
+  String get settingsAudioFallbackCodecAc3 => 'AC3\n(Dolby Digital)';
+
+  @override
+  String get settingsAudioFallbackCodecEac3 => 'EAC3\n(Dolby Digital Plus)';
+
+  @override
+  String get settingsAudioFallbackCodecMp3 => 'MP3\n(پەقەت ستېرېئو)';
+
+  @override
+  String get settingsAudioFallbackCodecOpus => 'Opus\n(ئۈنۈملۈك)';
+
+  @override
+  String get settingsAudioFallbackCodecFlac => 'FLAC\n(يوقىتىشسىز)';
+
+  @override
+  String get settingsMaxAudioChannels => 'ئەڭ كۆپ ئاۋاز قاناللىرى';
+
+  @override
+  String get settingsMaxAudioChannelsDescription =>
+      'ئاۋاز ئۈسكۈنىڭىزنىڭ ئەڭ كۆپ قانال سانىنى تەڭشەڭ. بۇ چەكتىن ئاشقان كۆپ قاناللىق ئېقىملار تۆۋەنلىتىلىدۇ ياكى كود ئۆزگەرتىلىدۇ.';
+
+  @override
+  String get settingsMaxAudioChannelsAuto =>
+      'ئاپتوماتىك تونۇش\n(قاتتىق دېتال سۈكۈتتىكىسى)';
+
+  @override
+  String get settingsMaxAudioChannelsMono => '1.0 مونو';
+
+  @override
+  String get settingsMaxAudioChannelsStereo => '2.0 ستېرېئو';
+
+  @override
+  String get settingsMaxAudioChannels3_0 => '3.0 / 2.1 ئورام ئاۋاز';
+
+  @override
+  String get settingsMaxAudioChannels4_0 => '4.0 / 3.1 تۆت قاناللىق';
+
+  @override
+  String get settingsMaxAudioChannels5_0 => '5.0 / 4.1 ئورام ئاۋاز';
+
+  @override
+  String get settingsMaxAudioChannels5_1 => '5.1 ئورام ئاۋاز';
+
+  @override
+  String get settingsMaxAudioChannels6_1 => '6.1 ئورام ئاۋاز';
+
+  @override
+  String get settingsMaxAudioChannels7_1 => '7.1 ئورام ئاۋاز';
+
+  @override
+  String get settingsAudioPassthroughAdvanced => 'بىۋاسىتە ئۆتكۈزۈش (ئالىي)';
+
+  @override
+  String get settingsAudioCodecPassthrough => 'كودېك بىۋاسىتە ئۆتكۈزۈش';
+
+  @override
+  String get settingsAudioCodecPassthroughDescription =>
+      'پەقەت AVR ياكى HDMI ئۈسكۈنىڭىز قوللايدىغان فورماتلارنىلا قوزغىتىڭ.';
+
+  @override
+  String get settingsAudioEac3Passthrough => 'EAC3 بىۋاسىتە ئۆتكۈزۈش';
+
+  @override
+  String get settingsAudioDtsCorePassthrough => 'DTS يادرو بىۋاسىتە ئۆتكۈزۈش';
+
+  @override
+  String get settingsAudioDtsHdPassthrough => 'DTS-HD MA بىۋاسىتە ئۆتكۈزۈش';
+
+  @override
+  String get settingsAudioPassthroughMode => 'Passthrough';
+
+  @override
+  String get settingsAudioPassthroughModeDescription =>
+      'How compressed surround sound reaches your TV or receiver.';
+
+  @override
+  String get settingsAudioPassthroughModeDisabled =>
+      'Disabled (always decode on this device)';
+
+  @override
+  String get settingsAudioPassthroughModeAuto =>
+      'Auto (match detected device support)';
+
+  @override
+  String get settingsAudioPassthroughModeManual =>
+      'Manual (choose formats below)';
+
+  @override
+  String get settingsAudioPassthroughOutput => 'Passthrough Output';
+
+  @override
+  String get settingsAudioPassthroughOutputDescription =>
+      'Who packs bitstreams for the HDMI link. Try the app packer if passthrough is silent or glitchy on this device.';
+
+  @override
+  String get settingsAudioPassthroughOutputPlatform =>
+      'Automatic, system packer (AudioTrack RAW)';
+
+  @override
+  String get settingsAudioPassthroughOutputIec => 'App packer (AudioTrack IEC)';
+
+  @override
+  String get settingsAudioPassthroughOutputIecLabel => 'App (IEC)';
+
+  @override
+  String get settingsDownmixToStereoDescription =>
+      'Mix all decoded audio down to two channels.';
+
+  @override
+  String get settingsAudioEac3IncludesAtmos =>
+      'Bitstream E-AC-3, including Dolby Atmos (JOC).';
+
+  @override
+  String get settingsAudioDtsHdIncludesDtsX =>
+      'Bitstream DTS-HD, including DTS:X.';
+
+  @override
+  String get settingsAudioTrueHdIncludesAtmos =>
+      'Bitstream TrueHD, including Dolby Atmos.';
+
+  @override
+  String get settingsAudioTrueHdPassthrough => 'TrueHD بىۋاسىتە ئۆتكۈزۈش';
+
+  @override
+  String get settingsDetectedAudioCapabilities => 'تونۇلغان ئاۋاز ئىقتىدارلىرى';
+
+  @override
+  String get settingsDetectedAudioCapabilitiesUnavailable =>
+      'ئىجرا ۋاقتى ئىقتىدار كۆرۈنۈشى تېخى يوق.';
+
+  @override
+  String get settingsAudioRouteLabel => 'يۆنىلىش';
+
+  @override
+  String get settingsAudioDecodeLabel => 'كودسىزلاش';
+
+  @override
+  String get settingsAudioPassthroughLabel => 'بىۋاسىتە ئۆتكۈزۈش';
+
+  @override
+  String get settingsAudioHdRoute => 'HD ئاۋاز يۆنىلىشى';
+
+  @override
+  String get settingsAudioRouteHdmi => 'HDMI';
+
+  @override
+  String get settingsAudioRouteArc => 'ARC';
+
+  @override
+  String get settingsAudioRouteEarc => 'eARC';
+
+  @override
+  String get settingsAudioRouteBluetooth => 'Bluetooth';
+
+  @override
+  String get settingsAudioRouteSpeaker => 'ياڭراتقۇ';
+
+  @override
+  String get settingsAudioRouteHeadphones => 'تىڭشىغۇچ';
+
+  @override
+  String settingsAudioPcmChannels(int count) {
+    return '$count قانال PCM';
+  }
+
+  @override
+  String get settingsAudioDiagnostics => 'دىئاگنوز';
+
+  @override
+  String get settingsAudioDiagnosticsVideoLevel => 'سىن دەرىجىسى';
+
+  @override
+  String get settingsAudioDiagnosticsVideoRange => 'سىن دائىرىسى';
+
+  @override
+  String get settingsAudioDiagnosticsSubtitleCodec => 'ئېكران خېتى كودېكى';
+
+  @override
+  String get settingsAudioDiagnosticsAllowedAudioCodecs =>
+      'رۇخسەت قىلىنغان ئاۋاز كودېكلىرى';
+
+  @override
+  String get settingsAudioDiagnosticsHlsMpegTsAudioCodecs =>
+      'HLS MPEG-TS ئاۋاز كودېكلىرى';
+
+  @override
+  String get settingsAudioDiagnosticsHlsFmp4AudioCodecs =>
+      'HLS fMP4 ئاۋاز كودېكلىرى';
+
+  @override
+  String get settingsAudioDiagnosticsAudioSpdifPassthrough =>
+      'audio-spdif بىۋاسىتە ئۆتكۈزۈش';
+
+  @override
+  String get settingsAudioDiagnosticsActiveAudioRoute =>
+      'ئاكتىپ ئاۋاز يۆنىلىشى';
+
+  @override
+  String get settingsAudioDiagnosticsRouteHdAudioSupport =>
+      'يۆنىلىشنىڭ HD ئاۋاز قوللىشى';
+
+  @override
+  String get nightMode => 'كېچە ھالىتى';
+
+  @override
+  String get compressDynamicRange => 'ھەرىكەتچان دائىرىنى پىرىسلاش';
+
+  @override
+  String get advancedMpv => 'ئىلغار mpv';
+
+  @override
+  String get enableCustomMpvConf => 'Custom mpv.conf نى قوزغىتىڭ';
+
+  @override
+  String get applyMpvConfBeforePlayback =>
+      'قويۇش باشلىنىشتىن بۇرۇن ئىشلەتكۈچى بەلگىلىگەن mpv.conf نى ئىشلىتىڭ';
+
+  @override
+  String get unsafeAdvancedMpvOptions => 'بىخەتەر ئىلغار mpv تاللانمىلىرى';
+
+  @override
+  String get unsafeMpvOptionsDescription =>
+      'تېخىمۇ كەڭ بولغان mpv تاللانمىلىرىغا يول قويۇڭ. ئويناش ھەرىكىتىنى بۇزۇشى مۇمكىن.';
+
+  @override
+  String get hardwareDecoding => 'قاتتىق دېتال يېشىش';
+
+  @override
+  String get hardwareDecodingSubtitle =>
+      'ئىقتىدارنى ئۆستۈرۈشى مۇمكىن ، ئەمما بەزى ئۈسكۈنىلەردە قويۇش مەسىلىسى كېلىپ چىقىشى مۇمكىن.';
+
+  @override
+  String get nextUpAndQueuing => 'كېيىنكى Up & ئۆچرەت';
+
+  @override
+  String get nextUpDisplay => 'كېيىنكىسى كۆرسىتىلىشى';
+
+  @override
+  String get extended => 'كېڭەيتىلگەن';
+
+  @override
+  String get minimal => 'ئاددىي';
+
+  @override
+  String get nextUpTimeout => 'كېيىنكىسى ۋاقىت چېكى';
+
+  @override
+  String secondsValue(int value) {
+    return '${value}s';
+  }
+
+  @override
+  String get mediaQueuing => 'مېدىيا ئۆچرەت';
+
+  @override
+  String get autoQueueNextEpisodes => 'كېيىنكى بۆلەكلەر ئاپتوماتىك ئۆچرەت';
+
+  @override
+  String get stillWatchingPrompt => 'يەنىلا كۆزىتىۋاتىدۇ';
+
+  @override
+  String afterEpisodesAndHours(int episodes, double hours) {
+    return '$episodes بۆلۈم / $hours سائەتتىن كېيىن';
+  }
+
+  @override
+  String get resumeAndSkip => 'ئەسلىگە كەلتۈرۈش ۋە ئاتلاش';
+
+  @override
+  String get resumeRewind => 'ئەسلىگە كەلتۈرۈش';
+
+  @override
+  String get unpauseRewind => 'Rewind نى توختىتىڭ';
+
+  @override
+  String get fiveSeconds => '5 سېكۇنت';
+
+  @override
+  String get tenSeconds => '10 سېكۇنت';
+
+  @override
+  String get fifteenSeconds => '15 سېكۇنت';
+
+  @override
+  String get thirtySeconds => '30 سېكۇنت';
+
+  @override
+  String get skipBackLength => 'كەينىگە قايتىش';
+
+  @override
+  String get skipForwardLength => 'ئالغا ئىلگىرىلەش ئۇزۇنلۇقىدىن ئاتلاڭ';
+
+  @override
+  String get customMpvConfPath => 'خاسلاشتۇرۇلغان mpv.conf يولى';
+
+  @override
+  String get notSetMpvConf =>
+      'تەڭشەلمىدى. Moonfin ئەپ / سانلىق مەلۇمات قىسقۇچتا سۈكۈتتىكى mpv.conf نى سىنايدۇ.';
+
+  @override
+  String get selectMpvConf => 'mpv.conf نى تاللاڭ';
+
+  @override
+  String get pathToMpvConf => '/path/to/mpv.conf';
+
+  @override
+  String get subtitleStyleDescription =>
+      'ئۇسلۇب تەڭشىكى (چوڭ-كىچىكلىكى ، رەڭگى ، offset) تېكىستنى ئاساس قىلغان تارماق مەزمۇنلارغا ئىشلىتىلىدۇ (SRT, VTT, TTML). «ASS / SSA Direct Play» ئېتىۋېتىلمىسە ، ASS / SSA تارماق تېمىسى ئۆزىگە قىستۇرۇلغان ئۇسلۇبنى ئىشلىتىدۇ. Bitmap subtitles (PGS, DVB, VobSub) نى ئەسلىگە كەلتۈرگىلى بولمايدۇ.';
+
+  @override
+  String get defaultSubtitleLanguage => 'سۈكۈتتىكى تېما تىلى';
+
+  @override
+  String get subtitleDownloadLanguages => 'Subtitle Download Languages';
+
+  @override
+  String get subtitleDownloadLanguagesDescription =>
+      'Languages to search when downloading subtitles, up to 5. Auto searches one language picked from your default subtitle language or the video.';
+
+  @override
+  String get preferredSecondarySubtitleLanguage =>
+      'Preferred Secondary Subtitle Language';
+
+  @override
+  String get defaultToNoSubtitles => 'سۈكۈتتىكى مەزمۇن يوق';
+
+  @override
+  String get turnOffSubtitlesByDefault => 'سۈكۈتتىكى مەزمۇنلارنى ئېتىۋېتىڭ';
+
+  @override
+  String get subtitleSize => 'ئېكران خېتى چوڭلۇقى';
+
+  @override
+  String get primarySubtitleSlot => 'Primary';
+
+  @override
+  String get secondarySubtitleSlot => 'Secondary';
+
+  @override
+  String get secondarySubtitleTrack => 'Secondary Subtitle Track';
+
+  @override
+  String decreaseValue(String setting) {
+    return 'Decrease $setting';
+  }
+
+  @override
+  String increaseValue(String setting) {
+    return 'Increase $setting';
+  }
+
+  @override
+  String get textFillColor => 'تېكىست تولدۇرۇش رەڭگى';
+
+  @override
+  String get backgroundColor => 'تەگلىك رەڭگى';
+
+  @override
+  String get textStrokeColor => 'خەت گىرۋەك رەڭگى';
+
+  @override
+  String get subtitleCustomization => 'ئېكران خېتىنى خاسلاشتۇرۇش';
+
+  @override
+  String get subtitleCustomizationDescription => 'تارماق كۆرۈنۈشنى خاسلاشتۇرۇڭ';
+
+  @override
+  String get subtitleMode => 'ئېكران خېتى ھالىتى';
+
+  @override
+  String get subtitleModeFlagged => 'بەلگىلەنگەن';
+
+  @override
+  String get subtitleModeAlways => 'ھەمىشە';
+
+  @override
+  String get subtitleModeForeign => 'چەت تىلى';
+
+  @override
+  String get subtitleModeForced => 'مەجبۇرىي';
+
+  @override
+  String get subtitleModeFlaggedDescription =>
+      'مېدىيا ھۆججىتىنىڭ مېتا ئۇچۇرىدا «سۈكۈتتىكى» ياكى «مەجبۇرىي» دەپ بەلگىلەنگەن يوللارنى قويىدۇ.';
+
+  @override
+  String get subtitleModeAlwaysDescription =>
+      'سىن ھەر قېتىم باشلانغاندا ئېكران خېتىنى ئۆزلۈكىدىن يۈكلەپ كۆرسىتىدۇ.';
+
+  @override
+  String get subtitleModeForeignDescription =>
+      'سۈكۈتتىكى ئاۋاز يولى چەت تىلىدا بولسا، ئېكران خېتىنى ئۆزلۈكىدىن ئاچىدۇ.';
+
+  @override
+  String get subtitleModeForcedDescription =>
+      'پەقەت مەجبۇرىي مېتا بەلگىسى قويۇلغان ئېكران خەتلىرىنىلا يۈكلەيدۇ.';
+
+  @override
+  String get subtitleModeNoneDescription =>
+      'ئېكران خېتىنى ئۆزلۈكىدىن يۈكلەشنى پۈتۈنلەي تاقايدۇ.';
+
+  @override
+  String get fallbackSubtitleLanguage => 'زاپاس ئېكران خېتى تىلى';
+
+  @override
+  String get subtitleStream => 'ئېكران خېتى ئېقىمى';
+
+  @override
+  String get subtitlePreviewText =>
+      'تېز قوڭۇر تۈلكە ھورۇن ئىتنىڭ ئۈستىگە سەكرىدى';
+
+  @override
+  String get verticalOffset => 'تىك يۆنىلىشتىكى ئېغىش';
+
+  @override
+  String get pgsDirectPlay => 'PGS بىۋاسىتە قويۇش';
+
+  @override
+  String get directPlayPgsSubtitles => 'بىۋاسىتە PGS تارماق تېمىسى';
+
+  @override
+  String get assSsaDirectPlay => 'ASS / SSA Direct Play';
+
+  @override
+  String get directPlayAssSsaSubtitles =>
+      'بىۋاسىتە ئويناش ASS / SSA تارماق تېما';
+
+  @override
+  String get white => 'ئاق';
+
+  @override
+  String get black => 'قارا';
+
+  @override
+  String get yellow => 'سېرىق';
+
+  @override
+  String get green => 'يېشىل';
+
+  @override
+  String get cyan => 'يېشىل كۆك';
+
+  @override
+  String get red => 'قىزىل';
+
+  @override
+  String get transparent => 'سۈزۈك';
+
+  @override
+  String get semiTransparentBlack => 'يېرىم سۈزۈك قارا';
+
+  @override
+  String get semiTransparentWhite => 'Semi-transparent White';
+
+  @override
+  String get lightGray => 'Light Gray';
+
+  @override
+  String get darkGray => 'Dark Gray';
+
+  @override
+  String get blue => 'Blue';
+
+  @override
+  String get magenta => 'Magenta';
+
+  @override
+  String get global => 'ئومۇمىي';
+
+  @override
+  String get desktop => 'ئۈستەل يۈزى';
+
+  @override
+  String get mobile => 'كۆچمە';
+
+  @override
+  String get tv => 'TV';
+
+  @override
+  String loadedProfileSettings(String profile) {
+    return '$profile ئارخىپىنىڭ تەڭشەكلىرى يۈكلەندى.';
+  }
+
+  @override
+  String failedToLoadProfileSettings(String profile) {
+    return '$profile ئارخىپىنىڭ تەڭشەكلىرىنى يۈكلەش مەغلۇپ بولدى.';
+  }
+
+  @override
+  String syncedSettingsToProfile(String profile) {
+    return 'يەرلىك تەڭشەكلەر $profile ئارخىپىغا ماسقەدەملەندى.';
+  }
+
+  @override
+  String get syncing => 'ماسقەدەملەش ...';
+
+  @override
+  String resetProfileTitle(String profile) {
+    return 'Reset $profile?';
+  }
+
+  @override
+  String resetProfileDescription(String profile) {
+    return 'This deletes the $profile profile from the server and puts every synced setting on this device back to its default.';
+  }
+
+  @override
+  String get resetGlobalProfileDescription =>
+      'This deletes every saved profile from the server and puts every synced setting on this device back to its default.';
+
+  @override
+  String profileReset(String profile) {
+    return 'Reset $profile profile to defaults.';
+  }
+
+  @override
+  String get resetRatingsTitle => 'Reset ratings?';
+
+  @override
+  String get resetRatingsDescription =>
+      'This puts every ratings setting back to its default, including which sources show and the order they appear in.';
+
+  @override
+  String get ratingsReset => 'Reset ratings to defaults.';
+
+  @override
+  String failedToResetProfile(String profile) {
+    return 'Failed to reset $profile profile.';
+  }
+
+  @override
+  String get profileSyncHidden => 'ئارخىپ ماسقەدەملەش يوشۇرۇنغان';
+
+  @override
+  String get enablePluginSyncDescription =>
+      'قىستۇرما تەڭشەكلىرىدە مۇلازىمېتىر قىستۇرما ماسقەدەملەشنى قوزغىتىپ ، بۇ يەردىكى ئارخىپ كونتروللىرىنى كۆرسىتىدۇ.';
+
+  @override
+  String get quality => 'سۈپەت';
+
+  @override
+  String get defaultDownloadQuality => 'سۈكۈتتىكى چۈشۈرۈش سۈپىتى';
+
+  @override
+  String get network => 'تور';
+
+  @override
+  String get wifiOnlyDownloads => 'پەقەت WiFi نىلا چۈشۈرۈش';
+
+  @override
+  String get tvOfflineDownloads => 'Enable Offline Downloads';
+
+  @override
+  String get tvOfflineDownloadsSubtitle =>
+      'Show download actions on item pages';
+
+  @override
+  String get reportDownloadsActivity => 'چۈشۈرۈشلەرنى مۇلازىمېتىردا كۆرسىتىش';
+
+  @override
+  String get reportDownloadsActivitySubtitle =>
+      'مۇلازىمېتىر باشقۇرغۇچىسىنىڭ كود ئۆزگەرتىلگەن چۈشۈرۈشلىرىڭىزنى باشقۇرۇش تاختىسىدا كۆرۈشىگە يول قويىدۇ';
+
+  @override
+  String get onlyDownloadOnWifi => 'پەقەت WiFi غا ئۇلانغاندىلا چۈشۈرۈڭ';
+
+  @override
+  String get storage => 'ساقلاش';
+
+  @override
+  String get storageUsed => 'ساقلاش بوشلۇقى ئىشلىتىلىدۇ';
+
+  @override
+  String get manage => 'باشقۇرۇش';
+
+  @override
+  String get calculating => 'ھېسابلاش ...';
+
+  @override
+  String get downloadLocation => 'ئورنى چۈشۈرۈڭ';
+
+  @override
+  String get defaultLabel => 'سۈكۈتتىكى';
+
+  @override
+  String get sdCard => 'SD card';
+
+  @override
+  String get downloadLocationLimitedByAndroid =>
+      'Android only lets Moonfin write to the folders it owns, and this device has no removable storage. Turn on Save to Downloads folder above to keep downloads somewhere other apps can reach.';
+
+  @override
+  String get saveToDownloadsFolder => 'چۈشۈرۈش قىسقۇچىغا ساقلاڭ';
+
+  @override
+  String get downloadsVisibleToOtherApps =>
+      'چۈشۈرۈش / Moonfin - باشقا ئەپلەرگە كۆرۈنىدۇ';
+
+  @override
+  String get dangerZone => 'خەتەر رايونى';
+
+  @override
+  String get clearAllDownloads => 'بارلىق چۈشۈرۈشلەرنى تازىلاڭ';
+
+  @override
+  String get original => 'ئەسلى';
+
+  @override
+  String get changeDownloadLocation => 'چۈشۈرۈش ئورنىنى ئۆزگەرتىش';
+
+  @override
+  String get changeDownloadLocationDescription =>
+      'يېڭى چۈشۈرۈشلەر تاللانغان ھۆججەت قىسقۇچقا ساقلىنىدۇ. ھازىر بار بولغان چۈشۈرۈشلەر ھازىرقى ئورنىدا ساقلىنىدۇ ، ساقلاش تەڭشىكىدىن باشقۇرغىلى بولىدۇ.';
+
+  @override
+  String get confirm => 'جەزملەشتۈرۈڭ';
+
+  @override
+  String get cannotWriteToFolder =>
+      'تاللانغان قىسقۇچقا يازغىلى بولمايدۇ. باشقا ئورۇننى تاللاڭ ياكى ساقلاش ئىجازەتنامىسى بېرىڭ.';
+
+  @override
+  String get saveToDownloadsFolderQuestion => 'چۈشۈرۈش قىسقۇچىغا ساقلامسىز؟';
+
+  @override
+  String get saveToDownloadsFolderDescription =>
+      'چۈشۈرۈلگەن مېدىيا ئۈسكۈنىڭىزدىكى چۈشۈرۈش / Moonfin غا ساقلىنىدۇ. بۇ ھۆججەتلەر سىزنىڭ رەسىم ئامبىرىڭىز ياكى مۇزىكا قويغۇچ قاتارلىق باشقا ئەپلەرگە كۆرۈنىدۇ.\n\nھازىر بار بولغان چۈشۈرۈشلەر ھازىرقى ئورنىدا قالىدۇ.';
+
+  @override
+  String get transcodingTimeRemainingUnavailable =>
+      'Transcoding: Time Remaining Unavailable';
+
+  @override
+  String get enable => 'قوزغىتىش';
+
+  @override
+  String get clearAllDownloadsWarning =>
+      'بۇ چۈشۈرۈلگەن بارلىق مېدىيانى ئۆچۈرۈۋېتىدۇ ، ئەمەلدىن قالدۇرغىلى بولمايدۇ.';
+
+  @override
+  String get clearAll => 'ھەممىنى تازىلاش';
+
+  @override
+  String get navigationStyle => 'يول باشلاش ئۇسلۇبى';
+
+  @override
+  String get topBar => 'ئۈستى بالداق';
+
+  @override
+  String get leftSidebar => 'سول تەرەپ يانبالدىقى';
+
+  @override
+  String get showShuffleButton => 'Shuffle كۇنۇپكىسىنى كۆرسەت';
+
+  @override
+  String get showGenresButton => 'ژانىر كۇنۇپكىسىنى كۆرسەت';
+
+  @override
+  String get showFavoritesButton => 'ياقتۇرىدىغان كۇنۇپكىنى كۆرسەت';
+
+  @override
+  String get showLiveTvButton => 'Show Live TV Button';
+
+  @override
+  String get showDownloadsButton => 'Show Downloads Button';
+
+  @override
+  String get showLibrariesInToolbar => 'قورالبالدىقىدا كۈتۈپخانىلارنى كۆرسەت';
+
+  @override
+  String get navbarAlwaysExpanded =>
+      'يولباشچى بالداق خەتلىرىنى ھەمىشە كۆرسىتىش';
+
+  @override
+  String get showSeerrButton => 'Seerr كۇنۇپكىسىنى كۆرسىتىش';
+
+  @override
+  String get navbarOpacity => 'يولباشچى بالداق تۇتۇقلۇقى';
+
+  @override
+  String get navbarColor => 'Navbar رەڭ';
+
+  @override
+  String get gray => 'كۈلرەڭ';
+
+  @override
+  String get darkBlue => 'قېنىق كۆك';
+
+  @override
+  String get purple => 'بىنەپشە';
+
+  @override
+  String get teal => 'كۆكۈش يېشىل';
+
+  @override
+  String get navy => 'دېڭىز ئارمىيىسى';
+
+  @override
+  String get charcoal => 'كۆمۈر';
+
+  @override
+  String get brown => 'قوڭۇر';
+
+  @override
+  String get darkRed => 'قېنىق قىزىل';
+
+  @override
+  String get darkGreen => 'قېنىق يېشىل';
+
+  @override
+  String get slate => 'تاش كۈلرەڭ';
+
+  @override
+  String get indigo => 'كۆك بىنەپشە';
+
+  @override
+  String get libraryDisplay => 'كۈتۈپخانا كۆرسىتىش';
+
+  @override
+  String get posterLabel => 'پوستېر';
+
+  @override
+  String get thumbnailLabel => 'كىچىك كۆرۈنۈش';
+
+  @override
+  String get bannerLabel => 'بايراق';
+
+  @override
+  String get overridePerLibrarySettings =>
+      'كۈتۈپخانىنىڭ تەڭشەكلىرىنى قاپلىۋېتىڭ';
+
+  @override
+  String get applyImageTypeToAllLibraries =>
+      'رەسىم ئامبىرىنى بارلىق كۈتۈپخانىلارغا ئىشلىتىڭ';
+
+  @override
+  String get multiServerLibraries => 'كۆپ مۇلازىمېتىر كۈتۈپخانىلىرى';
+
+  @override
+  String get showLibrariesFromAllServers =>
+      'بارلىق ئۇلانغان مۇلازىمېتىرلاردىكى كۈتۈپخانىلارنى كۆرسەت';
+
+  @override
+  String get mergeRecentRowsByType => 'Merge Recent Rows by Type';
+
+  @override
+  String get mergeRecentRowsByTypeDescription =>
+      'Combine separate libraries of the same type for Recently Added and Recently Released home rows.';
+
+  @override
+  String get libraryView => 'Library View';
+
+  @override
+  String get libraryStyle => 'Video Library Style';
+
+  @override
+  String get libraryStyleDescription =>
+      'Classic is the original header with icon buttons. Modern puts search and labeled sort, group and filter buttons in one bar. Docked moves the controls and the letters into a side panel.';
+
+  @override
+  String get libraryStyleDescriptionPhone =>
+      'Classic is the original header with icon buttons. Modern adds labeled sort, group and filter chips under the search. Docked keeps the controls in a bar at the bottom of the screen.';
+
+  @override
+  String get libraryStyleClassic => 'Classic';
+
+  @override
+  String get libraryStyleModern => 'Modern';
+
+  @override
+  String get libraryStyleDocked => 'Docked';
+
+  @override
+  String get bookLibraryStyle => 'Book Library Style';
+
+  @override
+  String get bookLibraryStyleDescription =>
+      'Classic is the original shelves under a featured title. Reading Room leads with what you\'re reading on large cards. Bookstore browses the whole library in a grid.';
+
+  @override
+  String get bookLibraryStyleClassic => 'Classic';
+
+  @override
+  String get bookLibraryStyleReadingRoom => 'Reading Room';
+
+  @override
+  String get bookLibraryStyleBookstore => 'Bookstore';
+
+  @override
+  String get musicLibraryStyle => 'Music Library Style';
+
+  @override
+  String get musicLibraryStyleDescription =>
+      'Classic is the original rows under a Jump Back In card. Quick Access starts with a grid of your recent albums and playlists. Immersive leads with the album you\'re listening to.';
+
+  @override
+  String get musicLibraryStyleClassic => 'Classic';
+
+  @override
+  String get musicLibraryStyleQuickAccess => 'Quick Access';
+
+  @override
+  String get musicLibraryStyleImmersive => 'Immersive';
+
+  @override
+  String get jumpBackIn => 'Jump Back In';
+
+  @override
+  String get yourPlaylists => 'Your Playlists';
+
+  @override
+  String get fromThisAlbum => 'From This Album';
+
+  @override
+  String get searchMusic => 'Search Music';
+
+  @override
+  String bookSeriesCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count series',
+      one: '1 series',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String bookInProgressCount(int count) {
+    return '$count in progress';
+  }
+
+  @override
+  String bookBrowseAllTitles(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Browse all $count titles',
+      one: 'Browse 1 title',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get searchBooks => 'Search books';
+
+  @override
+  String get libraryShowLabel => 'Show';
+
+  @override
+  String get libraryAToZ => 'A to Z';
+
+  @override
+  String get libraryJumpToLetter => 'Jump to letter';
+
+  @override
+  String get enableFolderView => 'ھۆججەت قىسقۇچنى قوزغىتىش';
+
+  @override
+  String get showFolderBrowsingOption =>
+      'ھۆججەت قىسقۇچنى كۆرۈش تاللانمىسىنى كۆرسەت';
+
+  @override
+  String get groupItemsIntoCollections => 'تۈرلەرنى توپلاملارغا گۇرۇپپىلاش';
+
+  @override
+  String get hideCollectionAssociatedItems =>
+      'ئامبارلارنى كۆرگەندە توپلامغا تەۋە تۈرلەرنى يوشۇرىدۇ';
+
+  @override
+  String get groupItemsIntoCollectionsDialogTitle =>
+      'ئامبار گۇرۇپپىلاش ئەسكەرتىشى';
+
+  @override
+  String get groupItemsIntoCollectionsDialogMessage =>
+      'بۇ تەڭشەكنى ئىشلىتىش ئۈچۈن، Jellyfin ياكى Emby مۇلازىمېتىرىڭىزدىكى ئامبارنىڭ كۆرسىتىش تەڭشەكلىرىدە «كىنولارنى توپلاملارغا گۇرۇپپىلاش» ۋە/ياكى «تىياتىرلارنى توپلاملارغا گۇرۇپپىلاش» تاللانمىلىرىنىڭ قوزغىتىلغانلىقىنى جەزملەڭ.';
+
+  @override
+  String get libraryVisibility => 'كۈتۈپخانىنىڭ كۆرۈنۈشچانلىقى';
+
+  @override
+  String get libraryVisibilityDescription =>
+      'ھەر بىر كۈتۈپخانىنىڭ باش بېتىنىڭ كۆرۈنۈشىنى توغرىلاڭ. ئۆزگەرتىشنىڭ كۈچكە ئىگە بولۇشى ئۈچۈن Moonfin نى قايتا قوزغىتىڭ.';
+
+  @override
+  String get showInNavigation => 'يول باشلاش';
+
+  @override
+  String get showInLatestMedia => 'ئەڭ يېڭى تاراتقۇلاردا كۆرسىتىڭ';
+
+  @override
+  String get libraryOrder => 'Library Order';
+
+  @override
+  String get libraryOrderSubtitle => 'Choose the order of your libraries';
+
+  @override
+  String get libraryOrderDescription =>
+      'Your libraries appear in this order on My Media, the recently added rows and the navigation bar. The order is saved to your server account, so other apps you sign in to use it too.';
+
+  @override
+  String get libraryOrderTvHint =>
+      'Press left or right to move the highlighted library.';
+
+  @override
+  String get libraryOrderSaveFailed => 'Couldn\'t save the library order';
+
+  @override
+  String get sourceLibraries => 'مەنبە كۈتۈپخانىلار';
+
+  @override
+  String get sourceCollections => 'مەنبە توپلىمى';
+
+  @override
+  String get excludedGenres => 'چىقىرىۋېتىلگەن ژانىرلار';
+
+  @override
+  String get selectAll => 'ھەممىنى تاللاڭ';
+
+  @override
+  String itemsSelected(int count) {
+    return '$count تاللاندى';
+  }
+
+  @override
+  String get mediaBar => 'مېدىيا بالدىقى';
+
+  @override
+  String get mediaSources => 'Media Source';
+
+  @override
+  String get behavior => 'ھەرىكەت';
+
+  @override
+  String get seconds => 'سېكۇنت';
+
+  @override
+  String get mediaBarMode => 'مېدىيا بالدىقى ئۇسلۇبى';
+
+  @override
+  String get mediaBarModeDescription =>
+      'Moonfin ، MakD نى تاللاڭ ياكى مېدىيا بالدىقىنى ئېتىۋېتىڭ';
+
+  @override
+  String get mediaBarModeMoonfin => 'Moonfin';
+
+  @override
+  String get mediaBarModeMakd => 'MakD';
+
+  @override
+  String get mediaBarModeOff => 'تاقاق';
+
+  @override
+  String get mediaBarModeBookshelf => 'Bookshelf';
+
+  @override
+  String get mediaBarModeGallery => 'Gallery';
+
+  @override
+  String get mediaBarModeBanner => 'Banner';
+
+  @override
+  String get mediaBarModeAya => 'Aya';
+
+  @override
+  String get enableMediaBar => 'Media Bar نى قوزغىتىڭ';
+
+  @override
+  String get showFeaturedContentSlideshow =>
+      'ئۆيدە ئالاھىدە مەزمۇن تام تەسۋىرىنى كۆرسىتىڭ';
+
+  @override
+  String get contentType => 'مەزمۇن تىپى';
+
+  @override
+  String get mediaBarSourceType => 'Source';
+
+  @override
+  String get mediaBarSourceRandom => 'Random';
+
+  @override
+  String get moviesAndTvShows => 'كىنو ۋە تېلېۋىزىيە پروگراممىلىرى';
+
+  @override
+  String get moviesOnly => 'پەقەت كىنو';
+
+  @override
+  String get tvShowsOnly => 'پەقەت تېلېۋىزىيە پروگراممىلىرى';
+
+  @override
+  String get itemCount => 'تۈر سانى';
+
+  @override
+  String get noneSelected => 'ھېچقايسىسى تاللانمىدى';
+
+  @override
+  String get noneExcluded => 'ھېچكىم چىقىرىۋېتىلمىدى';
+
+  @override
+  String get autoAdvance => 'ئاپتوماتىك ئىلگىرىلەش';
+
+  @override
+  String get autoAdvanceSlides =>
+      'كېيىنكى تام تەسۋىرگە ئاپتوماتىك ئىلگىرىلەيدۇ';
+
+  @override
+  String get autoAdvanceInterval => 'ئاپتوماتىك ئىلگىرىلەش ئارىلىقى';
+
+  @override
+  String get trailerPreview => 'ئالدىن كۆرسىتىلمە قويۇش';
+
+  @override
+  String get autoPlayTrailers =>
+      'مېدىيا ستونىدا 3 سېكۇنتتىن كېيىن ئاپتوماتىك ئويناش';
+
+  @override
+  String get trailerAudio => 'ئالدىن كۆرسىتىلمە ئاۋازى';
+
+  @override
+  String get enableTrailerAudio =>
+      'مېدىيا بالداقتىكى ئالدىن كۆرسىتىلمىلەرنىڭ ئاۋازىنى قوزغىتىدۇ';
+
+  @override
+  String get trailerCaptions => 'Trailer Captions';
+
+  @override
+  String get trailerCaptionsDescription =>
+      'Show captions on YouTube trailers in the media bar';
+
+  @override
+  String get episodePreview => 'بۆلۈمنى ئالدىن كۆرۈش';
+
+  @override
+  String get mediaPreview => 'مېدىيا ئالدىن كورۇش';
+
+  @override
+  String get episodePreviewDescription =>
+      'فوكۇسلانغان ، يانتۇ ياكى ئۇزۇن بېسىلغان كارتىلاردا 30 سېكۇنتلۇق ئالدىن كۆرۈشنى ئويناڭ';
+
+  @override
+  String get mediaPreviewDescription =>
+      'فوكۇسلانغان ، يانتۇ ياكى ئۇزۇن بېسىلغان كارتىلاردا 30 سېكۇنتلۇق ئالدىن كۆرۈشنى ئويناڭ';
+
+  @override
+  String get previewAudio => 'ئالدىن كۆرۈش';
+
+  @override
+  String get enablePreviewAudio =>
+      'يوللانما ۋە بۆلەكلەرنى ئالدىن كۆرۈش ئۈچۈن ئاۋاز قوزغىتىڭ';
+
+  @override
+  String get latestMedia => 'ئەڭ يېڭى مېدىيا';
+
+  @override
+  String get recentlyReleased => 'يېقىندا ئېلان قىلىندى';
+
+  @override
+  String get recentlyReleasedSeriesType => 'Recently Released Series Sort By';
+
+  @override
+  String get recentlyReleasedSeriesTypeDescription =>
+      'Sort Recently Released Series home rows by series, latest season, or latest episode air date';
+
+  @override
+  String get myMedia => 'مېنىڭ مېدىيا';
+
+  @override
+  String get myMediaSmall => 'مېنىڭ مېدىيا (كىچىك)';
+
+  @override
+  String get continueWatching => 'داۋاملىق كۆزىتىڭ';
+
+  @override
+  String get resumeAudio => 'ئاۋازنى ئەسلىگە كەلتۈرۈش';
+
+  @override
+  String get resumeBooks => 'كىتابلارنى ئەسلىگە كەلتۈرۈش';
+
+  @override
+  String get activeRecordings => 'ئاكتىپ خاتىرىلەر';
+
+  @override
+  String get playlists => 'قويۇش تىزىملىكى';
+
+  @override
+  String get liveTV => 'بىۋاسىتە تېلېۋىزىيە';
+
+  @override
+  String get favoriteChannels => 'Favorite Channels';
+
+  @override
+  String get resetToDefaults => 'سۈكۈتتىكى ھالەتكە قايتىڭ';
+
+  @override
+  String get homeRowPosterSize => 'باش بەت قۇرى پوستېر چوڭلۇقى';
+
+  @override
+  String get configureImageTypeForEachRow =>
+      'ھەر بىر قوزغىتىلغان ئائىلە قۇرنىڭ رەسىم تىپىنى سەپلەڭ';
+
+  @override
+  String get mergeContinueWatchingAndNextUp =>
+      'بىرلەشتۈرۈش داۋاملىق كۆزىتىش ۋە كېيىنكى باسقۇچ';
+
+  @override
+  String get combineBothRows => 'ھەر ئىككى قۇرنى بىر ئۆي بۆلىكىگە بىرلەشتۈرۈڭ';
+
+  @override
+  String get nextUpMaxDays => 'Max days in Next Up';
+
+  @override
+  String get nextUpMaxDaysDescription =>
+      'How long a show stays in Next Up after you last watched it';
+
+  @override
+  String daysValue(int days) {
+    return '$days days';
+  }
+
+  @override
+  String get fullScreenRows => 'كېڭەيتىلگەن باش بەت قۇرلىرى';
+
+  @override
+  String get fullScreenRowsDescription =>
+      'ھەر ئېكرانغا باش بەت قۇرىنى 1 قۇر بىلەن چەكلەيدۇ';
+
+  @override
+  String get homeRowsPadding => 'Row Padding';
+
+  @override
+  String get homeRowsPaddingDescription =>
+      'Customize padding between home rows';
+
+  @override
+  String get homeRowsGenresAndStudios => 'Genres and Studios';
+
+  @override
+  String get homeRowsExternalLists => 'External Lists';
+
+  @override
+  String get perRowSettings => 'ھەر بىر قۇر تەڭشىكى';
+
+  @override
+  String get autoLogin => 'ئاپتوماتىك كىرىش';
+
+  @override
+  String get lastUser => 'ئاخىرقى ئىشلەتكۈچى';
+
+  @override
+  String get currentUser => 'نۆۋەتتىكى ئىشلەتكۈچى';
+
+  @override
+  String get alwaysAuthenticate => 'ھەمىشە دەلىللەش';
+
+  @override
+  String get requirePasswordWithToken =>
+      'ساقلانغان بەلگە بىلەنمۇ پارول تەلەپ قىلىڭ';
+
+  @override
+  String get confirmExit => 'چېكىنىشنى جەزملەشتۈرۈڭ';
+
+  @override
+  String get showConfirmationBeforeExiting =>
+      'چىقىشتىن بۇرۇن جەزملەشتۈرۈشنى كۆرسىتىڭ';
+
+  @override
+  String get blockContentWithRatings => 'تۆۋەندىكى باھا بىلەن مەزمۇننى چەكلەڭ:';
+
+  @override
+  String get noContentRatingsFound =>
+      'بۇ مۇلازىمېتىردا ھېچقانداق مەزمۇن دەرىجىسى تېپىلمىدى.';
+
+  @override
+  String get couldNotLoadServerRatings =>
+      'مۇلازىمېتىر دەرىجىسىنى يۈكلىيەلمىدى. پەقەت ساقلانغان باھانىلا كۆرسىتىش.';
+
+  @override
+  String get couldNotRefreshRatings =>
+      'مۇلازىمېتىرنىڭ باھاسىنى يېڭىلىيالمىدى. ساقلانغان باھانى كۆرسىتىش.';
+
+  @override
+  String get enablePinCode => 'PIN كودىنى قوزغىتىڭ';
+
+  @override
+  String get pinSynced => 'PIN synced';
+
+  @override
+  String get pinResetFailed =>
+      'The PIN on the server could not be cleared. If it is still set, ask a server administrator to remove it.';
+
+  @override
+  String get requirePinToAccess => 'ھېساباتىڭىزغا كىرىش ئۈچۈن PIN تەلەپ قىلىڭ';
+
+  @override
+  String get changePin => 'PIN نى ئۆزگەرتىڭ';
+
+  @override
+  String get setNewPinCode => 'يېڭى PIN كودى بەلگىلەڭ';
+
+  @override
+  String get removePin => 'PIN نى ئۆچۈرۈڭ';
+
+  @override
+  String get removePinProtection => 'PIN كود قوغداشنى ئۆچۈرۈڭ';
+
+  @override
+  String get screensaver => 'ئېكران ئېكرانى';
+
+  @override
+  String get inAppScreensaver => 'App-Screenaver';
+
+  @override
+  String get enableBuiltInScreensaver => 'قاچىلانغان ئېكراننى قوزغىتىڭ';
+
+  @override
+  String get mode => 'ھالەت';
+
+  @override
+  String get libraryArt => 'كۈتۈپخانا سەنئىتى';
+
+  @override
+  String get logo => 'لوگو';
+
+  @override
+  String get clock => 'سائەت';
+
+  @override
+  String get timeout => 'ۋاقىت';
+
+  @override
+  String minutesShort(int minutes) {
+    return '$minutes مىنۇت';
+  }
+
+  @override
+  String get dimmingLevel => 'غۇۋالاشتۇرۇش دەرىجىسى';
+
+  @override
+  String get maxAgeRating => 'ئەڭ يۇقىرى ياش چەكلىمىسى';
+
+  @override
+  String get any => 'ھەر قانداق';
+
+  @override
+  String agePlusValue(int age) {
+    return '$age+';
+  }
+
+  @override
+  String get requireAgeRating => 'ياش دەرىجىسىنى تەلەپ قىلىڭ';
+
+  @override
+  String get onlyShowRatedContent => 'پەقەت باھالانغان مەزمۇننىلا كۆرسىتىدۇ';
+
+  @override
+  String get displayClockDuringScreensaver =>
+      'ئېكران ئېكرانىدا سائەتنى كۆرسىتىش';
+
+  @override
+  String get clockModeStatic => 'مۇقىم';
+
+  @override
+  String get clockModeBouncing => 'سەكرەيدىغان';
+
+  @override
+  String get screensaverGeneralSettings => 'General Settings';
+
+  @override
+  String get screensaverVisualComponents => 'Visual Components';
+
+  @override
+  String get screensaverLibraryContent => 'Library Content';
+
+  @override
+  String get screensaverBackdrop => 'Backdrop';
+
+  @override
+  String get screensaverBackdropBlack => 'Black';
+
+  @override
+  String get screensaverBackdropMoonfin => 'Moonfin';
+
+  @override
+  String get screensaverBackdropCalm => 'Calm';
+
+  @override
+  String get screensaverBackdropNeonPulse => 'Neon Pulse';
+
+  @override
+  String get screensaverBackdropAurora => 'Aurora';
+
+  @override
+  String get screensaverAdditionalComponent => 'Additional Component';
+
+  @override
+  String get screensaverComponentMoonfinLogo => 'Moonfin Logo';
+
+  @override
+  String get screensaverComponentRunner => 'Runner';
+
+  @override
+  String get screensaverComponentMovement => 'Component Movement';
+
+  @override
+  String get screensaverComponentPosition => 'Component Position';
+
+  @override
+  String get screensaverComponentSize => 'Component Size';
+
+  @override
+  String get screensaverSourceLibrariesDefault => 'All (Default)';
+
+  @override
+  String get rottenTomatoesCritics => 'چىرىگەن پەمىدۇر (تەنقىدچىلەر)';
+
+  @override
+  String get rottenTomatoesAudience => 'چىرىگەن پەمىدۇر (تاماشىبىنلار)';
+
+  @override
+  String get imdb => 'IMDb';
+
+  @override
+  String get tmdb => 'TMDB';
+
+  @override
+  String get metacritic => 'Metacritic';
+
+  @override
+  String get metacriticUser => 'Metacritic (ئىشلەتكۈچى)';
+
+  @override
+  String get trakt => 'Trakt';
+
+  @override
+  String get letterboxd => 'خەت ساندۇقى';
+
+  @override
+  String get myAnimeList => 'MyAnimeList';
+
+  @override
+  String get aniList => 'AniList';
+
+  @override
+  String get communityRating => 'مەھەللە دەرىجىسى';
+
+  @override
+  String get ratings => 'باھالار';
+
+  @override
+  String get additionalRatings => 'قوشۇمچە باھا';
+
+  @override
+  String get showMdbListAndTmdbRatings => 'MDBList ۋە TMDB دەرىجىسىنى كۆرسەت';
+
+  @override
+  String get ratingLabels => 'باھا بەلگىسى';
+
+  @override
+  String get showLabelsNextToIcons =>
+      'باھالاش سىنبەلگىسىنىڭ يېنىدىكى بەلگىلەرنى كۆرسەت';
+
+  @override
+  String get ratingBadges => 'باھا بەلگىسى';
+
+  @override
+  String get showDecorativeBadges =>
+      'باھانىڭ ئارقىسىدىكى بېزەك بەلگىسىنى كۆرسىتىڭ';
+
+  @override
+  String get episodeRatings => 'بۆلۈم باھالىرى';
+
+  @override
+  String get showRatingsOnEpisodes => 'ئايرىم بۆلەكلەرگە باھا كۆرسەت';
+
+  @override
+  String get ratingSources => 'باھا مەنبەسى';
+
+  @override
+  String get ratingSourcesDescription =>
+      'پۈتۈن دېتالدا كۆرسىتىلگەن باھالاش مەنبەلىرىنى قوزغىتىڭ ۋە رەتلەڭ';
+
+  @override
+  String get pluginDetected => 'قىستۇرما بايقالدى';
+
+  @override
+  String get pluginNotDetected => 'قىستۇرما بايقالمىدى';
+
+  @override
+  String get pluginNotDetectedDescription =>
+      'مۇلازىمېتىر قىستۇرمىسى ھازىرچە بايقالمىدى. يەرلىك تەڭشەكلەر يەنىلا ساقلانغان قىممەتلىرىنى ياكى كۆڭۈلدىكى كۆڭۈلدىكى قىممەتنى ئىشلىتىدۇ.';
+
+  @override
+  String get pluginConnected => 'Connected';
+
+  @override
+  String pluginConnectedVersion(String version) {
+    return 'Connected, version $version';
+  }
+
+  @override
+  String get pluginSyncOn => 'Sync on';
+
+  @override
+  String get pluginSyncOff => 'Sync off';
+
+  @override
+  String get syncProfileDescription =>
+      'This device syncs with the profile you pick until you pick another.';
+
+  @override
+  String get profileAppliesEverywhere => 'Applies everywhere';
+
+  @override
+  String get profileOverridesGlobal => 'Overrides Global';
+
+  @override
+  String get profileThisDevice => 'This device';
+
+  @override
+  String get profileLoad => 'Load';
+
+  @override
+  String get profileLoadSubtitle => 'Server to this device';
+
+  @override
+  String get profileSaveSubtitle => 'This device to server';
+
+  @override
+  String resetNamedProfile(String profile) {
+    return 'Reset $profile Profile';
+  }
+
+  @override
+  String get recentRequests => 'يېقىنقى تەلەپلەر';
+
+  @override
+  String get recentlyAdded => 'يېقىندا قوشۇلدى';
+
+  @override
+  String get trending => 'يۈزلىنىش';
+
+  @override
+  String get popularMovies => 'داڭلىق كىنولار';
+
+  @override
+  String get movieGenres => 'كىنو ژانىرلىرى';
+
+  @override
+  String get upcomingMovies => 'كەلگۈسىدىكى كىنولار';
+
+  @override
+  String get studios => 'ئىستۇدىيەلەر';
+
+  @override
+  String get popularSeries => 'ئاممىباب يۈرۈشلۈكلىرى';
+
+  @override
+  String get seriesGenres => 'تىياتىر ژانىرلىرى';
+
+  @override
+  String get upcomingSeries => 'كېلەچەك';
+
+  @override
+  String get networks => 'تور';
+
+  @override
+  String get tags => 'Tags';
+
+  @override
+  String get genresAndTags => 'Genres and Tags';
+
+  @override
+  String get seerrDiscoveryRows => 'Seerr بايقاش قۇرلىرى';
+
+  @override
+  String get seerrDiscoverSliders => 'Seerr Discover Sliders';
+
+  @override
+  String get yourWatchlist => 'Your Watchlist';
+
+  @override
+  String get resetRowsToDefaults => 'قۇرلارنى سۈكۈتتىكى ھالەتكە قايتۇرۇش';
+
+  @override
+  String get enableSeerr => 'Seerr نى قوزغىتىڭ';
+
+  @override
+  String get showSeerrInNavigation =>
+      'يول باشلاشتا Seerr نى كۆرسەت (مۇلازىمېتىر قىستۇرمىسىنى تەلەپ قىلىدۇ)';
+
+  @override
+  String get seerrUnavailable =>
+      'مۇلازىمېتىر قىستۇرمىسى Seerr قوللاش ئىقتىدارى چەكلەنگەنلىكى ئۈچۈن ئىشلەتكىلى بولمايدۇ.';
+
+  @override
+  String get nsfwFilter => 'NSFW سۈزگۈچ';
+
+  @override
+  String get hideAdultContent => 'نەتىجىدە چوڭلارنىڭ مەزمۇنىنى يوشۇرۇش';
+
+  @override
+  String get showMissingCollectionItems => 'Show Missing Collection Items';
+
+  @override
+  String get showMissingCollectionItemsDesc =>
+      'Include missing items on Collection pages';
+
+  @override
+  String get showSeerrAvailabilityBadges => 'Show Seerr Availability Badges';
+
+  @override
+  String get showSeerrAvailabilityBadgesDescription =>
+      'Show season availability badges on media details pages';
+
+  @override
+  String get seerrNotificationsSection => 'ئۇقتۇرۇشلار';
+
+  @override
+  String get seerrNotifyNewRequestsTitle => 'يېڭى ئىلتىماس ئۇقتۇرۇشلىرى';
+
+  @override
+  String get seerrNotifyNewRequestsSubtitle =>
+      'بىرسى ئىلتىماس يوللىغاندا ماڭا ئۇقتۇرسۇن';
+
+  @override
+  String get seerrNotifyLibraryAddedTitle => 'ئىلتىماس يېڭىلانمىلىرى';
+
+  @override
+  String get seerrNotifyLibraryAddedSubtitle =>
+      'تەستىقلانغان، رەت قىلىنغان ۋە ئامبىرىڭىزغا قوشۇلغانلار';
+
+  @override
+  String get seerrNotifyIssuesTitle => 'مەسىلە يېڭىلانمىلىرى';
+
+  @override
+  String get seerrNotifyIssuesSubtitle =>
+      'يېڭى مەسىلىلەر، جاۋابلار ۋە ھەل قىلىنىشلار';
+
+  @override
+  String get seerrNotifyNewMediaTitle => 'New Media Added';
+
+  @override
+  String get seerrNotifyNewMediaSubtitle =>
+      'Anything new added to the server library';
+
+  @override
+  String loggedInAs(String username) {
+    return 'كىرگەن ھېسابات: $username';
+  }
+
+  @override
+  String get discoverRows => 'Seerr بايقاش بېتى';
+
+  @override
+  String get discoverRowsDescriptionPlugin =>
+      'Seerr باش بېتىدە كۆرسىتىلىدىغان قۇرلارنى قوزغىتىڭ. تەرتىپىنى سۆرەپ ئۆزگەرتىڭ. ئىختىيارى تەرتىپ Moonbase بىلەن ماسقەدەملىنىدۇ.';
+
+  @override
+  String get discoverRowsDescription =>
+      'Seerr باش بېتىدە كۆرسىتىلىدىغان قۇرلارنى قوزغىتىڭ. تەرتىپىنى سۆرەپ ئۆزگەرتىڭ. ئىختىيارى تەرتىپ Moonbase بىلەن ماسقەدەملىنىدۇ.';
+
+  @override
+  String get enabled => 'قوزغىتىلغان';
+
+  @override
+  String get hidden => 'يۇشۇرۇن';
+
+  @override
+  String get aboutTitle => 'ھەققىدە';
+
+  @override
+  String versionValue(String version) {
+    return 'نەشر $version';
+  }
+
+  @override
+  String get openSourceLicenses => 'ئوچۇق كود ئىجازەتنامىسى';
+
+  @override
+  String get sourceCode => 'مەنبە كودى';
+
+  @override
+  String get sourceCodeUrl => 'https://github.com/Moonfin-Client/Moonfin-Core';
+
+  @override
+  String get checkForUpdatesNow => 'يېڭىلانمىلارنى تەكشۈرۈڭ';
+
+  @override
+  String get checksLatestDesktopRelease =>
+      'بۇ سۇپىنىڭ ئەڭ يېڭى ئۈستەل يۈزى ئېلان قىلىنىشىنى تەكشۈرىدۇ';
+
+  @override
+  String get youAreUpToDate => 'سىز ئەڭ يېڭى.';
+
+  @override
+  String get couldNotCheckForUpdates => 'ھازىر يېڭىلانمىلارنى تەكشۈرەلمىدىم.';
+
+  @override
+  String get noCompatibleUpdate =>
+      'بۇ سۇپىغا ماس كېلىدىغان يېڭىلاش بولىقى تېپىلمىدى.';
+
+  @override
+  String get updateChecksNotSupported =>
+      'يېڭىلاش تەكشۈرۈشى بۇ سۇپىدا قوللىمايدۇ.';
+
+  @override
+  String get updateNotificationsDisabled => 'يېڭىلاش ئۇقتۇرۇشى چەكلەنگەن.';
+
+  @override
+  String get pleaseWaitBeforeChecking =>
+      'قايتا تەكشۈرۈشتىن بۇرۇن ساقلاپ تۇرۇڭ.';
+
+  @override
+  String get latestUpdateAlreadyShown =>
+      'ئەڭ يېڭى يېڭىلاش ئاللىبۇرۇن كۆرسىتىلدى.';
+
+  @override
+  String get updateAvailable => 'يېڭىلاشنى ئىشلەتكىلى بولىدۇ.';
+
+  @override
+  String updateAvailableVersion(String version) {
+    return 'يېڭىلانما بار: v$version';
+  }
+
+  @override
+  String get updateNotifications => 'ئۇقتۇرۇشلارنى يېڭىلاش';
+
+  @override
+  String get showWhenUpdatesAvailable =>
+      'يېڭىلانمىلارنىڭ قاچان بولىدىغانلىقىنى كۆرسىتىڭ';
+
+  @override
+  String updateAvailableTitle(String version) {
+    return 'v$version چىقتى';
+  }
+
+  @override
+  String get readReleaseNotes => 'ئېلان قىلىش خاتىرىسىنى ئوقۇڭ';
+
+  @override
+  String get downloadingUpdate => 'يېڭىلاشنى چۈشۈرۈش ...';
+
+  @override
+  String get updateDownloadFailed =>
+      'چۈشۈرۈش چۈشۈرۈش مەغلۇب بولدى. قايتا سىناڭ.';
+
+  @override
+  String get openReleasesPage => 'ئېلان قىلىش بېتى';
+
+  @override
+  String get navigation => 'يول باشلاش';
+
+  @override
+  String get watchedIndicatorsBackdrops =>
+      'كۆزىتىلگەن كۆرسەتكۈچ ، ئارقا كۆرۈنۈش';
+
+  @override
+  String get focusColorWatchedIndicatorsBackdrops =>
+      'فوكۇس رەڭ ، كۆزىتىلگەن كۆرسەتكۈچ ، ئارقا كۆرۈنۈش';
+
+  @override
+  String get navbarStyleToolbarAppearance =>
+      'يولباشچى ئۇسلۇبى ، قورالبالدىقى كۇنۇپكىسى ، كۆرۈنۈشى';
+
+  @override
+  String get featuredContentAppearance => 'ئالاھىدە مەزمۇن ، كۆرۈنۈش';
+
+  @override
+  String get posterSizeImageTypeFolderView =>
+      'ئېلاننىڭ چوڭلۇقى ، رەسىم تىپى ، ھۆججەت قىسقۇچ كۆرۈنۈشى';
+
+  @override
+  String gbValue(String value) {
+    return '$value GB';
+  }
+
+  @override
+  String mbValue(int value) {
+    return '$value MB';
+  }
+
+  @override
+  String get imageCacheLimit => 'رەسىم غەملەك چېكى';
+
+  @override
+  String get clearImageCache => 'رەسىم غەملىكىنى تازىلاش';
+
+  @override
+  String get imageCacheCleared => 'رەسىم غەملىكى تازىلاندى';
+
+  @override
+  String get clear => 'تازىلاش';
+
+  @override
+  String get browse => 'توركۆرگۈ';
+
+  @override
+  String get noResults => 'ھېچقانداق نەتىجە يوق';
+
+  @override
+  String get seerrAvailableStatus => 'ئىشلەتكىلى بولىدۇ';
+
+  @override
+  String get seerrRequestedStatus => 'تەلەپ قىلىندى';
+
+  @override
+  String get seerrDownloading => 'Downloading';
+
+  @override
+  String seerrDownloadingSize(String done, String total) {
+    return 'Downloading · $done / $total';
+  }
+
+  @override
+  String seerrDownloadedOfTotal(String done, String total) {
+    return '$done / $total';
+  }
+
+  @override
+  String seerrPercentValue(int percent) {
+    return '$percent%';
+  }
+
+  @override
+  String seerrDownloadingPercent(int percent) {
+    return 'چۈشۈرۈلۈۋاتىدۇ · $percent%';
+  }
+
+  @override
+  String get seerrImportingStatus => 'ئەكىرىلىۋاتىدۇ';
+
+  @override
+  String itemsCount(int count) {
+    return '$count تۈر';
+  }
+
+  @override
+  String get seerrSettings => 'Seerr تەڭشەكلىرى';
+
+  @override
+  String get requestMore => 'تېخىمۇ كۆپ تەلەپ';
+
+  @override
+  String get requestMore4k => 'Request More in 4K';
+
+  @override
+  String get request => 'تەلەپ';
+
+  @override
+  String get request4k => 'Request 4K';
+
+  @override
+  String get requested4k => '4K Requested';
+
+  @override
+  String get cancelRequest => 'تەلەپنى بىكار قىلىش';
+
+  @override
+  String get cancelRequest4k => 'Cancel 4K Request';
+
+  @override
+  String get playInMoonfin => 'Moonfin دە ئويناڭ';
+
+  @override
+  String get requestedByLabel => 'Requested by';
+
+  @override
+  String requestedByName(String name) {
+    return '$name ئىلتىماس قىلغان';
+  }
+
+  @override
+  String get manageRequests => 'Manage Requests';
+
+  @override
+  String get watchlist => 'Watchlist';
+
+  @override
+  String get onWatchlist => 'On Watchlist';
+
+  @override
+  String get approve => 'تەستىق';
+
+  @override
+  String get declineAction => 'رەت قىلىش';
+
+  @override
+  String get similar => 'مۇشۇنىڭغا ئوخشاش';
+
+  @override
+  String get recommendations => 'تەۋسىيە';
+
+  @override
+  String cancelRequestForTitle(String title) {
+    return '«$title» ئۈچۈن ئىلتىماس بىكار قىلىنسۇنمۇ؟';
+  }
+
+  @override
+  String cancelCountRequestsForTitle(int count, String title) {
+    return '«$title» ئۈچۈن $count ئىلتىماس بىكار قىلىنسۇنمۇ؟';
+  }
+
+  @override
+  String get keep => 'ساقلاڭ';
+
+  @override
+  String get itemNotFoundInLibrary => 'Moonfin كۈتۈپخانىسىدا تېپىلمىغان تۈر';
+
+  @override
+  String get errorSearchingLibrary => 'كۈتۈپخانىنى ئىزدەشتە خاتالىق';
+
+  @override
+  String budgetAmount(String amount) {
+    return 'مەبلىغى: \$$amount';
+  }
+
+  @override
+  String revenueAmount(String amount) {
+    return 'كىرىمى: \$$amount';
+  }
+
+  @override
+  String seasonsCount(int count, String label) {
+    return '$count $label';
+  }
+
+  @override
+  String requestSeriesOrMovie(String type) {
+    return '$type ئىلتىماس قىلىش';
+  }
+
+  @override
+  String requestSeriesOrMovie4k(String type) {
+    return 'Request 4K $type';
+  }
+
+  @override
+  String get submitRequest => 'تەلەپنى يوللاش';
+
+  @override
+  String get allSeasons => 'بارلىق پەسىللەر';
+
+  @override
+  String get seerrSeriesContinuing =>
+      'Series Continuing · Future Seasons Can Be Requested';
+
+  @override
+  String get advancedOptions => 'ئالىي تاللانمىلار';
+
+  @override
+  String get noServiceServersConfigured => 'ھېچقانداق مۇلازىمېتىر سەپلەنمىگەن';
+
+  @override
+  String get server => 'مۇلازىمېتىر';
+
+  @override
+  String get qualityProfile => 'سۈپەت ئارخىپى';
+
+  @override
+  String get rootFolder => 'غول قىسقۇچ';
+
+  @override
+  String get showMore => 'تېخىمۇ كۆپ كۆرسىتىش';
+
+  @override
+  String get appearances => 'قاتناشقان ئەسەرلەر';
+
+  @override
+  String get crewSection => 'خادىملار';
+
+  @override
+  String ageValue(int age) {
+    return 'يېشى $age';
+  }
+
+  @override
+  String get noRequests => 'تەلەپ يوق';
+
+  @override
+  String get pendingStatus => 'ساقلىنىۋاتىدۇ';
+
+  @override
+  String get declinedStatus => 'رەت قىلىندى';
+
+  @override
+  String get partiallyAvailable => 'قىسمەن ئىشلەتكىلى بولىدۇ';
+
+  @override
+  String get downloadingStatus => 'چۈشۈرۈش';
+
+  @override
+  String get approvedStatus => 'تەستىقلاندى';
+
+  @override
+  String get notRequestedStatus => 'تەلەپ قىلىنمايدۇ';
+
+  @override
+  String get blocklistedStatus => 'چەكلەنگەن';
+
+  @override
+  String get deletedStatus => 'ئۆچۈرۈلدى';
+
+  @override
+  String get failedStatus => 'مەغلۇپ بولدى';
+
+  @override
+  String get processingStatus => 'بىر تەرەپ قىلىنىۋاتىدۇ';
+
+  @override
+  String modifiedByName(String name) {
+    return '$name ئۆزگەرتكەن';
+  }
+
+  @override
+  String get completedStatus => 'تاماملاندى';
+
+  @override
+  String get requestErrorDuplicate => 'بۇ ئەسەر ئاللىبۇرۇن ئىلتىماس قىلىنغان';
+
+  @override
+  String get requestErrorQuota => 'ئىلتىماس چېكىگە يېتىلدى';
+
+  @override
+  String get requestErrorBlocklisted => 'بۇ ئەسەر قارا تىزىملىكتە';
+
+  @override
+  String get requestErrorNoSeasons => 'ئىلتىماس قىلغۇدەك پەسىل قالمىدى';
+
+  @override
+  String get requestErrorPermission => 'بۇ ئىلتىماسنى قىلىش ھوقۇقىڭىز يوق';
+
+  @override
+  String get seerrRequestsTitle => 'ئىلتىماسلار';
+
+  @override
+  String get seerrIssuesTitle => 'مەسىلىلەر';
+
+  @override
+  String get sortNewest => 'ئەڭ يېڭى';
+
+  @override
+  String get sortLastModified => 'ئەڭ يېڭى ئۆزگەرتىلگەن';
+
+  @override
+  String get noIssues => 'مەسىلە يوق';
+
+  @override
+  String movieQuotaRemaining(int remaining, int limit) {
+    return '$limit كىنو ئىلتىماسىدىن $remaining قالدى';
+  }
+
+  @override
+  String seasonQuotaRemaining(int remaining, int limit) {
+    return '$limit پەسىل ئىلتىماسىدىن $remaining قالدى';
+  }
+
+  @override
+  String partOfCollectionName(String name) {
+    return '$name نىڭ بىر قىسمى';
+  }
+
+  @override
+  String get viewCollection => 'توپلامنى كۆرۈش';
+
+  @override
+  String get requestCollection => 'توپلامنى ئىلتىماس قىلىش';
+
+  @override
+  String collectionMoviesSummary(int total, int available) {
+    return '$total كىنو · $available بار';
+  }
+
+  @override
+  String requestMoviesCount(int count) {
+    return '$count كىنونى ئىلتىماس قىلىش';
+  }
+
+  @override
+  String requestingProgress(int current, int total) {
+    return '$total دىن $current ئىلتىماس قىلىنىۋاتىدۇ...';
+  }
+
+  @override
+  String requestedMoviesCount(int count) {
+    return '$count كىنو ئىلتىماس قىلىندى';
+  }
+
+  @override
+  String requestedMoviesPartial(int ok, int total) {
+    return '$total كىنودىن $ok سى ئىلتىماس قىلىندى';
+  }
+
+  @override
+  String get collectionAllRequested =>
+      'بارلىق كىنولار ئاللىبۇرۇن بار ياكى ئىلتىماس قىلىنغان';
+
+  @override
+  String get reportIssue => 'مەسىلە مەلۇم قىلىش';
+
+  @override
+  String get issueTypeVideo => 'سىن';
+
+  @override
+  String get issueTypeAudio => 'ئاۋاز';
+
+  @override
+  String get whatsWrong => 'نېمە مەسىلە بار؟';
+
+  @override
+  String get allEpisodes => 'بارلىق بۆلۈملەر';
+
+  @override
+  String get episode => 'بۆلۈم';
+
+  @override
+  String get openStatus => 'ئوچۇق';
+
+  @override
+  String get resolvedStatus => 'ھەل قىلىندى';
+
+  @override
+  String get resolveAction => 'ھەل قىلىش';
+
+  @override
+  String get reopenAction => 'قايتا ئېچىش';
+
+  @override
+  String reportedByName(String name) {
+    return '$name مەلۇم قىلغان';
+  }
+
+  @override
+  String commentsCount(int count) {
+    return '$count ئىنكاس';
+  }
+
+  @override
+  String get addComment => 'ئىنكاس يېزىڭ';
+
+  @override
+  String get deleteIssueConfirm => 'بۇ مەسىلە ئۆچۈرۈلسۇنمۇ؟';
+
+  @override
+  String get submitReport => 'دوكلات يوللاش';
+
+  @override
+  String get tmdbScore => 'TMDB نومۇر';
+
+  @override
+  String get releaseDateLabel => 'ئېلان قىلىنغان ۋاقىت';
+
+  @override
+  String get firstAirDateLabel => 'تۇنجى ھاۋا ۋاقتى';
+
+  @override
+  String get revenueLabel => 'كىرىم';
+
+  @override
+  String get runtimeLabel => 'ئۇزۇنلۇقى';
+
+  @override
+  String get budgetLabel => 'خامچوت';
+
+  @override
+  String get originalLanguageLabel => 'ئەسلى تىل';
+
+  @override
+  String get seasonsLabel => 'پەسىللەر';
+
+  @override
+  String get episodesLabel => 'بۆلۈملەر';
+
+  @override
+  String get access => 'زىيارەت';
+
+  @override
+  String get add => 'قوشۇش';
+
+  @override
+  String get address => 'ئادرېس';
+
+  @override
+  String get analytics => 'ئىستاتىستىكا';
+
+  @override
+  String get catalog => 'مۇندەرىجە';
+
+  @override
+  String get content => 'مەزمۇن';
+
+  @override
+  String get copy => 'كۆچۈرۈڭ';
+
+  @override
+  String get create => 'قۇرۇش';
+
+  @override
+  String get disable => 'چەكلەش';
+
+  @override
+  String get done => 'تامام';
+
+  @override
+  String get edit => 'تەھرىرلەش';
+
+  @override
+  String get encoding => 'كودلاش';
+
+  @override
+  String get error => 'خاتالىق';
+
+  @override
+  String get forward => 'ئالغا سۈرۈش';
+
+  @override
+  String get general => 'ئادەتتىكى';
+
+  @override
+  String get go => 'كەت';
+
+  @override
+  String get install => 'قاچىلاش';
+
+  @override
+  String get installed => 'قاچىلاندى';
+
+  @override
+  String get interval => 'ئارىلىق';
+
+  @override
+  String get name => 'ئىسمى';
+
+  @override
+  String get networking => 'تور';
+
+  @override
+  String get next => 'كېيىنكى';
+
+  @override
+  String get path => 'يول';
+
+  @override
+  String get paused => 'توختاپ قالدى';
+
+  @override
+  String get permissions => 'ئىجازەت';
+
+  @override
+  String get processing => 'بىر تەرەپ قىلىش';
+
+  @override
+  String get profile => 'ئارخىپ';
+
+  @override
+  String get provider => 'تەمىنلىگۈچى';
+
+  @override
+  String get refresh => 'يېڭىلاش';
+
+  @override
+  String get remote => 'يىراقتىن باشقۇرۇش';
+
+  @override
+  String get rename => 'ئىسىم ئۆزگەرتىش';
+
+  @override
+  String get revoke => 'بىكار قىلىش';
+
+  @override
+  String get role => 'رولى';
+
+  @override
+  String get root => 'يىلتىز';
+
+  @override
+  String get run => 'ئىجرا';
+
+  @override
+  String get search => 'ئىزدەش';
+
+  @override
+  String get select => 'تاللاڭ';
+
+  @override
+  String get send => 'ئەۋەتىڭ';
+
+  @override
+  String get sessions => 'يىغىن';
+
+  @override
+  String get set => 'Set';
+
+  @override
+  String get status => 'ھالەت';
+
+  @override
+  String get stop => 'توختىتىش';
+
+  @override
+  String get streaming => 'ئېقىم قويۇش';
+
+  @override
+  String get time => 'ۋاقىت';
+
+  @override
+  String get trickplay => 'Trickplay';
+
+  @override
+  String get uninstall => 'ئۆچۈرۈۋېتىڭ';
+
+  @override
+  String get up => 'Up';
+
+  @override
+  String get update => 'يېڭىلاش';
+
+  @override
+  String get upload => 'يۈكلەش';
+
+  @override
+  String get unmute => 'ئاۋازنى ئېچىش';
+
+  @override
+  String get mute => 'ئۈنسىز';
+
+  @override
+  String get branding => 'ماركا';
+
+  @override
+  String get adminDrawerDashboard => 'باش تاختا';
+
+  @override
+  String get adminDrawerAnalytics => 'ئىستاتىستىكا';
+
+  @override
+  String get adminDrawerSettings => 'تەڭشەك';
+
+  @override
+  String get adminDrawerBranding => 'ماركا';
+
+  @override
+  String get adminDrawerUsers => 'ئىشلەتكۈچى';
+
+  @override
+  String get adminDrawerLibraries => 'مېدىيا ئامبارلىرى';
+
+  @override
+  String get adminDrawerDisplay => 'كۆرسىتىش';
+
+  @override
+  String get adminDrawerMetadata => 'مېتا ئۇچۇر';
+
+  @override
+  String get adminDrawerNfo => 'NFO تەڭشەكلىرى';
+
+  @override
+  String get adminDrawerTranscoding => 'كود ئۆزگەرتىش';
+
+  @override
+  String get adminDrawerResume => 'داۋاملاشتۇرۇش';
+
+  @override
+  String get adminDrawerStreaming => 'ئېقىم قويۇش';
+
+  @override
+  String get adminDrawerTrickplay => 'Trickplay';
+
+  @override
+  String get adminDrawerDevices => 'ئۈسكۈنىلەر';
+
+  @override
+  String get adminDrawerActivity => 'پائالىيەت';
+
+  @override
+  String get adminDrawerNetworking => 'تور';
+
+  @override
+  String get adminDrawerApiKeys => 'API ئاچقۇچ';
+
+  @override
+  String get adminDrawerBackups => 'زاپاسلاش';
+
+  @override
+  String get adminDrawerLogs => 'خاتىرە';
+
+  @override
+  String get adminDrawerScheduledTasks => 'پىلانلانغان ۋەزىپە';
+
+  @override
+  String get adminDrawerPlugins => 'قىستۇرمىلار';
+
+  @override
+  String get adminDrawerRepositories => 'ئامبار';
+
+  @override
+  String get adminDrawerLiveTv => 'بىۋاسىتە تېلېۋىزىيە';
+
+  @override
+  String get adminExitTooltip => 'باشقۇرغۇچىدىن چېكىنىش';
+
+  @override
+  String get adminPremiereNoteLiveTv =>
+      'Live TV needs Emby Premiere. Without it the server doesn\'t import channels or record anything.';
+
+  @override
+  String get adminPremiereNoteBackups =>
+      'Backup & Restore needs Emby Premiere once its trial ends.';
+
+  @override
+  String get adminGeneralRunAtStartup => 'Run the server at startup';
+
+  @override
+  String get adminGeneralLaunchWebApp =>
+      'Open the web app in a browser when the server starts';
+
+  @override
+  String get adminGeneralBannerText => 'Home screen banner text';
+
+  @override
+  String get adminGeneralBannerTextHelp =>
+      'Shown to every user on their home screen';
+
+  @override
+  String get adminGeneralSectionMaintenance => 'Maintenance mode';
+
+  @override
+  String get adminGeneralMaintenanceMode =>
+      'Put the server into maintenance mode';
+
+  @override
+  String get adminGeneralMaintenanceModeHelp =>
+      'Users only see the maintenance message.';
+
+  @override
+  String get adminGeneralMaintenanceMessage => 'Maintenance message';
+
+  @override
+  String get adminGeneralMaintenanceMessageHelp =>
+      'Leave it blank for a general message in each user\'s language.';
+
+  @override
+  String get adminGeneralSectionUpdates => 'Automatic updates';
+
+  @override
+  String get adminGeneralAutoUpdate => 'Update the server automatically';
+
+  @override
+  String get adminGeneralAutoRestart =>
+      'Restart automatically to apply updates';
+
+  @override
+  String get adminGeneralAutoRestartHelp =>
+      'The server only restarts while no users are active.';
+
+  @override
+  String adminTaskTriggerSystemEvent(String event) {
+    return 'After a system event ($event)';
+  }
+
+  @override
+  String get adminPluginNeedsPremiere =>
+      'Needs Emby Premiere after a 14-day free trial';
+
+  @override
+  String get adminEmbyBackupsHelp =>
+      'Emby backs up through its Backup & Restore plugin.';
+
+  @override
+  String get adminEmbyBackupsNoPlugin =>
+      'The Backup & Restore plugin isn\'t installed. Install it from the plugin catalog to back up this server.';
+
+  @override
+  String get adminEmbyBackupNow => 'Back up now';
+
+  @override
+  String get adminEmbyFullBackup => 'Full backup';
+
+  @override
+  String get adminEmbyLightBackups => 'Database backups';
+
+  @override
+  String adminEmbyBackupServerVersion(String version) {
+    return 'Emby $version';
+  }
+
+  @override
+  String adminEmbyRestoreConfirm(String name) {
+    return 'Restore $name? It replaces this server\'s libraries, settings, users and passwords, and the server shuts down when it\'s done. You may need to start it again yourself.';
+  }
+
+  @override
+  String get adminEmbyRestoreServerId => 'Restore the server ID';
+
+  @override
+  String get adminEmbyRestoreServerIdHelp =>
+      'Turn this off when you restore the same backup onto more than one server.';
+
+  @override
+  String get adminEmbyRestoreShuttingDown =>
+      'The restore is done and the server is shutting down. Start it again if it doesn\'t restart by itself.';
+
+  @override
+  String get adminHiddenRemotely =>
+      'Hide from login screens when connected remotely';
+
+  @override
+  String get adminHiddenFromUnusedDevices =>
+      'Hide from login screens on devices they\'ve never signed in on';
+
+  @override
+  String get adminSimultaneousStreamLimitHelp =>
+      'Limits how many videos this user can play at once.';
+
+  @override
+  String get adminUnlimited => 'Unlimited';
+
+  @override
+  String get adminAutoRemoteQuality => 'Auto remote quality (Mbps)';
+
+  @override
+  String get adminAutoRemoteQualityHelp =>
+      'Used remotely when the player is set to auto quality. Leave empty to detect it.';
+
+  @override
+  String get adminAllowCameraUpload => 'Allow camera upload';
+
+  @override
+  String get adminAllowSubtitleDownloading => 'Allow subtitle downloading';
+
+  @override
+  String get adminAllowMediaConversion => 'Allow media conversion';
+
+  @override
+  String get adminAllowSyncTranscoding =>
+      'Allow downloads that need transcoding';
+
+  @override
+  String get adminAllowSharingPersonalItems =>
+      'Allow sharing playlists with other users';
+
+  @override
+  String get adminAllowPreferenceAccess =>
+      'Allow changing their own password and profile image';
+
+  @override
+  String get adminTagMode => 'Tag mode';
+
+  @override
+  String get adminEmbyConnect => 'Emby Connect';
+
+  @override
+  String get adminEmbyConnectUser => 'Emby Connect username or email';
+
+  @override
+  String get adminEmbyConnectHelp =>
+      'Lets this user sign in from any Emby app without knowing the server address.';
+
+  @override
+  String get adminEmbyConnectLink => 'Link';
+
+  @override
+  String get adminEmbyConnectUnlink => 'Unlink';
+
+  @override
+  String get adminEmbyConnectLinked => 'Linked to Emby Connect';
+
+  @override
+  String get adminEmbyConnectPending =>
+      'Invitation sent. The link is made once they accept it.';
+
+  @override
+  String get adminEmbyConnectUnlinked => 'Emby Connect link removed';
+
+  @override
+  String get adminEmbyConnectNotFound =>
+      'No Emby Connect account has that username or email.';
+
+  @override
+  String get adminLibImportPlaylists => 'Import playlist files';
+
+  @override
+  String get adminLibExcludeFromSearch => 'Exclude from global search';
+
+  @override
+  String get adminLibForcedSubtitlesOnly => 'Download forced subtitles only';
+
+  @override
+  String get adminLibImportCollections =>
+      'Import collections from metadata downloaders';
+
+  @override
+  String get adminLibThumbnailInterval => 'Preview thumbnail interval';
+
+  @override
+  String adminLibThumbnailEverySeconds(int count) {
+    return 'Every $count seconds';
+  }
+
+  @override
+  String get adminLibThumbnailAtChapters => 'At chapter markers';
+
+  @override
+  String get adminLibSaveThumbnailsWithMedia =>
+      'Save preview thumbnails into media folders';
+
+  @override
+  String get adminLibrarySectionMarkers => 'Intro markers';
+
+  @override
+  String get adminLibIntroDetection => 'Detect intros';
+
+  @override
+  String get adminLibIntroDetectionDuringScan =>
+      'Detect intros during the library scan';
+
+  @override
+  String get adminProviderEmbyGuide => 'Emby Guide Data';
+
+  @override
+  String get adminLiveTvEmbyGuideSelectLineup =>
+      'Select a lineup. If none are listed, check the postal code. Lineups need Emby Premiere.';
+
+  @override
+  String get adminLiveTvWakeServer => 'Wake the server for recordings';
+
+  @override
+  String get adminDrawerLiveTvChannels => 'Live TV Channels';
+
+  @override
+  String get adminPageDescLiveTvChannels =>
+      'Turn channels on and off and set their order';
+
+  @override
+  String get adminLiveTvChannelsEmpty =>
+      'No channels yet. They show up here once a tuner is set up and the server has imported its channels.';
+
+  @override
+  String get adminTranscodingHwaAdvanced => 'Advanced';
+
+  @override
+  String get adminTranscodingHwaHelp =>
+      'Advanced lets you pick and order the hardware codecs.';
+
+  @override
+  String get adminTranscodingHwDecoders => 'Preferred hardware decoders';
+
+  @override
+  String get adminTranscodingHwEncoders => 'Preferred hardware encoders';
+
+  @override
+  String get adminTranscodingTempPathHelp =>
+      'Where the transcoder keeps its working files. Leave it empty to use the server\'s data folder.';
+
+  @override
+  String get adminTranscodingThrottleHelp =>
+      'Slows transcoding down once enough is buffered, to lower CPU use.';
+
+  @override
+  String get adminTranscodingDownmixHelp =>
+      'Raises the volume when audio is downmixed. 1 keeps the original volume.';
+
+  @override
+  String get adminTranscodingFontExtraction =>
+      'Allow font extraction on the fly';
+
+  @override
+  String get adminTranscodingMaxResolution => 'Max transcoding resolution';
+
+  @override
+  String get adminTranscodingMaxResolutionHelp =>
+      'A limit on every transcode, whatever quality the app asks for.';
+
+  @override
+  String get adminTranscodingToneMapSoftware =>
+      'Tone mapping in software transcodes';
+
+  @override
+  String get adminTranscodingToneMapHardware =>
+      'Tone mapping in hardware transcodes';
+
+  @override
+  String get adminTranscodingToneMapHelp =>
+      'Keeps HDR video from looking dim and washed out when it\'s transcoded.';
+
+  @override
+  String get adminNetworkingLocalAddress => 'Local IP address';
+
+  @override
+  String get adminNetworkingLocalAddressHelp =>
+      'The local address the server gives to apps. Leave it empty to detect it automatically.';
+
+  @override
+  String get adminNetworkingBehindProxy =>
+      'HTTPS is handled by a reverse proxy';
+
+  @override
+  String get adminNetworkingExternalDomain => 'External domain';
+
+  @override
+  String get adminNetworkingExternalDomainHelp =>
+      'A domain or dynamic DNS name for remote connections, without the protocol or port. A custom certificate needs it.';
+
+  @override
+  String get adminNetworkingUpnp => 'Enable automatic port mapping';
+
+  @override
+  String get adminNetworkingUpnpHelp =>
+      'Tries to map the public port to the local port with UPnP. Some routers don\'t support it.';
+
+  @override
+  String get adminNetworkingProxyHeaders =>
+      'Read proxy headers for client addresses';
+
+  @override
+  String get adminNetworkingProxyHeadersHelp =>
+      'Uses headers like X-Forwarded-For to find each client\'s address. Only turn this on behind a reverse proxy.';
+
+  @override
+  String get adminNetworkingProxyHeadersRemote =>
+      'Only when they hold remote addresses';
+
+  @override
+  String get adminNetworkingIpv4Only => 'Use IPv4 for outgoing requests';
+
+  @override
+  String get adminNetworkingIpv4OnlyHelp =>
+      'For when metadata providers and other services can\'t be reached over IPv6.';
+
+  @override
+  String get adminOnePerLine => 'One per line';
+
+  @override
+  String get adminStreamingStreamLimit => 'Max simultaneous video streams';
+
+  @override
+  String get adminStreamingStreamLimitHelp =>
+      'How many videos can play at once across the server. 0 means no limit.';
+
+  @override
+  String get adminSyncJobsConversions => 'Conversion jobs';
+
+  @override
+  String get adminSyncJobsDownloads => 'Download jobs';
+
+  @override
+  String get adminSyncJobsEmpty => 'No jobs';
+
+  @override
+  String get adminSyncJobCancel => 'Cancel job';
+
+  @override
+  String adminSyncJobCancelConfirm(String name) {
+    return 'Cancel $name and remove it from the list?';
+  }
+
+  @override
+  String get adminSyncJobConverting => 'Converting';
+
+  @override
+  String get adminSyncJobReady => 'Ready to transfer';
+
+  @override
+  String get adminSyncJobTransferring => 'Transferring';
+
+  @override
+  String get adminSyncJobCompletedWithError => 'Completed with errors';
+
+  @override
+  String adminSyncJobItemCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count items',
+      one: '1 item',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get adminDrawerDatabase => 'Database';
+
+  @override
+  String get adminPageDescDatabase => 'Cache size and upkeep';
+
+  @override
+  String get adminDatabaseWarning =>
+      'These are advanced options. Leave them at their defaults unless you have a reason to change them.';
+
+  @override
+  String get adminDatabaseCacheSize => 'Database cache size (MB)';
+
+  @override
+  String get adminDatabaseCacheSizeHelp =>
+      'How much of each database file the server keeps in memory. More can make the server faster. Takes effect after a restart.';
+
+  @override
+  String get adminDatabaseOptimize =>
+      'Optimize the database when the server shuts down';
+
+  @override
+  String get adminDatabaseOptimizeHelp =>
+      'Usually this does nothing, but now and then it runs an analysis that helps the server\'s queries. Shutdowns can take longer.';
+
+  @override
+  String get adminDatabaseAnalysisLimit => 'Analysis row limit';
+
+  @override
+  String get adminDatabaseAnalysisLimitHelp =>
+      'About how many rows of each index the optimize step reads. More rows work better but can slow shutdowns.';
+
+  @override
+  String get adminDatabaseVacuum => 'Vacuum the database on the next startup';
+
+  @override
+  String get adminDatabaseVacuumHelp =>
+      'Rebuilds the database file so it takes up the least space, which can help performance. The server can\'t be used while it runs and shows no progress, so don\'t force it closed. It turns itself back off after that startup.';
+
+  @override
+  String get adminDrawerCinemaIntros => 'Cinema Intros';
+
+  @override
+  String get adminPageDescCinemaIntros => 'Trailers and intros before playback';
+
+  @override
+  String get adminCinemaIntrosPlayBefore => 'Play intros before';
+
+  @override
+  String get adminCinemaIntrosUpcoming =>
+      'Include trailers from new and upcoming movies';
+
+  @override
+  String get adminCinemaIntrosOlder => 'Include trailers from older movies';
+
+  @override
+  String get adminCinemaIntrosLibrary =>
+      'Include trailers from movies in my libraries';
+
+  @override
+  String get adminCinemaIntrosLibraryHelp => 'Needs local trailers set up.';
+
+  @override
+  String get adminCinemaIntrosCount => 'Number of trailers to play';
+
+  @override
+  String get adminCinemaIntrosParental => 'Smart parental control';
+
+  @override
+  String get adminCinemaIntrosParentalHelp =>
+      'Only picks trailers rated the same as or lower than what\'s being watched.';
+
+  @override
+  String get adminCinemaIntrosUnwatchedOnly =>
+      'Only play intros before unwatched content';
+
+  @override
+  String get adminCinemaIntrosSimilarOnly =>
+      'Only play trailers similar to what\'s being watched';
+
+  @override
+  String get adminCinemaIntrosSimilarOnlyHelp =>
+      'Based on shared genres, tags, studios and so on.';
+
+  @override
+  String get adminCinemaIntrosCustom => 'Custom intros';
+
+  @override
+  String get adminCinemaIntrosCustomPath => 'Custom intros folder';
+
+  @override
+  String get adminCinemaIntrosCustomPathHelp =>
+      'A folder of videos. One is picked at random and plays after the trailers.';
+
+  @override
+  String get adminCinemaIntrosCodecPath => 'Codec intros folder';
+
+  @override
+  String get adminCinemaIntrosCodecPathHelp =>
+      'A folder of videos. One whose file name matches the video codec, audio codec, audio profile or a tag plays before the main feature.';
+
+  @override
+  String get adminDrawerDlna => 'DLNA';
+
+  @override
+  String get adminPageDescDlna => 'Play To and the DLNA server';
+
+  @override
+  String get adminDlnaPlayTo => 'Enable DLNA Play To';
+
+  @override
+  String get adminDlnaPlayToHelp =>
+      'Emby can find devices on your network and control them remotely.';
+
+  @override
+  String get adminDlnaServer => 'Enable the DLNA server';
+
+  @override
+  String get adminDlnaServerHelp =>
+      'Lets the server stream media to DLNA devices.';
+
+  @override
+  String get adminDlnaDefaultUser => 'Default user';
+
+  @override
+  String get adminDlnaDefaultUserHelp =>
+      'Whose libraries connected devices see. A device profile can override it.';
+
+  @override
+  String get adminDlnaDebugLog => 'Enable DLNA debug logging';
+
+  @override
+  String get adminDlnaDebugLogHelp =>
+      'Makes large log files. Only turn it on while troubleshooting.';
+
+  @override
+  String get adminDrawerCameraUpload => 'Camera Upload';
+
+  @override
+  String get adminPageDescCameraUpload => 'Where photos from phones are saved';
+
+  @override
+  String get adminCameraUploadPath => 'Camera upload folder';
+
+  @override
+  String get adminCameraUploadPathHelp =>
+      'Leave it blank to use the default folder. A custom folder also has to be added as a library.';
+
+  @override
+  String get adminCameraUploadSubfolders => 'Make a subfolder for each device';
+
+  @override
+  String get adminDrawerConversions => 'Conversions';
+
+  @override
+  String get adminPageDescConversions => 'Converted media and downloads';
+
+  @override
+  String get adminConversionsTempPath => 'Temporary file folder';
+
+  @override
+  String get adminConversionsTempPathHelp =>
+      'Where media is kept while it\'s being converted.';
+
+  @override
+  String get adminConversionsFullSpeed => 'Convert at full speed';
+
+  @override
+  String get adminConversionsFullSpeedHelp =>
+      'Conversions run slowly by default to keep the load down.';
+
+  @override
+  String get adminDrawerPremiere => 'Emby Premiere';
+
+  @override
+  String get adminPageDescPremiere => 'License status and key';
+
+  @override
+  String get adminPremiereActive => 'Premiere is active on this server.';
+
+  @override
+  String get adminPremiereInactive => 'This server has no Premiere key.';
+
+  @override
+  String get adminPremiereKeyInvalid =>
+      'A key is set but isn\'t active. It may be mistyped or expired.';
+
+  @override
+  String get adminPremiereCurrentKey => 'Current key';
+
+  @override
+  String get adminPremiereNewKey => 'New key';
+
+  @override
+  String get adminPremiereNewKeyHint =>
+      'Paste the key from your Emby Premiere email.';
+
+  @override
+  String get adminPremiereSaveKey => 'Save key';
+
+  @override
+  String get adminPremiereRemoveKey => 'Remove key';
+
+  @override
+  String get adminPremiereKeyRejected =>
+      'Emby saved the key but didn\'t accept it.';
+
+  @override
+  String get adminPremiereLoadFailed => 'Couldn\'t load the Premiere status';
+
+  @override
+  String get embyPremiereRequiredTitle => 'Emby Premiere required';
+
+  @override
+  String get embyPremiereRequiredBody =>
+      'This needs an active Emby Premiere subscription on the server.';
+
+  @override
+  String get embyPremiereRequiredSaveBody =>
+      'This needs an active Emby Premiere subscription. Emby keeps the setting but won\'t use it until Premiere is active.';
+
+  @override
+  String get embyPremiereLearnMore => 'Learn more';
+
+  @override
+  String get embyPremiereSaveAnyway => 'Save anyway';
+
+  @override
+  String get embyPremiereEnterKey => 'Enter key';
+
+  @override
+  String get adminPremiereNote =>
+      'Needs Emby Premiere. The server keeps this setting but won\'t use it until Premiere is active.';
+
+  @override
+  String adminExternalIdLabel(String name) {
+    return '$name Id';
+  }
+
+  @override
+  String get adminExternalIdTypePerson => 'Person';
+
+  @override
+  String get adminExternalIdTypeArtist => 'Artist';
+
+  @override
+  String get adminExternalIdTypeAlbumArtist => 'Album Artist';
+
+  @override
+  String get adminExternalIdTypeOtherArtist => 'Other Artist';
+
+  @override
+  String get adminExternalIdTypeReleaseGroup => 'Release Group';
+
+  @override
+  String get adminExternalIdTypeBook => 'Book';
+
+  @override
+  String get adminPlaybackHwAccelWarning =>
+      'Hardware acceleration can be unstable on some systems. Keep the operating system and video drivers up to date, and set this back to None if video stops playing.';
+
+  @override
+  String get adminLibMetadataChangeHelp =>
+      'Changes to metadata settings apply to new content. To update existing content, refresh it from its detail page or refresh the library.';
+
+  @override
+  String get adminLibFetcherSettings => 'Fetcher settings';
+
+  @override
+  String adminLibImageOptionsTitle(String type) {
+    return 'Image options for $type';
+  }
+
+  @override
+  String get adminLibFetchImages => 'Fetch images';
+
+  @override
+  String get adminLibMaxBackdrops => 'Maximum number of backdrops per item';
+
+  @override
+  String get adminLibMinBackdropWidth => 'Minimum backdrop download width';
+
+  @override
+  String get adminImageTypeArt => 'Clearart';
+
+  @override
+  String get adminImageTypeBox => 'Box';
+
+  @override
+  String get adminImageTypeBoxRear => 'Box (back)';
+
+  @override
+  String get adminImageTypeDisc => 'Disc';
+
+  @override
+  String get adminImageTypeMenu => 'Menu';
+
+  @override
+  String get adminActivityMediaDetails => 'Media details';
+
+  @override
+  String get adminNetworkingOtherPublishedUriHint =>
+      'e.g. 192.168.1.0/24=http://192.168.1.5:8096';
+
+  @override
+  String get adminMetadataFieldOriginalLanguage => 'Original language';
+
+  @override
+  String get adminMetadataFieldDateAdded => 'Date added';
+
+  @override
+  String get adminMetadataFieldArtists => 'Artists';
+
+  @override
+  String get adminMetadataFieldAlbumArtists => 'Album artists';
+
+  @override
+  String get adminMetadataFieldAlbum => 'Album';
+
+  @override
+  String get adminMetadataFieldSeriesName => 'Series name';
+
+  @override
+  String get adminMetadataFieldEpisodeNumber => 'Episode number';
+
+  @override
+  String get adminMetadataFieldSeasonNumber => 'Season number';
+
+  @override
+  String get adminMetadataFieldTrackNumber => 'Track number';
+
+  @override
+  String get adminMetadataFieldDiscNumber => 'Disc number';
+
+  @override
+  String get adminMetadataFieldAirTime => 'Air time';
+
+  @override
+  String get adminMetadataFieldRuntime => 'Runtime in minutes';
+
+  @override
+  String get adminMetadataFieldPlaceOfBirth => 'Place of birth';
+
+  @override
+  String get adminMetadataFieldBirthDate => 'Birth date';
+
+  @override
+  String get adminMetadataFieldBirthYear => 'Birth year';
+
+  @override
+  String get adminMetadataFieldDeathDate => 'Death date';
+
+  @override
+  String get adminMetadataFieldAspectRatio => 'Original aspect ratio';
+
+  @override
+  String get adminMetadataFieldAirsBeforeSeason => 'Airs before season';
+
+  @override
+  String get adminMetadataFieldAirsAfterSeason => 'Airs after season';
+
+  @override
+  String get adminMetadataFieldAirsBeforeEpisode => 'Airs before episode';
+
+  @override
+  String get adminMetadataNamesHelp =>
+      'Separate several names with a semicolon.';
+
+  @override
+  String get adminMetadataSectionRatings => 'Ratings';
+
+  @override
+  String get adminMetadataItemLocked =>
+      'This item\'s metadata is locked. Unlock it before you identify it.';
+
+  @override
+  String get adminMetadataNameOrIdRequired => 'Enter a name or an external ID.';
+
+  @override
+  String get adminLibMetadataReaders => 'Metadata readers';
+
+  @override
+  String adminLibSimilarProvidersFor(String type) {
+    return 'Similar item providers: $type';
+  }
+
+  @override
+  String get adminLibMediaSegmentProviders => 'Media segment providers';
+
+  @override
+  String get adminLibEnableLibrary => 'Enable the library';
+
+  @override
+  String get adminLibEnableLibraryHelp =>
+      'Disabling the library hides it from all user views.';
+
+  @override
+  String get adminLibSaveLyricsWithMedia => 'Save lyrics into media folders';
+
+  @override
+  String get adminLibUseCustomTagDelimiters => 'Use custom tag delimiter';
+
+  @override
+  String get adminLibCustomTagDelimiters => 'Custom tag delimiter';
+
+  @override
+  String get adminLibCustomTagDelimitersHelp =>
+      'Characters to treat as delimiters that separate tags.';
+
+  @override
+  String get adminLibDelimiterWhitelist => 'Delimiter whitelist';
+
+  @override
+  String get adminLibDelimiterWhitelistHelp =>
+      'Items to leave out of tag splitting, one per line.';
+
+  @override
+  String get adminLibDownloadLanguages => 'Download languages';
+
+  @override
+  String get adminLibraryFolderRequired =>
+      'Add at least one folder to this library.';
+
+  @override
+  String get adminRenameLibraryWarning =>
+      'Renaming a library loses all of its metadata. Proceed with caution.';
+
+  @override
+  String adminDeleteLibraryConfirm(String name) {
+    return 'Remove the library \"$name\"? Files on disk are not deleted.';
+  }
+
+  @override
+  String get adminDeleteLibraryLocations =>
+      'These media locations will be removed from the library:';
+
+  @override
+  String get adminRefreshMode => 'Refresh mode';
+
+  @override
+  String get adminRefreshModeScan => 'Scan for new and updated files';
+
+  @override
+  String get adminRefreshModeMissing => 'Search for missing metadata';
+
+  @override
+  String get adminReplaceTrickplayImages => 'Replace existing trickplay images';
+
+  @override
+  String get adminRefreshDialogHelp =>
+      'Metadata is refreshed based on the settings and internet services enabled in the dashboard.';
+
+  @override
+  String adminActivityCount(String shown, String total) {
+    return '$shown of $total';
+  }
+
+  @override
+  String get adminLiveTvTabSources => 'Tuners and guide';
+
+  @override
+  String get adminLiveTvTabRecordings => 'Recordings';
+
+  @override
+  String get adminLiveTvAddTuner => 'Add tuner device';
+
+  @override
+  String get adminLiveTvEditTuner => 'Edit tuner device';
+
+  @override
+  String get adminLiveTvTunerType => 'Tuner type';
+
+  @override
+  String get adminLiveTvDetectDevices => 'Detect my devices';
+
+  @override
+  String get adminLiveTvNoNewDevices => 'No new devices found';
+
+  @override
+  String get adminLiveTvDrmNote => 'Channels with DRM will not be imported.';
+
+  @override
+  String get adminLiveTvTunerSaved => 'Tuner saved';
+
+  @override
+  String get adminLiveTvDeleteTuner => 'Delete tuner device';
+
+  @override
+  String get adminLiveTvDeleteTunerConfirm =>
+      'Are you sure you want to delete this tuner device?';
+
+  @override
+  String get adminLiveTvDeleteProvider => 'Delete guide provider';
+
+  @override
+  String get adminLiveTvDeleteProviderConfirm =>
+      'Are you sure you want to delete this guide provider?';
+
+  @override
+  String get adminLiveTvProviderSaved => 'Guide provider saved';
+
+  @override
+  String get adminLiveTvAddProvider => 'Add provider';
+
+  @override
+  String get adminLiveTvRefreshGuide => 'Refresh guide data';
+
+  @override
+  String get adminLiveTvMapChannels => 'Map channels';
+
+  @override
+  String get adminLiveTvNoTunerChannels => 'No tuner channels found';
+
+  @override
+  String get adminLiveTvXmltvPathHelp =>
+      'A path or URL to an XMLTV file. The server reads it and checks it for updates. You are responsible for creating and updating the file.';
+
+  @override
+  String adminLiveTvSdCreateAccount(String url) {
+    return 'Create an account at $url';
+  }
+
+  @override
+  String get adminLiveTvSdSignIn => 'Sign in';
+
+  @override
+  String get adminLiveTvSdLineup => 'Lineup';
+
+  @override
+  String get adminLiveTvSdSelectLineup =>
+      'Select a lineup. If none are listed, check your username, password and postal code.';
+
+  @override
+  String get adminLiveTvGuideDays => 'Number of days of guide data to download';
+
+  @override
+  String get adminLiveTvGuideDaysHelp =>
+      'More days let you schedule further ahead and see more listings, but the download takes longer. Automatic picks a value from the number of channels.';
+
+  @override
+  String get adminLiveTvRecordingPath => 'Default recording path';
+
+  @override
+  String get adminLiveTvRecordingPathHelp =>
+      'Where recordings are saved. If empty, the server\'s program data folder is used.';
+
+  @override
+  String get adminLiveTvStartWhenPossible => 'Start when possible';
+
+  @override
+  String get adminLiveTvStopWhenPossible => 'Stop when possible';
+
+  @override
+  String get adminLiveTvMinutesBefore => 'minutes before';
+
+  @override
+  String get adminLiveTvMinutesAfter => 'minutes after';
+
+  @override
+  String get adminLiveTvSectionGuide => 'Guide data';
+
+  @override
+  String get adminLiveTvSectionDefaultRecording => 'Default recording settings';
+
+  @override
+  String get adminLiveTvSectionMetadata => 'Recording metadata';
+
+  @override
+  String adminUserLastActivity(String time) {
+    return 'Last activity $time';
+  }
+
+  @override
+  String get adminCurrentPassword => 'Current password';
+
+  @override
+  String get adminChannelAccess => 'Channel access';
+
+  @override
+  String get adminDeviceAccess => 'Device access';
+
+  @override
+  String get adminDeleteFromAllLibraries => 'All libraries';
+
+  @override
+  String get adminUserDisabledBanner =>
+      'This user is disabled. Turn off Disabled under Permissions to let them sign in again.';
+
+  @override
+  String get adminNewPasswordEmpty => 'New password cannot be empty';
+
+  @override
+  String get adminScheduleStartBeforeEnd =>
+      'The start time must be before the end time';
+
+  @override
+  String get adminDashboardAlerts => 'Alerts';
+
+  @override
+  String get adminSessionGoHome => 'Go to home screen';
+
+  @override
+  String get adminPlayMethodRemux => 'Remuxing';
+
+  @override
+  String get adminPlayMethodDirectStream => 'Direct streaming';
+
+  @override
+  String get adminPlayMethodDirectPlay => 'Direct playing';
+
+  @override
+  String get adminLogLevelTrace => 'Trace';
+
+  @override
+  String get adminLogLevelDebug => 'Debug';
+
+  @override
+  String get adminLogLevelInformation => 'Information';
+
+  @override
+  String get adminLogLevelWarning => 'Warning';
+
+  @override
+  String get adminLogLevelError => 'Error';
+
+  @override
+  String get adminLogLevelCritical => 'Critical';
+
+  @override
+  String get adminLogLevelNone => 'None';
+
+  @override
+  String get adminActivityAllUsers => 'All users';
+
+  @override
+  String adminTaskLastRan(String time, String duration) {
+    return 'Last ran $time, taking $duration.';
+  }
+
+  @override
+  String get adminTaskResultFailed => 'Failed';
+
+  @override
+  String get adminTaskResultCancelled => 'Cancelled';
+
+  @override
+  String get adminTaskResultAborted => 'Aborted by server shutdown';
+
+  @override
+  String adminDurationSecondsShort(String seconds) {
+    return '${seconds}s';
+  }
+
+  @override
+  String get adminDeleteTaskTrigger => 'Delete task trigger';
+
+  @override
+  String get adminDeleteTaskTriggerConfirm =>
+      'Are you sure you want to delete this task trigger?';
+
+  @override
+  String adminTaskTriggerEveryMinutes(String minutes) {
+    return 'Every $minutes minutes';
+  }
+
+  @override
+  String adminTaskTriggerEveryHours(String hours) {
+    return 'Every $hours hours';
+  }
+
+  @override
+  String adminTaskMinutesValue(String minutes) {
+    return '$minutes minutes';
+  }
+
+  @override
+  String adminTaskHoursValue(String hours) {
+    return '$hours hours';
+  }
+
+  @override
+  String get adminTimeLimitHours => 'Time limit (hours)';
+
+  @override
+  String get adminTranscodingDecodingFor => 'Enable hardware decoding for';
+
+  @override
+  String get adminTranscodingThreadCountHelp =>
+      'The most threads a transcode can use. Fewer threads lower CPU use but may be too slow for smooth playback.';
+
+  @override
+  String get adminTranscodingThreadMax => 'Max';
+
+  @override
+  String get adminTranscodingFfmpegPath => 'FFmpeg path';
+
+  @override
+  String get adminTranscodingFfmpegPathHelp =>
+      'The FFmpeg the server runs. It is set on the server, not here.';
+
+  @override
+  String get adminTranscodingAudioSeek => 'Audio seek strategy';
+
+  @override
+  String get adminTranscodingAudioSeekHelp =>
+      'How the server handles audio when you seek in an HLS stream.';
+
+  @override
+  String get adminTranscodingTrimCopiedAudio => 'Trim copied audio';
+
+  @override
+  String get adminTranscodingTranscodeAudio => 'Transcode audio';
+
+  @override
+  String get adminResumeMinAudiobookMinutes =>
+      'Minimum audiobook resume (minutes)';
+
+  @override
+  String get adminResumeMinAudiobookHelp =>
+      'Audiobooks stopped before this time count as unplayed.';
+
+  @override
+  String get adminResumeAudiobookRemaining =>
+      'Audiobook remaining minutes to resume';
+
+  @override
+  String get adminResumeAudiobookRemainingHelp =>
+      'Audiobooks stopped with less than this many minutes left count as played.';
+
+  @override
+  String get adminBrandingSplashSection => 'Splash screen';
+
+  @override
+  String get adminBrandingSectionWebClient => 'Web client';
+
+  @override
+  String get adminBrandingSplashSizeHint =>
+      'Custom images should be in a 16x9 aspect ratio at a minimum size of 1920x1080.';
+
+  @override
+  String get adminNetworkingSectionServerAddress => 'Server address settings';
+
+  @override
+  String get adminNetworkingSectionHttps => 'HTTPS settings';
+
+  @override
+  String get adminNetworkingSectionRemoteAccess => 'Remote access settings';
+
+  @override
+  String get adminNetworkingSectionIpProtocols => 'IP protocols';
+
+  @override
+  String get adminNetworkingSectionDiscovery => 'Network discovery';
+
+  @override
+  String get adminNetworkingSectionFirewall => 'Firewall and proxy settings';
+
+  @override
+  String get adminNetworkingLocalHttpPort => 'Local HTTP port number';
+
+  @override
+  String get adminNetworkingLocalHttpPortHelp =>
+      'The TCP port number for the HTTP server.';
+
+  @override
+  String get adminNetworkingEnableHttpsHelp =>
+      'Listen on the HTTPS port. A valid certificate must also be set for this to take effect.';
+
+  @override
+  String get adminNetworkingLocalHttpsPort => 'Local HTTPS port number';
+
+  @override
+  String get adminNetworkingLocalHttpsPortHelp =>
+      'The TCP port number for the HTTPS server.';
+
+  @override
+  String get adminNetworkingBaseUrlHelp =>
+      'Adds a subdirectory to the server URL, for example https://example.com/jellyfin.';
+
+  @override
+  String get adminNetworkingBindAddress => 'Bind to local network address';
+
+  @override
+  String get adminNetworkingBindAddressHelp =>
+      'Overrides the local IP address of the HTTP server. Leave it empty to bind to all addresses. A change needs a restart.';
+
+  @override
+  String get adminNetworkingLanNetworksHelp =>
+      'IP addresses or IP/netmask entries of networks treated as local for bandwidth and remote access limits. Leave it empty to treat all RFC1918 addresses as local.';
+
+  @override
+  String get adminNetworkingKnownProxiesHelp =>
+      'IP addresses or host names of the proxies in front of this server. Needed to read X-Forwarded-For headers. A change needs a restart.';
+
+  @override
+  String get adminNetworkingCustomCertPath => 'Custom SSL certificate path';
+
+  @override
+  String get adminNetworkingCertPathHelp =>
+      'Path to a PKCS #12 file with a certificate and private key, for TLS on a custom domain.';
+
+  @override
+  String get adminNetworkingCertPasswordHelp =>
+      'Enter the password if your certificate needs one.';
+
+  @override
+  String get adminNetworkingAllowRemote =>
+      'Allow remote connections to this server';
+
+  @override
+  String get adminNetworkingAllowRemoteHelp =>
+      'When off, all remote connections are blocked.';
+
+  @override
+  String get adminNetworkingRemoteIpFilterHelp =>
+      'IP addresses or IP/netmask entries of remote networks. Leave it empty to allow every remote address.';
+
+  @override
+  String get adminNetworkingRemoteIpFilterMode =>
+      'Remote IP address filter mode';
+
+  @override
+  String get adminNetworkingPublicHttpPortHelp =>
+      'The public port mapped to the local HTTP port.';
+
+  @override
+  String get adminNetworkingPublicHttpsPortHelp =>
+      'The public port mapped to the local HTTPS port.';
+
+  @override
+  String get adminNetworkingAutoDiscoveryLabel => 'Enable auto discovery';
+
+  @override
+  String get adminNetworkingAutoDiscoveryHelp =>
+      'Lets apps find this server on UDP port 7359.';
+
+  @override
+  String get adminNetworkingSamePublishedUri =>
+      'Use the same published server URI for internal and external access';
+
+  @override
+  String get adminNetworkingPublishedUri => 'Published server URI';
+
+  @override
+  String get adminNetworkingPublishedUriHelp =>
+      'Overrides the URI the server gives out, based on the interface or the client IP address.';
+
+  @override
+  String get adminNetworkingInternalUri => 'Internal URI';
+
+  @override
+  String get adminNetworkingInternalUriHelp =>
+      'Published server URI for internal access.';
+
+  @override
+  String get adminNetworkingExternalUri => 'External URI';
+
+  @override
+  String get adminNetworkingExternalUriHelp =>
+      'Published server URI for external access.';
+
+  @override
+  String get adminNetworkingOtherPublishedUris => 'Other published URIs';
+
+  @override
+  String get adminNetworkingOtherPublishedUrisHelp =>
+      'URIs for one subnet or interface, written as subnet=URI.';
+
+  @override
+  String get adminBackupsHelp =>
+      'Create and restore snapshots of your server. They can include the database, metadata, subtitles and trickplay images.';
+
+  @override
+  String get adminBackupDisclaimer =>
+      'Depending on the size of your library, the backup can take a while.';
+
+  @override
+  String get adminBackupTasksWarningTitle => 'Scheduled tasks are running';
+
+  @override
+  String get adminBackupTasksWarning =>
+      'Stop these tasks or wait for them to finish before you create a backup.';
+
+  @override
+  String get adminBackupArchiveNotFound =>
+      'The server could not find this backup archive.';
+
+  @override
+  String get adminRestoreInProgress => 'Restore in progress';
+
+  @override
+  String get adminRestoreWaitingForServer =>
+      'Waiting for the server to come back.';
+
+  @override
+  String get adminRestoreSucceeded => 'Restore completed';
+
+  @override
+  String get adminLogWatch => 'Watch';
+
+  @override
+  String get adminLogStopWatching => 'Stop watching';
+
+  @override
+  String get adminPluginInstallConfirmTitle => 'Confirm plugin installation';
+
+  @override
+  String get adminPluginInstallDisclaimer =>
+      'Installing a third party plugin carries risks. It may contain unstable or malicious code, and it can change at any time. Only install plugins from authors you trust, and know what they can do, such as query outside services, slow down library scans or add background work.';
+
+  @override
+  String get adminGroupOverview => 'Overview';
+
+  @override
+  String get adminGroupLibrary => 'Library';
+
+  @override
+  String get adminGroupPlayback => 'Playback';
+
+  @override
+  String get adminGroupPeople => 'People';
+
+  @override
+  String get adminGroupSystem => 'System';
+
+  @override
+  String get adminAreasLabel => 'Admin areas';
+
+  @override
+  String get adminPagesLabel => 'Pages';
+
+  @override
+  String get adminPageDescDashboard =>
+      'Server health, sessions and recent activity';
+
+  @override
+  String get adminPageDescAnalytics => 'Library sizes, codecs and formats';
+
+  @override
+  String get adminPageDescActivity => 'Everything that happened on the server';
+
+  @override
+  String get adminPageDescTasks => 'Scans, cleanups and their triggers';
+
+  @override
+  String get adminPageDescLibraries =>
+      'Folders, scanners and metadata fetchers';
+
+  @override
+  String get adminPageDescDisplay => 'How libraries show to users';
+
+  @override
+  String get adminPageDescMetadata => 'Default language, country and images';
+
+  @override
+  String get adminPageDescNfo => 'Kodi NFO reading and saving';
+
+  @override
+  String get adminPageDescLiveTv => 'Tuners, guide data and recordings';
+
+  @override
+  String get adminPageDescTranscoding =>
+      'Hardware acceleration, encoders, tone mapping';
+
+  @override
+  String get adminPageDescResume => 'When items count as started or played';
+
+  @override
+  String get adminPageDescStreaming => 'Remote bitrate limit';
+
+  @override
+  String get adminPageDescTrickplay => 'Seek preview thumbnails';
+
+  @override
+  String get adminPageDescUsers => 'Accounts, access and parental control';
+
+  @override
+  String get adminPageDescDevices => 'Signed in devices and their names';
+
+  @override
+  String get adminPageDescApiKeys => 'Keys for apps and scripts';
+
+  @override
+  String get adminPageDescSettings =>
+      'Server name, language, paths, performance';
+
+  @override
+  String get adminPageDescBranding =>
+      'Login message, custom CSS, splash screen';
+
+  @override
+  String get adminPageDescNetworking => 'Ports, HTTPS, LAN and remote access';
+
+  @override
+  String get adminPageDescPlugins => 'Installed plugins and the catalog';
+
+  @override
+  String get adminPageDescRepositories => 'Where plugins come from';
+
+  @override
+  String get adminPageDescBackups => 'Create and restore server backups';
+
+  @override
+  String get adminPageDescLogs => 'Server log files';
+
+  @override
+  String adminSearchSettingsHint(int count) {
+    return 'Search $count settings';
+  }
+
+  @override
+  String get adminSearchNoResults => 'No settings match';
+
+  @override
+  String get adminSearchClear => 'Clear search';
+
+  @override
+  String get adminUnsavedChanges => 'Unsaved changes';
+
+  @override
+  String get adminDiscard => 'Discard';
+
+  @override
+  String get adminLeaveTitle => 'Discard unsaved changes?';
+
+  @override
+  String get adminLeaveMessage =>
+      'The changes on this page haven\'t been saved yet.';
+
+  @override
+  String get adminKeepEditing => 'Keep editing';
+
+  @override
+  String get adminDashboardLoadFailed => 'باشقۇرۇش تاختىسىنى يۈكلىيەلمىدى';
+
+  @override
+  String get adminMediaOverview => 'مېدىيا ئومۇمىي كۆرۈنۈشى';
+
+  @override
+  String get adminMediaTotalsError =>
+      'مۇلازىمېتىر مېدىيا ئومۇمىي مىقدارىنى يۈكلىيەلمىدى.';
+
+  @override
+  String get adminMediaOverviewSubtitle =>
+      'بۇ مۇلازىمېتىردا قانچىلىك مەزمۇن بارلىقىنى تېز ئوقۇڭ.';
+
+  @override
+  String adminPluginUpdatesAvailable(int count) {
+    return 'يېڭىلانمىسى بار قىستۇرمىلار: $count';
+  }
+
+  @override
+  String adminPluginsRequiringRestart(int count) {
+    return 'قايتا قوزغىتىش كېرەك قىستۇرمىلار: $count';
+  }
+
+  @override
+  String adminFailedScheduledTasks(int count) {
+    return 'مەغلۇپ بولغان پىلانلىق ۋەزىپىلەر: $count';
+  }
+
+  @override
+  String get analyticsMediaDistribution => 'مېدىيا تەقسىماتى';
+
+  @override
+  String get analyticsVideoCodecs => 'سىن كودېكلىرى';
+
+  @override
+  String get analyticsAudioCodecs => 'ئاۋاز كودېكلىرى';
+
+  @override
+  String get analyticsContainers => 'كونتېينېر';
+
+  @override
+  String get analyticsTopGenres => 'ئالدىنقى ژانىرلار';
+
+  @override
+  String get analyticsReleaseYears => 'يىللارنى قويۇپ بېرىش';
+
+  @override
+  String get analyticsContentRatings => 'مەزمۇن دەرىجىسى';
+
+  @override
+  String get analyticsRuntimeBuckets => 'ئۇزۇنلۇق ئارىلىقلىرى';
+
+  @override
+  String get analyticsFileFormats => 'ھۆججەت فورماتى';
+
+  @override
+  String get analyticsNoData => 'سانلىق مەلۇمات يوق.';
+
+  @override
+  String get adminServerInfo => 'مۇلازىمېتىر ئۇچۇرى';
+
+  @override
+  String get adminRestartPending => 'ساقلىنىۋاتىدۇ';
+
+  @override
+  String get adminServerPaths => 'مۇلازىمېتىر يوللىرى';
+
+  @override
+  String get adminServerActions => 'مۇلازىمېتىر ھەرىكىتى';
+
+  @override
+  String get adminRestartServer => 'مۇلازىمېتىرنى قايتا قوزغىتىڭ';
+
+  @override
+  String get adminShutdownServer => 'مۇلازىمېتىرنى تاقاش';
+
+  @override
+  String get adminLibraryScanStarted => 'كۈتۈپخانىنى تەكشۈرۈش باشلاندى';
+
+  @override
+  String errorGeneric(String error) {
+    return 'خاتالىق: $error';
+  }
+
+  @override
+  String get adminServerRebootInProgress => 'مۇلازىمېتىر قايتا قوزغىتىلىۋاتىدۇ';
+
+  @override
+  String get adminServerRebootMessage =>
+      'مۇلازىمېتىرنى قايتا قوزغىتىش باسقۇچىدا ، Moonfin نى قايتا قوزغىتىڭ';
+
+  @override
+  String get adminActiveSessions => 'ئاكتىپ يىغىن';
+
+  @override
+  String get adminSessionsLoadFailed => 'ئولتۇرۇشنى يۈكلىيەلمىدى';
+
+  @override
+  String get adminNoActiveSessions => 'ئاكتىپ يىغىن يوق';
+
+  @override
+  String get adminRecentActivity => 'يېقىنقى پائالىيەت';
+
+  @override
+  String get adminNoRecentActivity => 'يېقىنقى پائالىيەت يوق';
+
+  @override
+  String adminCommandFailed(String error) {
+    return 'بۇيرۇق مەغلۇپ بولدى: $error';
+  }
+
+  @override
+  String get adminSendMessage => 'ئۇچۇر ئەۋەتىش';
+
+  @override
+  String get adminMessageTextHint => 'ئۇچۇر تېكىستى';
+
+  @override
+  String get adminSetVolume => 'ھەجىمىنى تەڭشەش';
+
+  @override
+  String get sessionPrev => 'ئالدىنقى';
+
+  @override
+  String get sessionRewind => 'مۇكاپاتلاش';
+
+  @override
+  String get sessionForward => 'ئالغا سۈرۈش';
+
+  @override
+  String get sessionNext => 'كېيىنكى';
+
+  @override
+  String get sessionVolumeDown => 'Vol -';
+
+  @override
+  String get sessionVolumeUp => 'ئاۋاز +';
+
+  @override
+  String get uhd4k => '4K';
+
+  @override
+  String get nowPlaying => 'ھازىر ئويناۋاتىدۇ';
+
+  @override
+  String get volume => 'ئاۋاز مىقدارى';
+
+  @override
+  String get actions => 'ھەرىكەتلەر';
+
+  @override
+  String get videoCodec => 'سىن كودېكى';
+
+  @override
+  String get audioCodec => 'ئاۋاز كودېكى';
+
+  @override
+  String get hwAccel => 'قاتتىق دېتال تېزلىتىش';
+
+  @override
+  String get completion => 'تامام';
+
+  @override
+  String get adminClearDates => 'چېسلانى ئېنىقلاش';
+
+  @override
+  String get adminActivitySeverityAll => 'بارلىق دەرىجىلەر';
+
+  @override
+  String get adminActivityDateRange => 'چېسلا دائىرىسى';
+
+  @override
+  String adminActivityLoadFailed(String error) {
+    return 'پائالىيەت خاتىرىسى يۈكلىنەلمىدى: $error';
+  }
+
+  @override
+  String get adminNoActivityEntries => 'ھېچقانداق پائالىيەت تۈرى يوق';
+
+  @override
+  String get adminEditDeviceName => 'ئۈسكۈنىنىڭ نامىنى تەھرىرلەش';
+
+  @override
+  String get adminCustomName => 'ئىختىيارى ئىسىم';
+
+  @override
+  String get adminDeviceNameUpdated => 'ئۈسكۈنىنىڭ ئىسمى يېڭىلاندى';
+
+  @override
+  String adminDeviceUpdateFailed(String error) {
+    return 'ئۈسكۈنىنى يېڭىلاش مەغلۇپ بولدى: $error';
+  }
+
+  @override
+  String get adminDeleteDevice => 'ئۈسكۈنىنى ئۆچۈرۈڭ';
+
+  @override
+  String get adminDeviceDeleted => 'ئۈسكۈنى ئۆچۈرۈلدى';
+
+  @override
+  String adminDeviceDeleteFailed(String error) {
+    return 'ئۈسكۈنىنى ئۆچۈرۈش مەغلۇپ بولدى: $error';
+  }
+
+  @override
+  String adminRemoveDeviceConfirm(String name) {
+    return '«$name» ئۈسكۈنىسى چىقىرىۋېتىلسۇنمۇ؟ ئىشلەتكۈچى بۇ ئۈسكۈنىدە قايتا كىرىشى كېرەك بولىدۇ.';
+  }
+
+  @override
+  String get adminDeleteAllDevices => 'بارلىق ئۈسكۈنىلەرنى ئۆچۈرۈش';
+
+  @override
+  String adminDeleteAllDevicesConfirm(int count) {
+    return '$count ئۈسكۈنە چىقىرىۋېتىلسۇنمۇ؟ مۇناسىۋەتلىك ئىشلەتكۈچىلەر قايتا كىرىشى كېرەك بولىدۇ. نۆۋەتتىكى ئۈسكۈنىڭىزگە تەسىر يەتمەيدۇ.';
+  }
+
+  @override
+  String get adminDevicesDeletedAll => 'ئۈسكۈنىلەر چىقىرىۋېتىلدى';
+
+  @override
+  String adminDevicesDeletedPartial(int count) {
+    return 'بىر قىسىم ئۈسكۈنىلەر چىقىرىۋېتىلدى؛ $count ئۈسكۈنىنى چىقىرىۋەتكىلى بولمىدى.';
+  }
+
+  @override
+  String get adminDevicesLoadFailed => 'ئۈسكۈنىلەرنى يۈكلىيەلمىدى';
+
+  @override
+  String get adminSearchDevices => 'ئىزدەش ئۈسكۈنىلىرى';
+
+  @override
+  String get adminThisDevice => 'بۇ ئۈسكۈنە';
+
+  @override
+  String get adminEditName => 'ئىسىمنى تەھرىرلەش';
+
+  @override
+  String get adminLibrariesLoadFailed => 'كۈتۈپخانىلارنى يۈكلىيەلمىدى';
+
+  @override
+  String get adminNoLibraries => 'كۈتۈپخانىلار سەپلەنمىدى';
+
+  @override
+  String get adminScanAllLibraries => 'بارلىق كۈتۈپخانىلارنى سايىلەڭ';
+
+  @override
+  String get adminAddLibrary => 'كۈتۈپخانىنى قوشۇڭ';
+
+  @override
+  String adminScanFailed(String error) {
+    return 'سايىلەشنى باشلاش مەغلۇپ بولدى: $error';
+  }
+
+  @override
+  String get adminRenameLibrary => 'كۈتۈپخانىنىڭ نامىنى ئۆزگەرتىڭ';
+
+  @override
+  String get adminNewName => 'يېڭى ئىسىم';
+
+  @override
+  String adminLibraryRenamed(String name) {
+    return 'ئامبار ئىسمى «$name» غا ئۆزگەرتىلدى';
+  }
+
+  @override
+  String adminRenameFailed(String error) {
+    return 'ئىسىم ئۆزگەرتىش مەغلۇپ بولدى: $error';
+  }
+
+  @override
+  String get adminDeleteLibrary => 'كۈتۈپخانىنى ئۆچۈرۈڭ';
+
+  @override
+  String adminLibraryDeleted(String name) {
+    return '«$name» ئامبىرى ئۆچۈرۈلدى';
+  }
+
+  @override
+  String adminLibraryDeleteFailed(String error) {
+    return 'ئامبارنى ئۆچۈرۈش مەغلۇپ بولدى: $error';
+  }
+
+  @override
+  String adminAddPathFailed(String error) {
+    return 'يول قوشۇش مەغلۇپ بولدى: $error';
+  }
+
+  @override
+  String get adminRemovePath => 'يولنى ئۆچۈرۈڭ';
+
+  @override
+  String adminRemovePathConfirm(String path) {
+    return '«$path» بۇ ئامباردىن چىقىرىۋېتىلسۇنمۇ؟';
+  }
+
+  @override
+  String adminRemovePathFailed(String error) {
+    return 'يولنى چىقىرىۋېتىش مەغلۇپ بولدى: $error';
+  }
+
+  @override
+  String get adminLibraryLoadFailed => 'كۈتۈپخانىنى يۈكلىيەلمىدى';
+
+  @override
+  String get adminNoMediaPaths => 'ھېچقانداق مېدىيا يولى سەپلەنمىدى';
+
+  @override
+  String get adminAddPath => 'يول قوشۇڭ';
+
+  @override
+  String get adminBrowseFilesystem => 'مۇلازىمېتىر ھۆججەت سىستېمىسىنى كۆرۈڭ:';
+
+  @override
+  String get adminPreferredMetadataLanguage =>
+      'ياقتۇرىدىغان مېتا سانلىق مەلۇمات تىلى';
+
+  @override
+  String get adminMetadataLanguageHint => 'مەسىلەن en, de, fr';
+
+  @override
+  String get adminMetadataCountryCode => 'Metadata دۆلەت كودى';
+
+  @override
+  String get adminMetadataCountryHint => 'مەسىلەن US, DE, FR';
+
+  @override
+  String get adminLibraryTabPaths => 'يوللار';
+
+  @override
+  String get adminLibraryTabOptions => 'تاللانمىلار';
+
+  @override
+  String get adminLibraryTabDownloaders => 'چۈشۈرگۈچلەر';
+
+  @override
+  String get adminLibMetadataSavers => 'مېتا ئۇچۇر ساقلىغۇچلار';
+
+  @override
+  String get adminLibSubtitleDownloaders => 'ئېكران خېتى چۈشۈرگۈچلەر';
+
+  @override
+  String get adminLibLyricDownloaders => 'ناخشا تېكىستى چۈشۈرگۈچلەر';
+
+  @override
+  String adminLibMetadataDownloadersFor(String type) {
+    return 'مېتا ئۇچۇر چۈشۈرگۈچلەر: $type';
+  }
+
+  @override
+  String adminLibImageFetchersFor(String type) {
+    return 'رەسىم ئالغۇچلار: $type';
+  }
+
+  @override
+  String get adminLibNoDownloaders =>
+      'بۇ مۇلازىمېتىر بۇ ئامبار تىپى ئۈچۈن چۈشۈرگۈچ تەمىنلىمەيدۇ.';
+
+  @override
+  String get adminLibrarySectionGeneral => 'ئادەتتىكى';
+
+  @override
+  String get adminLibrarySectionMetadata => 'مېتا ئۇچۇر';
+
+  @override
+  String get adminLibrarySectionEmbedded => 'سىڭدۈرۈلگەن ئۇچۇر';
+
+  @override
+  String get adminLibrarySectionSubtitles => 'ئېكران خېتى';
+
+  @override
+  String get adminLibrarySectionImages => 'رەسىملەر';
+
+  @override
+  String get adminLibrarySectionSeries => 'تېلېۋىزىيە تىياتىرلىرى';
+
+  @override
+  String get adminLibrarySectionMusic => 'مۇزىكا';
+
+  @override
+  String get adminLibrarySectionMovies => 'كىنولار';
+
+  @override
+  String get adminLibRealtimeMonitor => 'دەل ۋاقىتلىق كۆزىتىشنى قوزغىتىش';
+
+  @override
+  String get adminLibRealtimeMonitorHint =>
+      'ھۆججەت ئۆزگىرىشلىرىنى بايقاپ ئۆزلۈكىدىن بىر تەرەپ قىلىدۇ.';
+
+  @override
+  String get adminLibEnablePhotos => 'سۈرەتلەرنى كۆرسىتىش';
+
+  @override
+  String get adminLibSaveLocalMetadata =>
+      'بېزەك رەسىملىرىنى مېدىيا قىسقۇچلىرىغا ساقلاش';
+
+  @override
+  String get adminLibRefreshInterval => 'مېتا ئۇچۇرنى ئاپتوماتىك يېڭىلاش';
+
+  @override
+  String get adminLibRefreshNever => 'ھەرگىز';
+
+  @override
+  String get adminLibDefault => 'سۈكۈتتىكى';
+
+  @override
+  String get adminLibDisplayTitle => 'كۆرسىتىش';
+
+  @override
+  String get adminLibDisplaySection => 'ئامبار كۆرسىتىلىشى';
+
+  @override
+  String get adminLibFolderView =>
+      'ئاددىي مېدىيا قىسقۇچلىرىنى كۆرسىتىدىغان قىسقۇچ كۆرۈنۈشىنى كۆرسىتىش';
+
+  @override
+  String get adminLibSpecialsInSeasons =>
+      'ئالاھىدە بۆلۈملەرنى تارقىتىلغان پەسىللىرى ئىچىدە كۆرسىتىش';
+
+  @override
+  String get adminLibGroupMovies => 'كىنولارنى توپلاملارغا گۇرۇپپىلاش';
+
+  @override
+  String get adminLibGroupShows => 'تىياتىرلارنى توپلاملارغا گۇرۇپپىلاش';
+
+  @override
+  String get adminLibExternalSuggestions =>
+      'تەۋسىيەلەردە سىرتقى مەزمۇنلارنى كۆرسىتىش';
+
+  @override
+  String get adminLibDateAddedSection => 'قوشۇلغان چېسلا ھەرىكىتى';
+
+  @override
+  String get adminLibDateAddedLabel => 'قوشۇلغان چېسلا مەنبەسى';
+
+  @override
+  String get adminLibDateAddedImport => 'ئامبارغا سايىلانغان چېسلا';
+
+  @override
+  String get adminLibDateAddedFile => 'ھۆججەت قۇرۇلغان چېسلا';
+
+  @override
+  String get adminLibMetadataTitle => 'مېتا ئۇچۇر ۋە رەسىملەر';
+
+  @override
+  String get adminLibMetadataLangSection => 'ئالدىن تاللانغان مېتا ئۇچۇر تىلى';
+
+  @override
+  String get adminLibChaptersSection => 'بابلار';
+
+  @override
+  String get adminLibDummyChapterDuration => 'ساختا باب ئۇزۇنلۇقى (سېكۇنت)';
+
+  @override
+  String get adminLibDummyChapterDurationHint =>
+      'بابى يوق مېدىيا ئۈچۈن ھاسىللىنىدىغان بابلارنىڭ ئۇزۇنلۇقى. تاقاش ئۈچۈن 0 قىلىڭ.';
+
+  @override
+  String get adminLibChapterImageResolution => 'باب رەسىمى ئېنىقلىقى';
+
+  @override
+  String get adminLibNfoTitle => 'NFO تەڭشەكلىرى';
+
+  @override
+  String get adminLibNfoHelp =>
+      'NFO مېتا ئۇچۇرى Kodi ۋە شۇنىڭغا ئوخشاش خېرىدارلار بىلەن ماس كېلىدۇ. تەڭشەكلەر NFO مېتا ئۇچۇرى ساقلايدىغان بارلىق ئامبارلارغا قوللىنىلىدۇ.';
+
+  @override
+  String get adminLibKodiUser =>
+      'NFO ھۆججەتلىرىدە كۆرۈش سانلىق مەلۇماتى ساقلىنىدىغان ئىشلەتكۈچى';
+
+  @override
+  String get adminLibSaveImagePaths =>
+      'رەسىم يوللىرىنى NFO ھۆججەتلىرى ئىچىگە ساقلاش';
+
+  @override
+  String get adminLibPathSubstitution =>
+      'NFO رەسىم يوللىرى ئۈچۈن يول ئالماشتۇرۇشنى قوزغىتىش';
+
+  @override
+  String get adminLibExtraThumbs =>
+      'extrafanart رەسىملىرىنى extrathumbs قىسقۇچىغا كۆچۈرۈش';
+
+  @override
+  String get adminLibNone => 'يوق';
+
+  @override
+  String adminLibRefreshDays(int days) {
+    return '$days كۈن';
+  }
+
+  @override
+  String get adminLibEmbeddedTitles => 'سىڭدۈرۈلگەن ماۋزۇلارنى ئىشلىتىش';
+
+  @override
+  String get adminLibEmbeddedExtrasTitles =>
+      'قوشۇمچىلار ئۈچۈن سىڭدۈرۈلگەن ماۋزۇلارنى ئىشلىتىش';
+
+  @override
+  String get adminLibEmbeddedEpisodeInfos =>
+      'سىڭدۈرۈلگەن بۆلۈم ئۇچۇرىنى ئىشلىتىش';
+
+  @override
+  String get adminLibAllowEmbeddedSubtitles =>
+      'سىڭدۈرۈلگەن ئېكران خېتىگە يول قويۇش';
+
+  @override
+  String get adminLibEmbeddedAllowAll => 'ھەممىسىگە يول قويۇش';
+
+  @override
+  String get adminLibEmbeddedAllowText => 'پەقەت تېكىست';
+
+  @override
+  String get adminLibEmbeddedAllowImage => 'پەقەت رەسىم';
+
+  @override
+  String get adminLibEmbeddedAllowNone => 'يوق';
+
+  @override
+  String get adminLibSkipIfEmbeddedSubs =>
+      'سىڭدۈرۈلگەن ئېكران خېتى بولسا چۈشۈرۈشتىن ئاتلاش';
+
+  @override
+  String get adminLibSkipIfAudioMatches =>
+      'ئاۋاز يولى چۈشۈرۈش تىلىغا ماس كەلسە چۈشۈرۈشتىن ئاتلاش';
+
+  @override
+  String get adminLibRequirePerfectMatch =>
+      'ئېكران خېتىنىڭ پۈتۈنلەي ماس كېلىشىنى تەلەپ قىلىش';
+
+  @override
+  String get adminLibSaveSubtitlesWithMedia =>
+      'ئېكران خېتىنى مېدىيا قىسقۇچلىرىغا ساقلاش';
+
+  @override
+  String get adminLibChapterImageExtraction => 'باب رەسىملىرىنى ئاجرىتىش';
+
+  @override
+  String get adminLibChapterImagesDuringScan =>
+      'ئامبار سايىلەش جەريانىدا باب رەسىملىرىنى ئاجرىتىش';
+
+  @override
+  String get adminLibTrickplayExtraction =>
+      'Trickplay رەسىم ئاجرىتىشنى قوزغىتىش';
+
+  @override
+  String get adminLibTrickplayDuringScan =>
+      'ئامبار سايىلەش جەريانىدا trickplay رەسىملىرىنى ئاجرىتىش';
+
+  @override
+  String get adminLibSaveTrickplayWithMedia =>
+      'Trickplay رەسىملىرىنى مېدىيا قىسقۇچلىرىغا ساقلاش';
+
+  @override
+  String get adminLibAutomaticSeriesGrouping =>
+      'كۆپ قىسقۇچقا تارقالغان تىياتىرلارنى ئاپتوماتىك بىرلەشتۈرۈش';
+
+  @override
+  String get adminLibSeasonZeroName => 'نۆل-پەسىل كۆرسىتىلىش ئىسمى';
+
+  @override
+  String get adminLibLufsScan => 'ئاۋاز نورمىلاش ئۈچۈن LUFS سايىلەشنى قوزغىتىش';
+
+  @override
+  String get adminLibPreferNonstandardArtist =>
+      'ئۆلچەمدىن باشقا سەنئەتكار بەلگىسىنى ئالدىن تاللاش';
+
+  @override
+  String get adminLibAutoAddToCollection =>
+      'كىنولارنى توپلاملارغا ئاپتوماتىك قوشۇش';
+
+  @override
+  String get adminLibraryNameRequired => 'كۈتۈپخانىنىڭ ئىسمى تەلەپ قىلىنىدۇ';
+
+  @override
+  String adminLibraryCreateFailed(String error) {
+    return 'ئامبار قۇرۇش مەغلۇپ بولدى: $error';
+  }
+
+  @override
+  String get adminLibraryName => 'كۈتۈپخانىنىڭ ئىسمى';
+
+  @override
+  String get adminSelectedPaths => 'تاللانغان يوللار:';
+
+  @override
+  String get adminCreateLibrary => 'كۈتۈپخانا قۇرۇش';
+
+  @override
+  String get paths => 'يول:';
+
+  @override
+  String get adminDisableUser => 'ئىشلەتكۈچىنى چەكلەش';
+
+  @override
+  String get adminEnableUser => 'ئىشلەتكۈچىنى قوزغىتىش';
+
+  @override
+  String adminDisableUserConfirm(String name) {
+    return '$name چەكلەنسۇنمۇ؟ ئۇ كىرەلمەيدىغان بولىدۇ.';
+  }
+
+  @override
+  String adminEnableUserConfirm(String name) {
+    return '$name قوزغىتىلسۇنمۇ؟ ئۇ قايتا كىرەلەيدىغان بولىدۇ.';
+  }
+
+  @override
+  String adminUserDisabled(String name) {
+    return '«$name» ئىشلەتكۈچى چەكلەندى';
+  }
+
+  @override
+  String adminUserEnabled(String name) {
+    return '«$name» ئىشلەتكۈچى قوزغىتىلدى';
+  }
+
+  @override
+  String adminUserPolicyUpdateFailed(String error) {
+    return 'ئىشلەتكۈچى تۈزۈمىنى يېڭىلاش مەغلۇپ بولدى: $error';
+  }
+
+  @override
+  String get adminUsersLoadFailed => 'ئىشلەتكۈچىنى يۈكلىيەلمىدى';
+
+  @override
+  String get adminSearchUsers => 'ئىشلەتكۈچىنى ئىزدە';
+
+  @override
+  String get adminEditUser => 'ئىشلەتكۈچىنى تەھرىرلەش';
+
+  @override
+  String get adminAddUser => 'ئىشلەتكۈچى قوشۇڭ';
+
+  @override
+  String adminUserCreateFailed(String error) {
+    return 'ئىشلەتكۈچى قۇرۇش مەغلۇپ بولدى: $error';
+  }
+
+  @override
+  String get adminCreateUser => 'ئىشلەتكۈچى قۇرۇش';
+
+  @override
+  String get adminPasswordOptional => 'پارول (ئىختىيارى)';
+
+  @override
+  String get adminUsernameRequired => 'ئىشلەتكۈچى ئىسمى قۇرۇق بولمايدۇ';
+
+  @override
+  String adminSaveFailed(String error) {
+    return 'ساقلاش مەغلۇپ بولدى: $error';
+  }
+
+  @override
+  String get adminPasswordsMismatch => 'پارول ماس كەلمەيدۇ';
+
+  @override
+  String adminFailed(String error) {
+    return 'مەغلۇپ بولدى: $error';
+  }
+
+  @override
+  String get adminUserLoadFailed => 'ئىشلەتكۈچىنى يۈكلىيەلمىدى';
+
+  @override
+  String get adminDeleteUser => 'ئىشلەتكۈچىنى ئۆچۈرۈڭ';
+
+  @override
+  String get admin => 'باشقۇرغۇچى';
+
+  @override
+  String get adminFullAccessWarning =>
+      'باشقۇرغۇچى مۇلازىمېتىرنى تولۇق زىيارەت قىلالايدۇ. ئېھتىيات بىلەن بېرىڭ.';
+
+  @override
+  String get administrator => 'باشقۇرغۇچى';
+
+  @override
+  String get adminHiddenUser => 'يوشۇرۇن ئىشلەتكۈچى';
+
+  @override
+  String get adminAllowMediaPlayback => 'مېدىيا قويۇشقا يول قويۇڭ';
+
+  @override
+  String get adminAllowAudioTranscoding => 'ئاۋازنىڭ كودلىنىشىغا يول قويۇڭ';
+
+  @override
+  String get adminAllowVideoTranscoding => 'سىننىڭ يۆتكىلىشىگە يول قويۇڭ';
+
+  @override
+  String get adminAllowRemuxing => 'قايتا ئىشلەشكە يول قويۇڭ';
+
+  @override
+  String get adminForceRemoteTranscoding =>
+      'يىراق مۇساپىلىك مەنبەدىن ھالقىشنى زورلاش';
+
+  @override
+  String get adminAllowContentDownloading => 'مەزمۇن چۈشۈرۈشكە يول قويۇڭ';
+
+  @override
+  String get adminAllowPublicSharing => 'ئاممىۋى ئورتاقلىشىشقا يول قويۇڭ';
+
+  @override
+  String get adminAllowRemoteControl =>
+      'باشقا ئىشلەتكۈچىلەرنىڭ يىراقتىن كونترول قىلىشىغا يول قويۇڭ';
+
+  @override
+  String get adminAllowSharedDeviceControl =>
+      'ئورتاق ئۈسكۈنىنى كونترول قىلىشقا يول قويۇڭ';
+
+  @override
+  String get adminAllowRemoteAccess => 'يىراقتىن زىيارەت قىلىشقا يول قويۇڭ';
+
+  @override
+  String get adminLeaveEmptyNoLimit => 'چەكسىز بوش قويۇڭ';
+
+  @override
+  String get adminMaxActiveSessions => 'ئاكتىپ يىغىنلار';
+
+  @override
+  String get adminAllowLiveTvAccess => 'Live TV زىيارەت قىلىشىغا يول قويۇڭ';
+
+  @override
+  String get adminAllowLiveTvManagement =>
+      'نەق مەيدان تېلېۋىزىيە باشقۇرۇشىغا يول قويۇڭ';
+
+  @override
+  String get adminAllowCollectionManagement => 'يىغىپ باشقۇرۇشقا يول قويۇڭ';
+
+  @override
+  String get adminAllowSubtitleManagement => 'تېما باشقۇرۇشقا يول قويۇڭ';
+
+  @override
+  String get adminAllowLyricManagement => 'لىرىك باشقۇرۇشقا يول قويۇڭ';
+
+  @override
+  String get adminEnableAllLibraryAccess =>
+      'بارلىق كۈتۈپخانىلارنى زىيارەت قىلالايسىز';
+
+  @override
+  String get adminChangePassword => 'پارولنى ئۆزگەرتىش';
+
+  @override
+  String get adminNewPassword => 'يېڭى پارول';
+
+  @override
+  String get adminConfirmPassword => 'پارولنى جەزملەشتۈرۈڭ';
+
+  @override
+  String get adminSetPassword => 'پارول بەلگىلەڭ';
+
+  @override
+  String get adminResetPassword => 'پارولنى ئەسلىگە كەلتۈرۈش';
+
+  @override
+  String get adminPasswordReset => 'پارولنى ئەسلىگە كەلتۈرۈش';
+
+  @override
+  String get adminPasswordUpdated => 'پارول يېڭىلاندى';
+
+  @override
+  String get adminUserSettings => 'ئىشلەتكۈچى تەڭشەكلىرى';
+
+  @override
+  String get adminLibraryAccess => 'كۈتۈپخانىغا كىرىش';
+
+  @override
+  String get adminEnableAllDevices => 'بارلىق ئۈسكۈنىلەرنى زىيارەت قىلالايسىز';
+
+  @override
+  String get adminEnableAllChannels => 'بارلىق قاناللارنى زىيارەت قىلىڭ';
+
+  @override
+  String get adminParentalControl => 'ئاتا-ئانا كونتروللۇقى';
+
+  @override
+  String get adminMaxParentalRating =>
+      'يول قويۇلىدىغان ئەڭ يۇقىرى ياش چەكلىمىسى';
+
+  @override
+  String get adminMaxParentalRatingHint =>
+      'بۇنىڭدىن يۇقىرى باھالانغان مەزمۇنلار بۇ ئىشلەتكۈچىدىن يوشۇرۇلىدۇ.';
+
+  @override
+  String get adminParentalRatingNone => 'يوق';
+
+  @override
+  String get adminBlockUnratedItems =>
+      'باھا ئۇچۇرى يوق ياكى تونۇلمايدىغان تۈرلەرنى چەكلەش';
+
+  @override
+  String get adminUnratedBook => 'كىتابلار';
+
+  @override
+  String get adminUnratedChannelContent => 'قاناللار';
+
+  @override
+  String get adminUnratedLiveTvChannel => 'بىۋاسىتە تېلېۋىزىيە';
+
+  @override
+  String get adminUnratedMovie => 'كىنولار';
+
+  @override
+  String get adminUnratedMusic => 'مۇزىكا';
+
+  @override
+  String get adminUnratedTrailer => 'ئالدىن كۆرۈنۈشلەر';
+
+  @override
+  String get adminUnratedSeries => 'تىياتىرلار';
+
+  @override
+  String get adminAccessSchedules => 'زىيارەت ۋاقىت جەدۋەللىرى';
+
+  @override
+  String get adminAccessSchedulesHint =>
+      'پەقەت تۆۋەندىكى بەلگىلەنگەن ۋاقىتلاردىلا زىيارەتكە يول قويىدۇ. جەدۋەل بەلگىلەنمىسە پۈتۈن كۈن زىيارەتكە يول قويۇلىدۇ.';
+
+  @override
+  String get adminAddSchedule => 'جەدۋەل قوشۇش';
+
+  @override
+  String get adminScheduleDay => 'كۈن';
+
+  @override
+  String get adminScheduleStart => 'باشلىنىش';
+
+  @override
+  String get adminScheduleEnd => 'ئاخىرلىشىش';
+
+  @override
+  String get adminDayEveryday => 'ھەر كۈنى';
+
+  @override
+  String get adminDayWeekday => 'خىزمەت كۈنلىرى';
+
+  @override
+  String get adminDayWeekend => 'ھەپتە ئاخىرى';
+
+  @override
+  String get adminDaySunday => 'يەكشەنبە';
+
+  @override
+  String get adminDayMonday => 'دۈشەنبە';
+
+  @override
+  String get adminDayTuesday => 'سەيشەنبە';
+
+  @override
+  String get adminDayWednesday => 'چارشەنبە';
+
+  @override
+  String get adminDayThursday => 'پەيشەنبە';
+
+  @override
+  String get adminDayFriday => 'جۈمە';
+
+  @override
+  String get adminDaySaturday => 'شەنبە';
+
+  @override
+  String get adminAllowedTags => 'يول قويۇلغان بەلگىلەر';
+
+  @override
+  String get adminAllowedTagsHint =>
+      'پەقەت بۇ بەلگىلەر بار مەزمۇنلارلا كۆرسىتىلىدۇ. ھەممىسىگە يول قويۇش ئۈچۈن قۇرۇق قويۇڭ.';
+
+  @override
+  String get adminBlockedTags => 'چەكلەنگەن بەلگىلەر';
+
+  @override
+  String get adminBlockedTagsHint =>
+      'بۇ بەلگىلەر بار مەزمۇنلار بۇ ئىشلەتكۈچىدىن يوشۇرۇلىدۇ.';
+
+  @override
+  String get adminAddTag => 'بەلگە قوشۇش';
+
+  @override
+  String get adminAuthProvider => 'كىملىك دەلىللەش تەمىنلىگۈچى';
+
+  @override
+  String get adminPasswordResetProvider => 'پارول ئەسلىگە قايتۇرۇش تەمىنلىگۈچى';
+
+  @override
+  String get adminLoginAttemptsBeforeLockout =>
+      'قۇلۇپلىنىشتىن بۇرۇنقى ئەڭ كۆپ مەغلۇپ كىرىش سىنىقى';
+
+  @override
+  String get adminLoginAttemptsHint =>
+      'سۈكۈتتىكى ئۈچۈن 0، قۇلۇپلاشنى تاقاش ئۈچۈن -1 قىلىڭ.';
+
+  @override
+  String get adminSyncPlayAccess => 'SyncPlay زىيارىتى';
+
+  @override
+  String get adminSyncPlayCreateAndJoin =>
+      'گۇرۇپپا قۇرۇش ۋە قوشۇلۇشقا يول قويۇش';
+
+  @override
+  String get adminSyncPlayJoin => 'گۇرۇپپىغا قوشۇلۇشقا يول قويۇش';
+
+  @override
+  String get adminSyncPlayNone => 'زىيارەت يوق';
+
+  @override
+  String get adminContentDeletionFolders =>
+      'مەزمۇن ئۆچۈرۈشكە يول قويۇلىدىغان جايلار';
+
+  @override
+  String get adminResetPasswordWarning =>
+      'بۇ پارولنى ئۆچۈرۈۋېتىدۇ. ئىشلەتكۈچى پارولسىز كىرەلەيدۇ.';
+
+  @override
+  String adminServerReturnedHttp(int status) {
+    return 'مۇلازىمېتىر HTTP $status قايتۇردى';
+  }
+
+  @override
+  String adminDeleteUserConfirm(String name) {
+    return '$name نى راستىنلا ئۆچۈرەمسىز؟';
+  }
+
+  @override
+  String adminUserDeleted(String name) {
+    return '«$name» ئىشلەتكۈچى ئۆچۈرۈلدى';
+  }
+
+  @override
+  String adminUserDeleteFailed(String error) {
+    return 'ئىشلەتكۈچىنى ئۆچۈرۈش مەغلۇپ بولدى: $error';
+  }
+
+  @override
+  String get adminCreateApiKey => 'API ئاچقۇچى قۇرۇش';
+
+  @override
+  String get adminAppName => 'ئەپ ئىسمى';
+
+  @override
+  String get adminApiKeyCreated => 'API ئاچقۇچ قۇرۇلدى';
+
+  @override
+  String get adminApiKeyCreatedNoToken =>
+      'ئاچقۇچ مۇۋەپپەقىيەتلىك قۇرۇلدى. مۇلازىمېتىر بەلگە قايتۇرمىدى. مۇلازىمېتىر API كۇنۇپكىسىنى تەكشۈرۈڭ.';
+
+  @override
+  String get adminKeyCopied => 'كۇنۇپكا تاختىسىغا كۆچۈرۈلگەن';
+
+  @override
+  String adminApiKeyCreateFailed(String error) {
+    return 'ئاچقۇچ قۇرۇش مەغلۇپ بولدى: $error';
+  }
+
+  @override
+  String get adminKeyTokenMissing =>
+      'مۇلازىمېتىرنىڭ ئىنكاسىدىن يوقاپ كەتكەن ئاچقۇچ بەلگىسى';
+
+  @override
+  String get adminRevokeApiKey => 'API ئاچقۇچىنى بىكار قىلىڭ';
+
+  @override
+  String adminRevokeKeyConfirm(String name) {
+    return '$name نىڭ ئاچقۇچى بىكار قىلىنسۇنمۇ؟';
+  }
+
+  @override
+  String get adminApiKeyRevoked => 'API ئاچقۇچى بىكار قىلىندى';
+
+  @override
+  String adminApiKeyRevokeFailed(String error) {
+    return 'ئاچقۇچنى بىكار قىلىش مەغلۇپ بولدى: $error';
+  }
+
+  @override
+  String get adminApiKeysLoadFailed => 'API كۇنۇپكىسىنى يۈكلىيەلمىدى';
+
+  @override
+  String get adminApiKeysTitle => 'API ئاچقۇچ';
+
+  @override
+  String get adminCreateKey => 'ئاچقۇچ قۇرۇش';
+
+  @override
+  String get adminNoApiKeys => 'API كۇنۇپكىسى تېپىلمىدى';
+
+  @override
+  String get adminUnknownApp => 'نامەلۇم ئەپ';
+
+  @override
+  String adminApiKeyTokenCreated(String token, String created) {
+    return 'Token: $token\\nقۇرۇلغان: $created';
+  }
+
+  @override
+  String get adminBackupOptionsTitle => 'زاپاس نۇسخا قۇرۇش';
+
+  @override
+  String get adminBackupDatabase => 'ساندان';
+
+  @override
+  String get adminBackupDatabaseAlways => 'ھەمىشە كىرىدۇ';
+
+  @override
+  String get adminBackupMetadata => 'مېتا ئۇچۇر';
+
+  @override
+  String get adminBackupSubtitles => 'ئېكران خېتى';
+
+  @override
+  String get adminBackupTrickplay => 'Trickplay رەسىملىرى';
+
+  @override
+  String get adminCreatingBackup => 'زاپاسلاش ...';
+
+  @override
+  String get adminBackupCreated => 'زاپاسلاش مۇۋەپپەقىيەتلىك قۇرۇلدى';
+
+  @override
+  String adminBackupCreateFailed(String error) {
+    return 'زاپاس نۇسخا قۇرۇش مەغلۇپ بولدى: $error';
+  }
+
+  @override
+  String get adminBackupPathMissing =>
+      'مۇلازىمېتىرنىڭ ئىنكاسىدا زاپاسلاش يولى يوقاپ كەتتى';
+
+  @override
+  String adminBackupManifest(String name) {
+    return 'Manifest: $name';
+  }
+
+  @override
+  String adminManifestLoadFailed(String error) {
+    return 'Manifest نى يۈكلەش مەغلۇپ بولدى: $error';
+  }
+
+  @override
+  String get adminConfirmRestore => 'ئەسلىگە كەلتۈرۈشنى جەزملەشتۈرۈڭ';
+
+  @override
+  String get adminRestoringBackup => 'زاپاسلاشنى ئەسلىگە كەلتۈرۈش ...';
+
+  @override
+  String adminRestoreFailed(String error) {
+    return 'زاپاس نۇسخىنى ئەسلىگە كەلتۈرۈش مەغلۇپ بولدى: $error';
+  }
+
+  @override
+  String get adminBackupsLoadFailed => 'زاپاسلاشنى يۈكلىيەلمىدى';
+
+  @override
+  String get adminCreateBackup => 'زاپاسلاش';
+
+  @override
+  String get adminNoBackups => 'زاپاسلاش تېپىلمىدى';
+
+  @override
+  String get adminViewDetails => 'تەپسىلاتلارنى كۆرۈش';
+
+  @override
+  String get restore => 'ئەسلىگە كەلتۈرۈش';
+
+  @override
+  String get adminLogsLoadFailed => 'مۇلازىمېتىر خاتىرىسىنى يۈكلىيەلمىدى';
+
+  @override
+  String get adminNoLogFiles => 'خاتىرە ھۆججەت تېپىلمىدى';
+
+  @override
+  String get adminLogCopied => 'چاپلاش تاختىسىغا كۆچۈرۈلدى';
+
+  @override
+  String get adminSaveLogFile => 'خاتىرە ھۆججىتىنى ساقلاڭ';
+
+  @override
+  String adminSavedTo(String path) {
+    return '$path غا ساقلاندى';
+  }
+
+  @override
+  String adminFileSaveFailed(String error) {
+    return 'ھۆججەتنى ساقلاش مەغلۇپ بولدى: $error';
+  }
+
+  @override
+  String adminLogFileLoadFailed(String fileName) {
+    return '$fileName نى يۈكلەش مەغلۇپ بولدى';
+  }
+
+  @override
+  String get adminSearchInLog => 'تىزىمدىن ئىزدەڭ';
+
+  @override
+  String get adminNoMatchingLines => 'ماس كېلىدىغان قۇر يوق';
+
+  @override
+  String adminTasksLoadFailed(String error) {
+    return 'ۋەزىپىلەرنى يۈكلەش مەغلۇپ بولدى: $error';
+  }
+
+  @override
+  String get adminNoScheduledTasks => 'پىلانلانغان ۋەزىپە تېپىلمىدى';
+
+  @override
+  String get adminNoTasksMatchFilter =>
+      'نۆۋەتتىكى سۈزگۈچكە ھېچقانداق ۋەزىپە ماس كەلمەيدۇ';
+
+  @override
+  String adminTaskStartFailed(String error) {
+    return 'ۋەزىپىنى باشلاش مەغلۇپ بولدى: $error';
+  }
+
+  @override
+  String adminTaskStopFailed(String error) {
+    return 'ۋەزىپىنى توختىتىش مەغلۇپ بولدى: $error';
+  }
+
+  @override
+  String adminTaskLoadFailed(String error) {
+    return 'ۋەزىپىنى يۈكلەش مەغلۇپ بولدى: $error';
+  }
+
+  @override
+  String get adminRunNow => 'ھازىر ئىجرا قىلىڭ';
+
+  @override
+  String adminTriggerRemoveFailed(String error) {
+    return 'قوزغاتقۇچنى چىقىرىۋېتىش مەغلۇپ بولدى: $error';
+  }
+
+  @override
+  String adminTriggerAddFailed(String error) {
+    return 'قوزغاتقۇچ قوشۇش مەغلۇپ بولدى: $error';
+  }
+
+  @override
+  String get adminLastExecution => 'ئاخىرقى ئىجرا';
+
+  @override
+  String get adminTriggers => 'قوزغاتقۇچلار';
+
+  @override
+  String get adminAddTrigger => 'Trigger نى قوشۇڭ';
+
+  @override
+  String get adminNoTriggers => 'قوزغاتقۇچ سەپلەنمىدى';
+
+  @override
+  String get adminTriggerType => 'قوزغاتقۇچ تىپى';
+
+  @override
+  String get adminNoLimit => 'چەكلىمىسى يوق';
+
+  @override
+  String adminHours(String hours) {
+    return '$hours سائەت';
+  }
+
+  @override
+  String get adminDayOfWeek => 'ھەپتە';
+
+  @override
+  String get adminSearchPlugins => 'قىستۇرمىلارنى ئىزدەش ...';
+
+  @override
+  String adminPluginToggleFailed(String error) {
+    return 'قىستۇرمىنى ئالماشتۇرۇش مەغلۇپ بولدى: $error';
+  }
+
+  @override
+  String get adminUninstallPlugin => 'قىستۇرمىنى ئۆچۈرۈڭ';
+
+  @override
+  String adminUninstallPluginConfirm(String name) {
+    return '«$name» راستىنلا قاچىلاشتىن چىقىرىۋېتىلسۇنمۇ؟';
+  }
+
+  @override
+  String adminPluginUninstallFailed(String error) {
+    return 'قىستۇرمىنى چىقىرىۋېتىش مەغلۇپ بولدى: $error';
+  }
+
+  @override
+  String adminPackageInstallFailed(String error) {
+    return 'بوغچىنى قاچىلاش مەغلۇپ بولدى: $error';
+  }
+
+  @override
+  String adminPluginUpdateFailed(String error) {
+    return 'يېڭىلانمىنى قاچىلاش مەغلۇپ بولدى: $error';
+  }
+
+  @override
+  String adminPluginsLoadFailed(String error) {
+    return 'قىستۇرمىلارنى يۈكلەش مەغلۇپ بولدى: $error';
+  }
+
+  @override
+  String get adminNoPluginsMatchSearch =>
+      'ھېچقانداق قىستۇرما ئىزدىشىڭىزگە ماس كەلمەيدۇ';
+
+  @override
+  String get adminNoPluginsInstalled => 'قىستۇرما ئورنىتىلمىدى';
+
+  @override
+  String adminInstallUpdate(String version) {
+    return 'يېڭىلانمىنى قاچىلاش (v$version)';
+  }
+
+  @override
+  String adminCatalogLoadFailed(String error) {
+    return 'كاتالوگنى يۈكلەش مەغلۇپ بولدى: $error';
+  }
+
+  @override
+  String get adminNoPackagesMatchSearch =>
+      'ھېچقانداق ئورالما سىزنىڭ ئىزدىشىڭىزگە ماس كەلمەيدۇ';
+
+  @override
+  String get adminNoPackagesAvailable => 'ئورالما يوق';
+
+  @override
+  String get adminExperimentalIntegration => 'تەجرىبە بىر گەۋدىلەشتۈرۈش';
+
+  @override
+  String get adminExperimentalWarning =>
+      'قىستۇرما تەڭشەكلىرىنى بىرلەشتۈرۈش يەنىلا سىناق. بەزى تەڭشەك بەتلىرى توغرا كۆرسىتىلمەسلىكى مۇمكىن.';
+
+  @override
+  String get continueAction => 'داۋاملاشتۇر';
+
+  @override
+  String adminPluginRemoveAfterRestart(String name) {
+    return '«$name» مۇلازىمېتىر قايتا قوزغىتىلغاندىن كېيىن چىقىرىۋېتىلىدۇ';
+  }
+
+  @override
+  String adminUninstallFailed(String error) {
+    return 'چىقىرىۋېتىش مەغلۇپ بولدى: $error';
+  }
+
+  @override
+  String adminPluginUpdating(String name, String version) {
+    return '«$name» v$version گە يېڭىلىنىۋاتىدۇ...';
+  }
+
+  @override
+  String adminPluginLoadFailed(String error) {
+    return 'قىستۇرمىنى يۈكلەش مەغلۇپ بولدى: $error';
+  }
+
+  @override
+  String get adminPluginNotFound => 'قىستۇرما تېپىلمىدى';
+
+  @override
+  String adminPluginVersion(String version) {
+    return 'نەشر $version';
+  }
+
+  @override
+  String get adminEnablePlugin => 'قىستۇرمىنى قوزغىتىڭ';
+
+  @override
+  String get adminPluginSettingsPage => 'قىستۇرما تەڭشەك بېتى';
+
+  @override
+  String get adminRevisionHistory => 'تۈزىتىش تارىخى';
+
+  @override
+  String get adminNoChangelog => 'ئۆزگەرتكىلى بولمايدۇ.';
+
+  @override
+  String get adminRemoveRepository => 'ئامبارنى ئۆچۈرۈڭ';
+
+  @override
+  String adminRemoveRepositoryConfirm(String name) {
+    return '«$name» نى راستىنلا چىقىرىۋېتەمسىز؟';
+  }
+
+  @override
+  String adminRepositoriesSaveFailed(String error) {
+    return 'خەزىنىلەرنى ساقلاش مەغلۇپ بولدى: $error';
+  }
+
+  @override
+  String adminRepositoriesLoadFailed(String error) {
+    return 'خەزىنىلەرنى يۈكلەش مەغلۇپ بولدى: $error';
+  }
+
+  @override
+  String get adminRepositoryNameHint => 'مەسىلەن Jellyfin Stable';
+
+  @override
+  String get adminRepositoryUrl => 'ئامبار ئادرېسى';
+
+  @override
+  String get adminAddEntry => 'كىرگۈزۈش';
+
+  @override
+  String get adminInvalidUrl => 'ئىناۋەتسىز URL';
+
+  @override
+  String adminPluginSettingsLoadFailed(String error) {
+    return 'قىستۇرما تەڭشەكلىرىنى يۈكلىگىلى بولمىدى: $error';
+  }
+
+  @override
+  String adminCouldNotOpenUrl(String uri) {
+    return '$uri نى ئاچقىلى بولمىدى';
+  }
+
+  @override
+  String get adminOpenInBrowser => 'توركۆرگۈدە ئېچىڭ';
+
+  @override
+  String get adminOpenExternally => 'سىرتقا ئېچىڭ';
+
+  @override
+  String get adminGeneralSettings => 'ئادەتتىكى تەڭشەكلەر';
+
+  @override
+  String get adminServerName => 'مۇلازىمېتىر ئىسمى';
+
+  @override
+  String get adminPreferredMetadataCountry =>
+      'ياقتۇرىدىغان مېتا سانلىق مەلۇمات دۆلىتى';
+
+  @override
+  String get adminCachePath => 'كەش يولى';
+
+  @override
+  String get adminMetadataPath => 'مېتا ئۇچۇر يولى';
+
+  @override
+  String get adminLibraryScanConcurrency => 'كۈتۈپخانىنى سىكانىرلاش';
+
+  @override
+  String get adminParallelImageEncodingLimit => 'پاراللېل رەسىم كودلاش چېكى';
+
+  @override
+  String get adminSlowResponseThreshold => 'ئاستا جاۋاب قايتۇرۇش چېكى (ms)';
+
+  @override
+  String get adminBrandingLoadFailed => 'ماركا تەڭشىكىنى يۈكلىيەلمىدى';
+
+  @override
+  String get adminLoginDisclaimer => 'كىرىشنى رەت قىلىش';
+
+  @override
+  String get adminLoginDisclaimerHint =>
+      'كىرىش جەدۋىلىنىڭ ئاستىدا HTML كۆرسىتىلدى';
+
+  @override
+  String get adminCustomCss => 'ئىختىيارى CSS';
+
+  @override
+  String get adminCustomCssHint =>
+      'ئىختىيارى CSS تور كۆرۈنمە يۈزىگە قوللىنىلدى';
+
+  @override
+  String get adminEnableSplashScreen => 'چاقماق ئېكرانىنى قوزغىتىڭ';
+
+  @override
+  String get adminStreamingLoadFailed => 'ئېقىم تەڭشىكىنى يۈكلىيەلمىدى';
+
+  @override
+  String get adminStreamingDescription =>
+      'يىراقتىن ئۇلىنىش ئۈچۈن يەرشارى ئېقىمى bitrate چەكلىمىسىنى بەلگىلەڭ.';
+
+  @override
+  String get adminRemoteBitrateLimitMbps =>
+      'يىراقتىكى خېرىدار بىت چەكلىمىسى (Mbps)';
+
+  @override
+  String get adminLeaveEmptyForUnlimited => 'بوش قالدۇرۇڭ ياكى 0 چەكسىز';
+
+  @override
+  String get adminPlaybackLoadFailed => 'قويۇش تەڭشەكلىرىنى يۈكلىيەلمىدى';
+
+  @override
+  String get adminHardwareAcceleration => 'قاتتىق دېتالنى تېزلىتىش';
+
+  @override
+  String get adminVaapiDevice => 'VA-API ئۈسكۈنىسى';
+
+  @override
+  String get adminEnableHardwareEncoding => 'قاتتىق دېتال كودلاشنى قوزغىتىڭ';
+
+  @override
+  String get adminEnableHardwareDecoding => 'قاتتىق دېتال يېشىشنى قوزغىتىڭ:';
+
+  @override
+  String get adminEncodingThreads => 'كودلاش';
+
+  @override
+  String get adminAutomatic => '0 = ئاپتوماتىك';
+
+  @override
+  String get adminTranscodingTempPath => 'Transpoding temp path';
+
+  @override
+  String get adminEnableFallbackFont => 'چۈشۈش خەت نۇسخىسىنى قوزغىتىڭ';
+
+  @override
+  String get adminFallbackFontPath => 'خاتالىق خەت شەكلى';
+
+  @override
+  String get adminAllowSegmentDeletion => 'بۆلەكنى ئۆچۈرۈشىگە يول قويۇڭ';
+
+  @override
+  String get adminSegmentKeepSeconds => 'بۆلەك ساقلاش (سېكۇنت)';
+
+  @override
+  String get adminThrottleBuffering => 'غەملەشنى چەكلەش';
+
+  @override
+  String get adminTrickplayLoadFailed =>
+      'Trickplay تەڭشەكلىرىنى يۈكلەش مەغلۇپ بولدى';
+
+  @override
+  String get adminEnableHardwareAcceleration => 'قاتتىق دېتالنى تېزلىتىش';
+
+  @override
+  String get adminEnableKeyFrameExtraction =>
+      'ئاچقۇچ رامكىسىنىلا چىقىرىشنى قوزغىتىڭ';
+
+  @override
+  String get adminKeyFrameSubtitle =>
+      'تېخىمۇ تېز ، ئەمما ئېنىقلىق دەرىجىسى تۆۋەن';
+
+  @override
+  String get adminScanBehavior => 'سىكانېرلاش ھەرىكىتى';
+
+  @override
+  String get adminProcessPriority => 'جەرياننىڭ مۇھىم نۇقتىسى';
+
+  @override
+  String get adminImageSettings => 'رەسىم تەڭشىكى';
+
+  @override
+  String get adminIntervalMs => 'ئارىلىق (ms)';
+
+  @override
+  String get adminCaptureFrameSubtitle => 'رامكىنى قانچە قېتىم تۇتۇش';
+
+  @override
+  String get adminWidthResolutions => 'كەڭلىك ئېنىقلىق';
+
+  @override
+  String get adminTileWidth => 'كاھىش كەڭلىكى';
+
+  @override
+  String get adminTileHeight => 'كاھىش ئېگىزلىكى';
+
+  @override
+  String get adminQualitySubtitle =>
+      'تۆۋەن قىممەت = تېخىمۇ سۈپەتلىك ، چوڭ ھۆججەتلەر';
+
+  @override
+  String get adminProcessThreads => 'تېما بىر تەرەپ قىلىش';
+
+  @override
+  String get adminResumeLoadFailed => 'ئەسلىگە كەلتۈرۈش تەڭشىكىنى يۈكلىيەلمىدى';
+
+  @override
+  String get adminResumeDescription =>
+      'مەزمۇننى قىسمەن ئوينىغان ياكى تولۇق ئوينىغان دەپ بەلگىلەڭ.';
+
+  @override
+  String get adminMinResumePercentage => 'ئەڭ تۆۋەن ئەسلىگە كەلتۈرۈش نىسبىتى';
+
+  @override
+  String get adminMinResumeSubtitle =>
+      'ئىلگىرىلەشنى تېجەش ئۈچۈن مەزمۇن چوقۇم بۇ پىرسەنتتىن ئېشىپ كېتىشى كېرەك';
+
+  @override
+  String get adminMaxResumePercentage => 'ئەڭ يۇقىرى ئەسلىگە كەلتۈرۈش نىسبىتى';
+
+  @override
+  String get adminMaxResumeSubtitle =>
+      'بۇ نىسبەتتىن كېيىن مەزمۇن تولۇق ئوينىلىدۇ';
+
+  @override
+  String get adminMinResumeDuration =>
+      'ئەڭ تۆۋەن ئەسلىگە كەلتۈرۈش ۋاقتى (سېكۇنت)';
+
+  @override
+  String get adminMinResumeDurationSubtitle =>
+      'بۇنىڭدىن قىسقا تۈرلەر ئەسلىگە كەلتۈرۈلمەيدۇ';
+
+  @override
+  String get adminMinAudiobookResume =>
+      'ئەڭ تۆۋەن ئاۋازلىق كىتابنىڭ ئەسلىگە كېلىش نىسبىتى';
+
+  @override
+  String get adminMaxAudiobookResume =>
+      'ئەڭ يۇقىرى ئاۋازلىق كىتابنىڭ ئەسلىگە كېلىش نىسبىتى';
+
+  @override
+  String get adminNetworkingLoadFailed => 'تور تەڭشىكىنى يۈكلىيەلمىدى';
+
+  @override
+  String get adminNetworkingWarning =>
+      'تور تەڭشىكىنى ئۆزگەرتىش مۇلازىمېتىرنى قايتا قوزغىتىشنى تەلەپ قىلىشى مۇمكىن.';
+
+  @override
+  String get adminEnableRemoteAccess => 'يىراقتىن زىيارەت قىلىشنى قوزغىتىڭ';
+
+  @override
+  String get ports => 'ئېغىزلار';
+
+  @override
+  String get adminHttpPort => 'HTTP ئېغىزى';
+
+  @override
+  String get adminHttpsPort => 'HTTPS ئېغىزى';
+
+  @override
+  String get adminPublicHttpsPort => 'ئاممىۋى HTTPS ئېغىزى';
+
+  @override
+  String get adminBaseUrl => 'ئاساسى URL';
+
+  @override
+  String get adminBaseUrlHint => 'مەسىلەن / jellyfin';
+
+  @override
+  String get https => 'HTTPS';
+
+  @override
+  String get adminEnableHttps => 'HTTPS نى قوزغىتىڭ';
+
+  @override
+  String get adminLocalNetwork => 'يەرلىك تور';
+
+  @override
+  String get adminLocalNetworkAddresses => 'يەرلىك تور ئادرېسلىرى';
+
+  @override
+  String get adminKnownProxies => 'داڭلىق ۋاكالەتچىلەر';
+
+  @override
+  String get adminRemoteIpFilter => 'يىراقتىكى IP سۈزگۈچ';
+
+  @override
+  String get adminRemoteIpFilterEntries => 'يىراقتىكى IP سۈزگۈچ';
+
+  @override
+  String get adminCertificatePath => 'گۇۋاھنامە يولى';
+
+  @override
+  String get whitelist => 'ئاق تىزىملىك';
+
+  @override
+  String get blacklist => 'قارا تىزىملىك';
+
+  @override
+  String get notSet => 'تەڭشەلمىدى';
+
+  @override
+  String adminMetadataLoadFailed(String error) {
+    return 'مېتا ئۇچۇرنى يۈكلەش مەغلۇپ بولدى: $error';
+  }
+
+  @override
+  String get adminRefreshMetadata => 'Metadata نى يېڭىلاڭ';
+
+  @override
+  String get recursive => 'تەكرار';
+
+  @override
+  String get adminReplaceAllMetadata =>
+      'بارلىق مېتا سانلىق مەلۇماتلارنى ئالماشتۇرۇڭ';
+
+  @override
+  String get adminMetadataRefreshRequested => 'Metadata يېڭىلاش تەلەپ قىلىندى';
+
+  @override
+  String adminMetadataRefreshFailed(String error) {
+    return 'مېتا ئۇچۇرنى يېڭىلاش مەغلۇپ بولدى: $error';
+  }
+
+  @override
+  String get adminNoRemoteMatches => 'يىراقتىن ماس كېلىدىغان تېپىلمىدى';
+
+  @override
+  String get adminRemoteResults => 'يىراقتىن نەتىجە';
+
+  @override
+  String get adminRemoteMetadataApplied =>
+      'يىراقتىكى مېتا سانلىق مەلۇمات قوللىنىلدى';
+
+  @override
+  String adminRemoteSearchFailed(String error) {
+    return 'يىراقتىن ئىزدەش مەغلۇپ بولدى: $error';
+  }
+
+  @override
+  String get adminUpdateContentType => 'مەزمۇن تىپىنى يېڭىلاش';
+
+  @override
+  String get adminContentType => 'مەزمۇن تىپى';
+
+  @override
+  String get adminContentTypeUpdated => 'مەزمۇن تىپى يېڭىلاندى';
+
+  @override
+  String adminContentTypeUpdateFailed(String error) {
+    return 'مەزمۇن تىپىنى يېڭىلاش مەغلۇپ بولدى: $error';
+  }
+
+  @override
+  String get adminMetadataEditorLoadFailed =>
+      'مېتا سانلىق مەلۇمات تەھرىرلىگۈچنى يۈكلىيەلمىدى';
+
+  @override
+  String get adminNoPeopleEntries => 'ئادەم كىرگۈزمەيدۇ';
+
+  @override
+  String get adminNoExternalIds => 'سىرتقى كىملىك ​​يوق';
+
+  @override
+  String adminImageUpdated(String imageType) {
+    return '$imageType رەسىمى يېڭىلاندى';
+  }
+
+  @override
+  String adminImageDownloadFailed(String error) {
+    return 'رەسىم چۈشۈرۈش مەغلۇپ بولدى: $error';
+  }
+
+  @override
+  String get adminUnsupportedImageFormat => 'قوللىمايدىغان رەسىم فورماتى';
+
+  @override
+  String get adminImageReadFailed => 'تاللانغان رەسىمنى ئوقۇش مەغلۇب بولدى';
+
+  @override
+  String adminImageUploaded(String imageType) {
+    return '$imageType رەسىمى يوللاندى';
+  }
+
+  @override
+  String adminImageUploadFailed(String error) {
+    return 'رەسىم يوللاش مەغلۇپ بولدى: $error';
+  }
+
+  @override
+  String adminDeleteImage(String imageType) {
+    return '$imageType رەسىمىنى ئۆچۈرۈش';
+  }
+
+  @override
+  String adminImageDeleted(String imageType) {
+    return '$imageType رەسىمى ئۆچۈرۈلدى';
+  }
+
+  @override
+  String adminImageDeleteFailed(String error) {
+    return 'رەسىمنى ئۆچۈرۈش مەغلۇپ بولدى: $error';
+  }
+
+  @override
+  String get adminAllProviders => 'بارلىق تەمىنلىگۈچىلەر';
+
+  @override
+  String get adminNoRemoteImages => 'يىراقتىن رەسىم تېپىلمىدى';
+
+  @override
+  String adminTunerDiscoveryFailed(String error) {
+    return 'تيۇنېر بايقاش مەغلۇپ بولدى: $error';
+  }
+
+  @override
+  String get adminTunerTypeM3u => 'M3U تيۇنېرى';
+
+  @override
+  String get adminTunerTypeHdHomerun => 'HDHomeRun';
+
+  @override
+  String get adminTunerFileOrUrl => 'ھۆججەت ياكى URL';
+
+  @override
+  String get adminTunerIpAddress => 'تيۇنېر IP ئادرېسى';
+
+  @override
+  String get adminTunerFriendlyName => 'قولايلىق ئىسىم';
+
+  @override
+  String get adminTunerUserAgent => 'User agent';
+
+  @override
+  String get adminTunerCount => 'بىرلا ۋاقىتتىكى ئۇلىنىش چېكى';
+
+  @override
+  String get adminTunerCountHelp =>
+      'تيۇنېرنىڭ بىرلا ۋاقىتتا يول قويىدىغان ئەڭ كۆپ ئېقىم سانى. چەكسىز ئۈچۈن 0 قىلىڭ.';
+
+  @override
+  String get adminTunerFallbackBitrate => 'زاپاس ئەڭ يۇقىرى ئېقىم بىت نىسبىتى';
+
+  @override
+  String get adminTunerImportFavoritesOnly =>
+      'پەقەت ئامراق قاناللارنىلا ئەكىرىش';
+
+  @override
+  String get adminTunerAllowHwTranscoding =>
+      'قاتتىق دېتاللىق كود ئۆزگەرتىشكە يول قويۇش';
+
+  @override
+  String get adminTunerAllowFmp4 => 'fMP4 كود ئۆزگەرتىش قاچىسىغا يول قويۇش';
+
+  @override
+  String get adminTunerAllowStreamSharing => 'ئېقىم ھەمبەھىرلەشكە يول قويۇش';
+
+  @override
+  String get adminTunerEnableStreamLooping => 'ئېقىم دەۋرىيلىكىنى قوزغىتىش';
+
+  @override
+  String get adminTunerIgnoreDts => 'DTS نى نەزەردىن ساقىت قىلىش';
+
+  @override
+  String get adminTunerReadAtNativeFramerate =>
+      'كىرگۈزۈشنى ئەسلى كادر تېزلىكىدە ئوقۇش';
+
+  @override
+  String get adminProviderXmltv => 'XMLTV';
+
+  @override
+  String get adminProviderSchedulesDirect => 'Schedules Direct';
+
+  @override
+  String get adminXmltvPath => 'ھۆججەت ياكى URL';
+
+  @override
+  String get adminXmltvMoviePrefix => 'كىنو ئالدى قوشۇلغۇچىسى';
+
+  @override
+  String get adminXmltvMovieCategories => 'كىنو تۈرلىرى';
+
+  @override
+  String get adminXmltvCategoriesHelp => 'كۆپ تۈرنى تىك سىزىق بىلەن ئايرىڭ.';
+
+  @override
+  String get adminXmltvKidsCategories => 'بالىلار تۈرلىرى';
+
+  @override
+  String get adminXmltvNewsCategories => 'خەۋەر تۈرلىرى';
+
+  @override
+  String get adminXmltvSportsCategories => 'تەنتەربىيە تۈرلىرى';
+
+  @override
+  String get adminSdUsername => 'ئىشلەتكۈچى ئىسمى';
+
+  @override
+  String get adminSdPassword => 'پارول';
+
+  @override
+  String get adminSdCountry => 'دۆلەت';
+
+  @override
+  String get adminSdCountrySelect => 'دۆلەت تاللاڭ';
+
+  @override
+  String get adminSdPostalCode => 'پوچتا نومۇرى';
+
+  @override
+  String get adminEnableAllTuners => 'بارلىق تيۇنېرلارنى قوزغىتىش';
+
+  @override
+  String adminTunerRemoveFailed(String error) {
+    return 'تيۇنېرنى چىقىرىۋېتىش مەغلۇپ بولدى: $error';
+  }
+
+  @override
+  String adminProviderRemoveFailed(String error) {
+    return 'تەمىنلىگۈچىنى چىقىرىۋېتىش مەغلۇپ بولدى: $error';
+  }
+
+  @override
+  String get adminSeriesRecordingPath => 'يۈرۈشلۈك خاتىرىلەش يولى';
+
+  @override
+  String get adminMovieRecordingPath => 'كىنو خاتىرىلەش يولى';
+
+  @override
+  String get adminGuideDaysAuto => 'ئاپتوماتىك';
+
+  @override
+  String get adminRecordingPostProcessor =>
+      'كېيىنكى بىر تەرەپ قىلىش پروگراممىسىنىڭ يولى';
+
+  @override
+  String get adminRecordingPostProcessorArgs =>
+      'كېيىنكى بىر تەرەپ قىلغۇچ پارامېتىرلىرى';
+
+  @override
+  String get adminSaveRecordingNfo => 'خاتىرىلەنمە NFO مېتا ئۇچۇرىنى ساقلاش';
+
+  @override
+  String get adminSaveRecordingImages => 'خاتىرىلەنمە رەسىملىرىنى ساقلاش';
+
+  @override
+  String get adminLiveTvSectionPaths => 'خاتىرىلەش يوللىرى';
+
+  @override
+  String get adminLiveTvSectionPostProcessing => 'كېيىنكى بىر تەرەپ قىلىش';
+
+  @override
+  String adminSettingsSaveFailed(String error) {
+    return 'تەڭشەكلەرنى ساقلاش مەغلۇپ بولدى: $error';
+  }
+
+  @override
+  String get adminLiveTvLoadFailed =>
+      'نەق مەيدان تېلېۋىزىيە باشقۇرۇشنى يۈكلىيەلمىدى';
+
+  @override
+  String get adminTunerDevices => 'تەڭشىگۈچ ئۈسكۈنىلىرى';
+
+  @override
+  String get adminNoTunerHosts => 'ھېچقانداق تەڭشىگۈچ ئورۇنلاشتۇرۇلمىدى';
+
+  @override
+  String get adminGuideProviders => 'يېتەكچى تەمىنلىگۈچىلەر';
+
+  @override
+  String get adminGuideRefreshStarted =>
+      'جەدۋەل سانلىق مەلۇماتىنى يېڭىلاش باشلاندى';
+
+  @override
+  String get adminGuideRefreshUnavailable =>
+      'بۇ مۇلازىمېتىردا جەدۋەل يېڭىلاش ۋەزىپىسى يوق.';
+
+  @override
+  String get adminNoListingProviders => 'تىزىملىك ​​تەمىنلىگۈچىلەر سەپلەنمىگەن';
+
+  @override
+  String get adminSettingsSaved => 'تەڭشەكلەر ساقلاندى';
+
+  @override
+  String get adminBackupsNotAvailable =>
+      'بۇ مۇلازىمېتىردا زاپاسلاشنى ئىشلەتكىلى بولمايدۇ.';
+
+  @override
+  String get adminRestoreWarning1 =>
+      'ئەسلىگە كەلتۈرۈش نۆۋەتتىكى بارلىق مۇلازىمېتىر سانلىق مەلۇماتلىرىنى زاپاس سانلىق مەلۇمات بىلەن ئالماشتۇرىدۇ.';
+
+  @override
+  String get adminRestoreWarning2 =>
+      'نۆۋەتتىكى مۇلازىمېتىر تەڭشىكى ، ئىشلەتكۈچى ۋە كۈتۈپخانا سانلىق مەلۇماتلىرى يېزىلىدۇ.';
+
+  @override
+  String get adminRestoreWarning3 =>
+      'ئەسلىگە كەلگەندىن كېيىن مۇلازىمېتىر قايتا قوزغىلىدۇ.';
+
+  @override
+  String adminRestoreConfirmMessage(String name) {
+    return '$name زاپاس نۇسخىسى ھازىر ئەسلىگە كەلتۈرۈلسۇنمۇ؟';
+  }
+
+  @override
+  String get adminBackupsTitle => 'زاپاسلاش';
+
+  @override
+  String get adminUnknownDate => 'نامەلۇم ۋاقىت';
+
+  @override
+  String get adminUnnamedBackup => 'نامسىز زاپاسلاش';
+
+  @override
+  String get adminApply => 'قوللىنىش';
+
+  @override
+  String get adminLogsTitle => 'مۇلازىمېتىر خاتىرىسى';
+
+  @override
+  String get adminLogsNewestFirst => 'ئەڭ يېڭى بىرىنچى';
+
+  @override
+  String get adminLogsOldestFirst => 'كونىسى ئالدىدا';
+
+  @override
+  String get adminLogsJustNow => 'ھازىر';
+
+  @override
+  String adminLogsMinutesAgo(int minutes) {
+    return '$minutes مىنۇت ئىلگىرى';
+  }
+
+  @override
+  String adminLogsHoursAgo(int hours) {
+    return '$hours سائەت ئىلگىرى';
+  }
+
+  @override
+  String adminLogsDaysAgo(int days) {
+    return '$days كۈن ئىلگىرى';
+  }
+
+  @override
+  String adminLogViewerLoadFailed(String fileName) {
+    return '$fileName نى يۈكلەش مەغلۇپ بولدى';
+  }
+
+  @override
+  String adminLogViewerMatches(int count) {
+    return '$count نەتىجە';
+  }
+
+  @override
+  String get adminLogViewerNoMatches => 'ماس كېلىدىغان قۇر يوق';
+
+  @override
+  String get adminMetadataEditorTitle => 'مېتا ئۇچۇر تەھرىرلىگۈچ';
+
+  @override
+  String get adminMetadataIdentify => 'تونۇش';
+
+  @override
+  String get adminMetadataType => 'تىپ';
+
+  @override
+  String get adminMetadataDetails => 'تەپسىلاتى';
+
+  @override
+  String get adminMetadataExternalIds => 'سىرتقى كىملىك';
+
+  @override
+  String get adminMetadataImages => 'سۈرەتلەر';
+
+  @override
+  String get adminMetadataFieldTitle => 'ماۋزۇ';
+
+  @override
+  String get adminMetadataFieldSortTitle => 'ماۋزۇ تىزىش';
+
+  @override
+  String get adminMetadataFieldOriginalTitle => 'ئەسلى ئىسمى';
+
+  @override
+  String get adminMetadataFieldPremiereDate => 'قويۇلۇش ۋاقتى (YYYY-MM-DD)';
+
+  @override
+  String get adminMetadataFieldEndDate => 'ئاخىرلىشىش ۋاقتى (YYYY-MM-DD)';
+
+  @override
+  String get adminMetadataFieldProductionYear => 'ئىشلەپچىقىرىش يىلى';
+
+  @override
+  String get adminMetadataFieldOfficialRating => 'رەسمىي باھا';
+
+  @override
+  String get adminMetadataFieldCommunityRating => 'مەھەللە دەرىجىسى';
+
+  @override
+  String get adminMetadataFieldCriticRating => 'تەنقىد دەرىجىسى';
+
+  @override
+  String get adminMetadataFieldCustomRating => 'Custom rating';
+
+  @override
+  String get adminMetadataFieldTagline => 'خەتكۈچ';
+
+  @override
+  String get adminMetadataFieldOverview => 'ئومۇمىي چۈشەنچە';
+
+  @override
+  String get adminMetadataFieldDisplayOrder => 'Display order';
+
+  @override
+  String get adminMetadataDisplayOrderAired => 'Aired';
+
+  @override
+  String get adminMetadataDisplayOrderOriginalAirDate => 'Original air date';
+
+  @override
+  String get adminMetadataDisplayOrderAbsolute => 'Absolute';
+
+  @override
+  String get adminMetadataDisplayOrderDvd => 'DVD';
+
+  @override
+  String get adminMetadataDisplayOrderDigital => 'Digital';
+
+  @override
+  String get adminMetadataDisplayOrderStoryArc => 'Story arc';
+
+  @override
+  String get adminMetadataDisplayOrderProduction => 'Production';
+
+  @override
+  String get adminMetadataDisplayOrderTv => 'TV';
+
+  @override
+  String get adminMetadataDisplayOrderAlternate => 'Alternate';
+
+  @override
+  String get adminMetadataDisplayOrderRegional => 'Regional';
+
+  @override
+  String get adminMetadataDisplayOrderAlternateDvd => 'Alternate DVD';
+
+  @override
+  String get adminMetadataDisplayOrderDateModified => 'Date modified';
+
+  @override
+  String get adminMetadataDisplayOrderSortName => 'Sort name';
+
+  @override
+  String get adminMetadataDisplayOrderReleaseDate => 'Release date';
+
+  @override
+  String get adminMetadataSettings => 'Metadata Settings';
+
+  @override
+  String get adminMetadataDownloadLanguage => 'Preferred download language';
+
+  @override
+  String get adminMetadataCountryRegion => 'Country/Region';
+
+  @override
+  String get adminMetadataInheritHelp =>
+      'Leave this on Default to inherit the setting from a parent item, or from the server default.';
+
+  @override
+  String get adminMetadataField3DFormat => '3D format';
+
+  @override
+  String get adminMetadataPersonKindActor => 'Actor';
+
+  @override
+  String get adminMetadataPersonKindDirector => 'Director';
+
+  @override
+  String get adminMetadataPersonKindComposer => 'Composer';
+
+  @override
+  String get adminMetadataPersonKindWriter => 'Writer';
+
+  @override
+  String get adminMetadataPersonKindGuestStar => 'Guest star';
+
+  @override
+  String get adminMetadataPersonKindProducer => 'Producer';
+
+  @override
+  String get adminMetadataPersonKindConductor => 'Conductor';
+
+  @override
+  String get adminMetadataPersonKindLyricist => 'Lyricist';
+
+  @override
+  String get adminMetadataPersonKindArranger => 'Arranger';
+
+  @override
+  String get adminMetadataPersonKindEngineer => 'Engineer';
+
+  @override
+  String get adminMetadataPersonKindMixer => 'Mixer';
+
+  @override
+  String get adminMetadataPersonKindRemixer => 'Remixer';
+
+  @override
+  String get adminMetadataPersonKindCreator => 'Creator';
+
+  @override
+  String get adminMetadataPersonKindArtist => 'Artist';
+
+  @override
+  String get adminMetadataPersonKindAlbumArtist => 'Album artist';
+
+  @override
+  String get adminMetadataPersonKindAuthor => 'Author';
+
+  @override
+  String get adminMetadataPersonKindIllustrator => 'Illustrator';
+
+  @override
+  String get adminMetadataPersonKindPenciller => 'Penciller';
+
+  @override
+  String get adminMetadataPersonKindInker => 'Inker';
+
+  @override
+  String get adminMetadataPersonKindColorist => 'Colorist';
+
+  @override
+  String get adminMetadataPersonKindLetterer => 'Letterer';
+
+  @override
+  String get adminMetadataPersonKindCoverArtist => 'Cover artist';
+
+  @override
+  String get adminMetadataPersonKindEditor => 'Editor';
+
+  @override
+  String get adminMetadataPersonKindTranslator => 'Translator';
+
+  @override
+  String get adminMetadataPersonKindNarrator => 'Narrator';
+
+  @override
+  String get adminMetadataAirDays => 'Air days';
+
+  @override
+  String get adminMetadataLockItem =>
+      'Lock this item to prevent future metadata changes';
+
+  @override
+  String get adminMetadataEnabledFields => 'Enabled Fields';
+
+  @override
+  String get adminMetadataEnabledFieldsHelp =>
+      'Uncheck a field to lock it and prevent its data from being changed.';
+
+  @override
+  String get adminMetadataLockFieldName => 'Name';
+
+  @override
+  String get adminMetadataLockFieldOverview => 'Overview';
+
+  @override
+  String get adminMetadataLockFieldGenres => 'Genres';
+
+  @override
+  String get adminMetadataLockFieldOfficialRating => 'Parental rating';
+
+  @override
+  String get adminMetadataLockFieldCast => 'People';
+
+  @override
+  String get adminMetadataLockFieldProductionLocations =>
+      'Production locations';
+
+  @override
+  String get adminMetadataLockFieldBirthLocation => 'Birth location';
+
+  @override
+  String get adminMetadataLockFieldRuntime => 'Runtime';
+
+  @override
+  String get adminMetadataLockFieldStudios => 'Studios';
+
+  @override
+  String get adminMetadataLockFieldTags => 'Tags';
+
+  @override
+  String get adminMetadataGenres => 'ژانىرلار';
+
+  @override
+  String get adminMetadataTags => 'خەتكۈچ';
+
+  @override
+  String get adminMetadataStudios => 'ئىستۇدىيەلەر';
+
+  @override
+  String get adminMetadataPeople => 'كىشىلەر';
+
+  @override
+  String get adminMetadataAddGenre => 'ژانىر قوشۇڭ';
+
+  @override
+  String get adminMetadataAddTag => 'خەتكۈچ قوشۇڭ';
+
+  @override
+  String get adminMetadataAddStudio => 'ستۇدېنت قوشۇڭ';
+
+  @override
+  String get adminMetadataAddPerson => 'ئادەم قوشۇڭ';
+
+  @override
+  String get adminMetadataEditPerson => 'تەھرىرلەش';
+
+  @override
+  String get adminMetadataRole => 'رولى';
+
+  @override
+  String get adminMetadataImagePrimary => 'ئاساسىي';
+
+  @override
+  String get adminMetadataImageBackdrop => 'ئارقا كۆرۈنۈش';
+
+  @override
+  String get adminMetadataImageLogo => 'لوگو';
+
+  @override
+  String get adminMetadataImageBanner => 'بايراق';
+
+  @override
+  String get adminMetadataImageThumb => 'كىچىك كۆرۈنۈش';
+
+  @override
+  String get adminMetadataProvider => 'تەمىنلىگۈچى';
+
+  @override
+  String adminMetadataImageUpdated(String imageType) {
+    return '$imageType رەسىمى يېڭىلاندى';
+  }
+
+  @override
+  String adminMetadataImageUploaded(String imageType) {
+    return '$imageType رەسىمى يوللاندى';
+  }
+
+  @override
+  String adminMetadataImageDeleted(String imageType) {
+    return '$imageType رەسىمى ئۆچۈرۈلدى';
+  }
+
+  @override
+  String adminMetadataImageDownloadFailed(String error) {
+    return 'رەسىم چۈشۈرۈش مەغلۇپ بولدى: $error';
+  }
+
+  @override
+  String get adminMetadataImageReadFailed =>
+      'تاللانغان رەسىمنى ئوقۇش مەغلۇب بولدى';
+
+  @override
+  String adminMetadataImageUploadFailed(String error) {
+    return 'رەسىم يوللاش مەغلۇپ بولدى: $error';
+  }
+
+  @override
+  String adminMetadataDeleteImageTitle(String imageType) {
+    return '$imageType رەسىمىنى ئۆچۈرۈش';
+  }
+
+  @override
+  String get adminMetadataDeleteImageContent =>
+      'بۇ نۆۋەتتىكى رەسىمنى تۈردىن چىقىرىپ تاشلايدۇ.';
+
+  @override
+  String adminMetadataImageDeleteFailed(String error) {
+    return 'رەسىمنى ئۆچۈرۈش مەغلۇپ بولدى: $error';
+  }
+
+  @override
+  String adminMetadataChooseImage(String imageType) {
+    return '$imageType رەسىمى تاللاش';
+  }
+
+  @override
+  String get adminMetadataUpload => 'يۈكلەش';
+
+  @override
+  String get adminMetadataUpdate => 'يېڭىلاش';
+
+  @override
+  String get adminMetadataRemoteImage => 'يىراقتىكى رەسىم';
+
+  @override
+  String get adminPluginsInstalled => 'قاچىلاندى';
+
+  @override
+  String get adminPluginsCatalog => 'مۇندەرىجە';
+
+  @override
+  String get adminPluginsActive => 'ئاكتىپ';
+
+  @override
+  String get adminPluginsRestart => 'قايتا قوزغىتىڭ';
+
+  @override
+  String get adminPluginsRestartRequired => 'Restart required';
+
+  @override
+  String get adminPluginsNoSearchResults =>
+      'ھېچقانداق قىستۇرما ئىزدىشىڭىزگە ماس كەلمەيدۇ';
+
+  @override
+  String get adminPluginsNoneInstalled => 'قىستۇرما ئورنىتىلمىدى';
+
+  @override
+  String get adminPluginsNoneActive => 'No active plugins';
+
+  @override
+  String get adminPluginsNoneRequireRestart =>
+      'No plugins require a server restart';
+
+  @override
+  String adminPluginsUpdateAvailable(String version) {
+    return 'يېڭىلانما بار: v$version';
+  }
+
+  @override
+  String get adminPluginsUpdateAvailableGeneric =>
+      'يېڭىلاشنى ئىشلەتكىلى بولىدۇ';
+
+  @override
+  String get adminPluginsPendingRemoval =>
+      'قايتا قوزغىتىلغاندىن كېيىن ئېلىۋېتىشنى ساقلاۋاتىدۇ';
+
+  @override
+  String get adminPluginsChangesPending => 'قايتا قوزغىتىشنى ساقلاۋاتىدۇ';
+
+  @override
+  String get adminPluginsEnable => 'قوزغىتىش';
+
+  @override
+  String get adminPluginsDisable => 'چەكلەش';
+
+  @override
+  String get adminPluginsInstallUpdate => 'يېڭىلاشنى قاچىلاڭ';
+
+  @override
+  String adminPluginsInstallUpdateVersioned(String version) {
+    return 'يېڭىلانمىنى قاچىلاش (v$version)';
+  }
+
+  @override
+  String get adminPluginsCatalogNoSearchResults =>
+      'ھېچقانداق ئورالما سىزنىڭ ئىزدىشىڭىزگە ماس كەلمەيدۇ';
+
+  @override
+  String get adminPluginsCatalogEmpty => 'ئورالما يوق';
+
+  @override
+  String adminPluginsInstalling(String name) {
+    return '«$name» قاچىلىنىۋاتىدۇ...';
+  }
+
+  @override
+  String get adminPluginDetailExperimental => 'تەجرىبە بىر گەۋدىلەشتۈرۈش';
+
+  @override
+  String get adminPluginDetailExperimentalContent =>
+      'قىستۇرما تەڭشەكلىرىنى بىرلەشتۈرۈش يەنىلا سىناق. بەزى ساھە ياكى ئورۇنلاشتۇرۇشلار تېخى توغرا كۆرسىتىلمەسلىكى مۇمكىن.';
+
+  @override
+  String get adminPluginDetailToggle404 =>
+      'قىستۇرمىنى ئالماشتۇرۇش مەغلۇب بولدى. مۇلازىمېتىر بۇ قىستۇرما نۇسخىسىنى تاپالمىدى. قىستۇرمىلارنى يېڭىلاپ سىناپ بېقىڭ.';
+
+  @override
+  String get adminPluginDetailToggleDioError =>
+      'قىستۇرمىنى ئالماشتۇرۇش مەغلۇب بولدى. تەپسىلاتلار ئۈچۈن مۇلازىمېتىر خاتىرىسىنى تەكشۈرۈپ بېقىڭ.';
+
+  @override
+  String adminPluginDetailSettingsTitle(String name) {
+    return '$name تەڭشەكلىرى';
+  }
+
+  @override
+  String get adminPluginDetailDetails => 'تەپسىلاتى';
+
+  @override
+  String get adminPluginDetailDeveloper => 'ئىجادىيەتچى';
+
+  @override
+  String get adminPluginDetailRepository => 'ئامبار';
+
+  @override
+  String get adminPluginDetailBundled => 'باغلاندى';
+
+  @override
+  String get adminPluginDetailEnablePlugin => 'قىستۇرمىنى قوزغىتىڭ';
+
+  @override
+  String get adminPluginDetailRestartRequired =>
+      'ئۆزگەرتىشلەرنىڭ كۈچكە ئىگە بولۇشى ئۈچۈن مۇلازىمېتىرنى قايتا قوزغىتىش تەلەپ قىلىنىدۇ.';
+
+  @override
+  String get adminPluginDetailRemovalPending =>
+      'مۇلازىمېتىر قايتا قوزغىتىلغاندىن كېيىن بۇ قىستۇرما ئۆچۈرۈلىدۇ.';
+
+  @override
+  String get adminPluginDetailMalfunctioned =>
+      'بۇ قىستۇرما كاشىلا كۆرۈلگەن بولۇپ ، نورمال ئىشلىمەسلىكى مۇمكىن.';
+
+  @override
+  String get adminPluginDetailNotSupported =>
+      'بۇ قىستۇرمىنى نۆۋەتتىكى مۇلازىمېتىر نەشرى قوللىمايدۇ.';
+
+  @override
+  String get adminPluginDetailSuperseded =>
+      'بۇ قىستۇرما يېڭى نەشرىگە ئالماشتۇرۇلدى.';
+
+  @override
+  String adminReposLoadFailed(String error) {
+    return 'خەزىنىلەرنى يۈكلەش مەغلۇپ بولدى: $error';
+  }
+
+  @override
+  String get adminReposRemoveTitle => 'ئامبارنى ئۆچۈرۈڭ';
+
+  @override
+  String adminReposRemoveConfirm(String name) {
+    return '«$name» نى راستىنلا چىقىرىۋېتەمسىز؟';
+  }
+
+  @override
+  String get adminReposRemove => 'چىقىرىۋېتىش';
+
+  @override
+  String adminReposSaveFailed(String error) {
+    return 'خەزىنىلەرنى ساقلاش مەغلۇپ بولدى: $error';
+  }
+
+  @override
+  String get adminReposEmpty => 'ئامبار سەپلەنمىدى';
+
+  @override
+  String get adminReposEmptySubtitle =>
+      'ئىشلەتكىلى بولىدىغان قىستۇرمىلارنى كۆرۈش ئۈچۈن ئامبار قوشۇڭ';
+
+  @override
+  String get adminReposUnnamed => '(نامسىز)';
+
+  @override
+  String get adminReposEditTitle => 'ئامبارنى تەھرىرلەش';
+
+  @override
+  String get adminReposAddTitle => 'ئامبار قوشۇڭ';
+
+  @override
+  String get adminReposUrl => 'ئامبار ئادرېسى';
+
+  @override
+  String get adminReposNameHint => 'مەسىلەن Jellyfin Stable';
+
+  @override
+  String get adminPluginSettingsInvalidUrl => 'ئىناۋەتسىز URL';
+
+  @override
+  String get adminGeneralSettingsTitle => 'ئادەتتىكى تەڭشەكلەر';
+
+  @override
+  String get adminGeneralMetadataLanguage =>
+      'ياقتۇرىدىغان مېتا سانلىق مەلۇمات تىلى';
+
+  @override
+  String get adminGeneralMetadataLanguageHint => 'مەسىلەن en, de, fr';
+
+  @override
+  String get adminGeneralMetadataCountry =>
+      'ياقتۇرىدىغان مېتا سانلىق مەلۇمات دۆلىتى';
+
+  @override
+  String get adminGeneralMetadataCountryHint => 'مەسىلەن US, DE, FR';
+
+  @override
+  String get adminGeneralLibraryScanConcurrency => 'كۈتۈپخانىنى سىكانىرلاش';
+
+  @override
+  String get adminGeneralImageEncodingLimit => 'پاراللېل رەسىم كودلاش چېكى';
+
+  @override
+  String get adminUnknownError => 'نامەلۇم خاتالىق';
+
+  @override
+  String get adminBrowse => 'توركۆرگۈ';
+
+  @override
+  String get adminCloseBrowser => 'توركۆرگۈنى تاقاڭ';
+
+  @override
+  String get adminNetworkingTitle => 'تور';
+
+  @override
+  String get adminNetworkingRestartWarning =>
+      'تور تەڭشىكىنى ئۆزگەرتىش مۇلازىمېتىرنى قايتا قوزغىتىشنى تەلەپ قىلىشى مۇمكىن.';
+
+  @override
+  String get adminNetworkingEnableHttps => 'HTTPS نى قوزغىتىڭ';
+
+  @override
+  String get adminNetworkingAddressHint => 'مەسىلەن 192.168.1.0/24';
+
+  @override
+  String get adminNetworkingKnownProxies => 'داڭلىق ۋاكالەتچىلەر';
+
+  @override
+  String get adminNetworkingProxyHint => 'مەسىلەن 10.0.0.1';
+
+  @override
+  String get adminNetworkingWhitelist => 'ئاق تىزىملىك';
+
+  @override
+  String get adminNetworkingBlacklist => 'قارا تىزىملىك';
+
+  @override
+  String get adminNetworkingAddEntry => 'كىرگۈزۈش';
+
+  @override
+  String get adminBrandingTitle => 'ماركا';
+
+  @override
+  String get adminBrandingLoginDisclaimer => 'كىرىشنى رەت قىلىش';
+
+  @override
+  String get adminBrandingLoginDisclaimerHint =>
+      'كىرىش جەدۋىلىنىڭ ئاستىدا HTML كۆرسىتىلدى';
+
+  @override
+  String get adminBrandingCustomCss => 'ئىختىيارى CSS';
+
+  @override
+  String get adminBrandingCustomCssHint =>
+      'ئىختىيارى CSS تور كۆرۈنمە يۈزىگە قوللىنىلدى';
+
+  @override
+  String get adminBrandingEnableSplash => 'چاقماق ئېكرانىنى قوزغىتىڭ';
+
+  @override
+  String get adminBrandingSplashUpload => 'رەسىم يوللاش';
+
+  @override
+  String get adminBrandingSplashUploaded => 'قوزغىلىش ئېكرانى يېڭىلاندى';
+
+  @override
+  String get adminBrandingSplashUploadFailed =>
+      'قوزغىلىش ئېكرانىنى يوللاش مەغلۇپ بولدى';
+
+  @override
+  String get adminBrandingSplashDeleted => 'قوزغىلىش ئېكرانى چىقىرىۋېتىلدى';
+
+  @override
+  String get adminBrandingNoSplash => 'ئىختىيارى قوزغىلىش ئېكرانى يوق';
+
+  @override
+  String get adminPlaybackHwAccel => 'قاتتىق دېتالنى تېزلىتىش';
+
+  @override
+  String get adminPlaybackHwAccelLabel => 'قاتتىق دېتالنى تېزلىتىش';
+
+  @override
+  String get adminPlaybackEnableHwEncoding => 'قاتتىق دېتال كودلاشنى قوزغىتىڭ';
+
+  @override
+  String get adminPlaybackQsvDevice => 'QSV ئۈسكۈنىسى';
+
+  @override
+  String get adminPlaybackEnhancedNvdec =>
+      'كۈچەيتىلگەن NVDEC كودسىزلىغۇچنى قوزغىتىش';
+
+  @override
+  String get adminPlaybackPreferNativeDecoder =>
+      'سىستېمىنىڭ ئۆز قاتتىق دېتال كودسىزلىغۇچىنى ئالدىن تاللاش';
+
+  @override
+  String get adminPlaybackColorDepth10Hevc => '10 بىتلىق HEVC كودسىزلاش';
+
+  @override
+  String get adminPlaybackColorDepth10Vp9 => '10 بىتلىق VP9 كودسىزلاش';
+
+  @override
+  String get adminPlaybackColorDepth10HevcRext =>
+      'HEVC RExt 8/10 بىتلىق كودسىزلاش';
+
+  @override
+  String get adminPlaybackColorDepth12HevcRext =>
+      'HEVC RExt 12 بىتلىق كودسىزلاش';
+
+  @override
+  String get adminPlaybackHwEncodingSection => 'قاتتىق دېتال كودلاش';
+
+  @override
+  String get adminPlaybackAllowHevcEncoding => 'HEVC كودلاشقا يول قويۇش';
+
+  @override
+  String get adminPlaybackAllowAv1Encoding => 'AV1 كودلاشقا يول قويۇش';
+
+  @override
+  String get adminPlaybackIntelLowPowerH264 =>
+      'Intel تۆۋەن قۇۋۋەتلىك H.264 كودلىغۇچنى قوزغىتىش';
+
+  @override
+  String get adminPlaybackIntelLowPowerHevc =>
+      'Intel تۆۋەن قۇۋۋەتلىك HEVC كودلىغۇچنى قوزغىتىش';
+
+  @override
+  String get adminPlaybackToneMapping => 'رەڭ تونى خەرىتىلەش';
+
+  @override
+  String get adminPlaybackEnableTonemapping => 'رەڭ تونى خەرىتىلەشنى قوزغىتىش';
+
+  @override
+  String get adminPlaybackEnableVppTonemapping =>
+      'VPP رەڭ تونى خەرىتىلەشنى قوزغىتىش';
+
+  @override
+  String get adminPlaybackEnableVtTonemapping =>
+      'VideoToolbox رەڭ تونى خەرىتىلەشنى قوزغىتىش';
+
+  @override
+  String get adminPlaybackTonemappingAlgorithm =>
+      'رەڭ تونى خەرىتىلەش ئالگورىتمى';
+
+  @override
+  String get adminPlaybackTonemappingMode => 'رەڭ تونى خەرىتىلەش ھالىتى';
+
+  @override
+  String get adminPlaybackTonemappingRange => 'رەڭ تونى خەرىتىلەش دائىرىسى';
+
+  @override
+  String get adminPlaybackTonemappingDesat =>
+      'رەڭ تونى خەرىتىلەش رەڭسىزلەندۈرۈشى';
+
+  @override
+  String get adminPlaybackTonemappingPeak => 'رەڭ تونى خەرىتىلەش چوققىسى';
+
+  @override
+  String get adminPlaybackTonemappingParam => 'رەڭ تونى خەرىتىلەش پارامېتىرى';
+
+  @override
+  String get adminPlaybackVppTonemappingBrightness =>
+      'VPP رەڭ تونى خەرىتىلەش يورۇقلۇقى';
+
+  @override
+  String get adminPlaybackVppTonemappingContrast =>
+      'VPP رەڭ تونى خەرىتىلەش سېلىشتۇرمىسى';
+
+  @override
+  String get adminPlaybackEncoderPreset => 'كودلىغۇچ ئالدىن تەڭشىكى';
+
+  @override
+  String get adminPlaybackH264Crf => 'H.264 كودلاش CRF قىممىتى';
+
+  @override
+  String get adminPlaybackH265Crf => 'H.265 (HEVC) كودلاش CRF قىممىتى';
+
+  @override
+  String get adminPlaybackDeinterlaceMethod =>
+      'ئارىلاشما سىزىقنى يوقىتىش ئۇسۇلى';
+
+  @override
+  String get adminPlaybackDeinterlaceDoubleRate =>
+      'ئارىلاشما سىزىقنى يوقىتىشتا كادر تېزلىكىنى ھەسسىلەش';
+
+  @override
+  String get adminPlaybackAudioSection => 'ئاۋاز';
+
+  @override
+  String get adminPlaybackEnableAudioVbr => 'ئاۋاز VBR كودلاشنى قوزغىتىش';
+
+  @override
+  String get adminPlaybackDownmixBoost => 'ئاۋاز تۆۋەنلىتىش كۈچەيتىشى';
+
+  @override
+  String get adminPlaybackDownmixAlgorithm => 'ستېرېئوغا تۆۋەنلىتىش ئالگورىتمى';
+
+  @override
+  String get adminPlaybackMaxMuxingQueue =>
+      'ئەڭ چوڭ بىرلەشتۈرۈش ئۆچرىتىنىڭ چوڭلۇقى';
+
+  @override
+  String get adminPlaybackAutoOption => 'ئاپتوماتىك';
+
+  @override
+  String get adminPlaybackEncoding => 'كودلاش';
+
+  @override
+  String get adminPlaybackEncodingThreads => 'كودلاش';
+
+  @override
+  String get adminPlaybackFallbackFont => 'چۈشۈش خەت نۇسخىسىنى قوزغىتىڭ';
+
+  @override
+  String get adminPlaybackFallbackFontPath => 'خاتالىق خەت شەكلى';
+
+  @override
+  String get adminPlaybackStreaming => 'ئېقىم قويۇش';
+
+  @override
+  String get adminResumeVideo => 'سىن';
+
+  @override
+  String get adminResumeAudiobooks => 'ئۈندىدار';
+
+  @override
+  String get adminStreamingBitrateLimit =>
+      'يىراقتىكى خېرىدار بىت چەكلىمىسى (Mbps)';
+
+  @override
+  String get adminStreamingBitrateLimitHint => 'بوش قالدۇرۇڭ ياكى 0 چەكسىز';
+
+  @override
+  String get adminTrickplayHwAccel => 'قاتتىق دېتالنى تېزلىتىش';
+
+  @override
+  String get adminTrickplayHwEncoding => 'قاتتىق دېتال كودلاشنى قوزغىتىڭ';
+
+  @override
+  String get adminTrickplayKeyFrameOnly =>
+      'ئاچقۇچ رامكىسىنىلا چىقىرىشنى قوزغىتىڭ';
+
+  @override
+  String get adminTrickplayKeyFrameOnlySubtitle =>
+      'تېخىمۇ تېز ، ئەمما ئېنىقلىق دەرىجىسى تۆۋەن';
+
+  @override
+  String get adminTrickplayNonBlocking => 'توسۇۋالماسلىق';
+
+  @override
+  String get adminTrickplayBlocking => 'توسۇش';
+
+  @override
+  String get adminTrickplayPriorityHigh => 'ئېگىز';
+
+  @override
+  String get adminTrickplayPriorityAboveNormal => 'ئۈستىدىكى نورمال';
+
+  @override
+  String get adminTrickplayPriorityNormal => 'نورمال';
+
+  @override
+  String get adminTrickplayPriorityBelowNormal => 'تۆۋەندە نورمال';
+
+  @override
+  String get adminTrickplayPriorityIdle => 'بىكار';
+
+  @override
+  String get adminTrickplayImageSettings => 'رەسىم تەڭشىكى';
+
+  @override
+  String get adminTrickplayInterval => 'ئارىلىق (ms)';
+
+  @override
+  String get adminTrickplayIntervalSubtitle => 'رامكىنى قانچە قېتىم تۇتۇش';
+
+  @override
+  String get adminTrickplayWidthResolutionsHint =>
+      'پەش بىلەن ئايرىلغان پېكسىل كەڭلىكى (مەسىلەن 320)';
+
+  @override
+  String get adminTrickplayQuality => 'سۈپەت';
+
+  @override
+  String get adminTrickplayQScale => 'سۈپەت ئۆلچىمى';
+
+  @override
+  String get adminTrickplayQScaleSubtitle =>
+      'تۆۋەن قىممەت = تېخىمۇ سۈپەتلىك ، چوڭ ھۆججەتلەر';
+
+  @override
+  String get adminTrickplayJpegQuality => 'JPEG سۈپىتى';
+
+  @override
+  String get adminTrickplayProcessing => 'بىر تەرەپ قىلىش';
+
+  @override
+  String get adminTasksEmpty => 'پىلانلانغان ۋەزىپە تېپىلمىدى';
+
+  @override
+  String get adminTasksNoFilterMatch =>
+      'نۆۋەتتىكى سۈزگۈچكە ھېچقانداق ۋەزىپە ماس كەلمەيدۇ';
+
+  @override
+  String get adminTaskCancelling => 'بىكار قىلىش ...';
+
+  @override
+  String get adminTaskRunning => 'يۈگۈرۈش ...';
+
+  @override
+  String get adminTaskNeverRun => 'ھەرگىز يۈگۈرمەڭ';
+
+  @override
+  String get adminTaskStop => 'توختىتىش';
+
+  @override
+  String get adminRunningTasks => 'ئىجرا بولۇۋاتقان ۋەزىپىلەر';
+
+  @override
+  String get adminTaskRun => 'ئىجرا';
+
+  @override
+  String get adminTaskDetailLastExecution => 'ئاخىرقى ئىجرا';
+
+  @override
+  String get adminTaskDetailStarted => 'باشلاندى';
+
+  @override
+  String get adminTaskDetailEnded => 'ئاخىرلاشتى';
+
+  @override
+  String get adminTaskDetailDuration => 'داۋاملىشىش ۋاقتى';
+
+  @override
+  String get adminTaskDetailErrorLabel => 'خاتالىق:';
+
+  @override
+  String adminTaskTriggerDaily(String time) {
+    return 'ھەر كۈنى $time دە';
+  }
+
+  @override
+  String adminTaskTriggerWeekly(String day, String time) {
+    return 'ھەر $day $time دە';
+  }
+
+  @override
+  String get adminTaskTriggerStartup => 'قوللىنىشچان پروگراممىدا';
+
+  @override
+  String get adminTaskTriggerTypeDaily => 'كۈندىلىك';
+
+  @override
+  String get adminTaskTriggerTypeWeekly => 'ھەپتىلىك';
+
+  @override
+  String get adminTaskTriggerTypeInterval => 'ئارىلىقتا';
+
+  @override
+  String get adminTaskTriggerIntervalLabel => 'ئارىلىق';
+
+  @override
+  String get adminTaskTriggerEveryHour => 'ھەر سائەت';
+
+  @override
+  String adminTaskTriggerHours(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count سائەت',
+      one: '1 سائەت',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get adminTaskTriggerTime => 'ۋاقىت';
+
+  @override
+  String get adminActivityJustNow => 'ھازىر';
+
+  @override
+  String get adminActivityLastHour => 'ئالدىنقى سائەت';
+
+  @override
+  String get adminActivityToday => 'بۈگۈن';
+
+  @override
+  String get adminActivityYesterday => 'تۈنۈگۈن';
+
+  @override
+  String get adminActivityOlder => 'بۇرۇنقىلار';
+
+  @override
+  String adminActivityDaysAgo(int days) {
+    return '$days كۈن ئىلگىرى';
+  }
+
+  @override
+  String adminActivityHoursAgo(int hours) {
+    return '$hours سائەت ئىلگىرى';
+  }
+
+  @override
+  String adminActivityMinutesAgo(int minutes) {
+    return '$minutes مىنۇت ئىلگىرى';
+  }
+
+  @override
+  String get adminActivityNow => 'ھازىر';
+
+  @override
+  String adminActivityMinutesShort(int minutes) {
+    return '$minutes مىنۇت';
+  }
+
+  @override
+  String adminActivityHoursShort(int hours) {
+    return '$hours سائەت';
+  }
+
+  @override
+  String adminActivityDaysShort(int days) {
+    return '$days كۈن';
+  }
+
+  @override
+  String adminActivityDateShort(int month, int day) {
+    return '$month/$day';
+  }
+
+  @override
+  String get adminTrickplayDescription =>
+      'ئاتلاپ كۆرۈشتىكى ئالدىن كۆرۈش كىچىك رەسىملىرى ئۈچۈن trickplay رەسىم ھاسىللاشنى تەڭشەڭ.';
+
+  @override
+  String get adminNetworkingPublicHttpsPort => 'ئاممىۋى HTTPS ئېغىزى';
+
+  @override
+  String get adminNetworkingBaseUrl => 'ئاساسى URL';
+
+  @override
+  String get adminNetworkingBaseUrlHint => 'مەسىلەن / jellyfin';
+
+  @override
+  String get adminNetworkingPublicHttpPort => 'ئاممىۋى HTTP ئېغىزى';
+
+  @override
+  String get adminNetworkingRequireHttps => 'HTTPS تەلەپ قىلىش';
+
+  @override
+  String get adminNetworkingRequireHttpsHint =>
+      'بارلىق يىراقتىن كەلگەن تەلەپلەرنى HTTPS قا يۆتكەيدۇ. مۇلازىمېتىردا ئىناۋەتلىك گۇۋاھنامە بولمىسا كۈچكە ئىگە ئەمەس.';
+
+  @override
+  String get adminNetworkingCertPassword => 'گۇۋاھنامە پارولى';
+
+  @override
+  String get adminNetworkingEnableIpv4 => 'IPv4 نى قوزغىتىش';
+
+  @override
+  String get adminNetworkingEnableIpv6 => 'IPv6 نى قوزغىتىش';
+
+  @override
+  String get adminNetworkingLocalSubnets => 'LAN تورلىرى';
+
+  @override
+  String get adminNetworkingRemoteIpFilterLabel => 'يىراقتىكى IP سۈزگۈچ';
+
+  @override
+  String get adminPlaybackVaapiDevice => 'VA-API ئۈسكۈنىسى';
+
+  @override
+  String get adminPlaybackAutomatic => '0 = ئاپتوماتىك';
+
+  @override
+  String get adminPlaybackTranscodeTempPath => 'Transpoding temp path';
+
+  @override
+  String get adminPlaybackSegmentDeletion => 'بۆلەكنى ئۆچۈرۈشىگە يول قويۇڭ';
+
+  @override
+  String get adminPlaybackSegmentKeep => 'بۆلەك ساقلاش (سېكۇنت)';
+
+  @override
+  String get adminPlaybackThrottleBuffering => 'غەملەشنى چەكلەش';
+
+  @override
+  String get adminPlaybackThrottleDelay => 'چەكلەش كېچىكتۈرۈشى (سېكۇنت)';
+
+  @override
+  String get adminPlaybackEnableSubtitleExtraction =>
+      'ئېكران خېتىنى شۇئان ئاجرىتىشقا يول قويۇش';
+
+  @override
+  String get adminResumeMinPct => 'ئەڭ تۆۋەن ئەسلىگە كەلتۈرۈش نىسبىتى';
+
+  @override
+  String get adminResumeMinPctSubtitle =>
+      'ئىلگىرىلەشنى تېجەش ئۈچۈن مەزمۇن چوقۇم بۇ پىرسەنتتىن ئېشىپ كېتىشى كېرەك';
+
+  @override
+  String get adminResumeMaxPct => 'ئەڭ يۇقىرى ئەسلىگە كەلتۈرۈش نىسبىتى';
+
+  @override
+  String get adminResumeMaxPctSubtitle =>
+      'بۇ نىسبەتتىن كېيىن مەزمۇن تولۇق ئوينىلىدۇ';
+
+  @override
+  String get adminResumeMinDuration =>
+      'ئەڭ تۆۋەن ئەسلىگە كەلتۈرۈش ۋاقتى (سېكۇنت)';
+
+  @override
+  String get adminResumeMinDurationSubtitle =>
+      'بۇنىڭدىن قىسقا تۈرلەر ئەسلىگە كەلتۈرۈلمەيدۇ';
+
+  @override
+  String get adminTrickplayScanBehavior => 'سىكانېرلاش ھەرىكىتى';
+
+  @override
+  String get adminTrickplayProcessPriority => 'جەرياننىڭ مۇھىم نۇقتىسى';
+
+  @override
+  String get adminTrickplayTileWidth => 'كاھىش كەڭلىكى';
+
+  @override
+  String get adminTrickplayTileHeight => 'كاھىش ئېگىزلىكى';
+
+  @override
+  String get adminTrickplayProcessThreads => 'تېما بىر تەرەپ قىلىش';
+
+  @override
+  String get adminTrickplayWidthResolutions => 'كەڭلىك ئېنىقلىق';
+
+  @override
+  String get adminMetadataDefault => 'سۈكۈتتىكى';
+
+  @override
+  String get adminMetadataContentTypeUpdated => 'مەزمۇن تىپى يېڭىلاندى';
+
+  @override
+  String adminMetadataContentTypeFailed(String error) {
+    return 'مەزمۇن تىپىنى يېڭىلاش مەغلۇپ بولدى: $error';
+  }
+
+  @override
+  String get adminGeneralSlowResponseThreshold =>
+      'ئاستا جاۋاب قايتۇرۇش چېكى (ms)';
+
+  @override
+  String get adminGeneralEnableSlowResponse =>
+      'ئاستا ئىنكاس ئاگاھلاندۇرۇشلىرىنى قوزغىتىش';
+
+  @override
+  String get adminGeneralQuickConnect => 'Quick Connect نى قوزغىتىش';
+
+  @override
+  String get adminGeneralSectionServer => 'مۇلازىمېتىر';
+
+  @override
+  String get adminGeneralSectionMetadata => 'مېتا ئۇچۇر';
+
+  @override
+  String get adminGeneralSectionPaths => 'يوللار';
+
+  @override
+  String get adminGeneralSectionPerformance => 'ئۈنۈم';
+
+  @override
+  String get adminGeneralCachePath => 'كەش يولى';
+
+  @override
+  String get adminGeneralMetadataPath => 'مېتا ئۇچۇر يولى';
+
+  @override
+  String get adminGeneralServerName => 'مۇلازىمېتىر ئىسمى';
+
+  @override
+  String get adminGeneralDisplayLanguage => 'ئالدىن تاللانغان كۆرسىتىش تىلى';
+
+  @override
+  String get adminSettingsLoadFailed => 'تەڭشەكلەرنى يۈكلىيەلمىدى';
+
+  @override
+  String adminChannelMappingsUpdateFailed(String error) {
+    return 'ماسلاشتۇرۇشلارنى يېڭىلاش مەغلۇپ بولدى: $error';
+  }
+
+  @override
+  String adminTimeLimitDuration(String duration) {
+    return 'ۋاقىت چېكى: $duration';
+  }
+
+  @override
+  String get folders => 'ھۆججەت قىسقۇچ';
+
+  @override
+  String get libraries => 'مېدىيا ئامبارلىرى';
+
+  @override
+  String get syncPlay => 'SyncPlay';
+
+  @override
+  String get syncPlayDisabledTitle => 'SyncPlay چەكلەنگەن';
+
+  @override
+  String get syncPlayDisabledMessage =>
+      'ماس قەدەملىك قويۇشنى ئىشلىتىش ئۈچۈن تەڭشەكتىكى SyncPlay نى قوزغىتىڭ.';
+
+  @override
+  String get syncPlayServerUnsupportedTitle => 'مۇلازىمېتىر قوللىمايدۇ';
+
+  @override
+  String get syncPlayServerUnsupportedMessage =>
+      'SyncPlay Jellyfin مۇلازىمېتىرىنى تەلەپ قىلىدۇ. نۆۋەتتىكى مۇلازىمېتىر ئۇنى قوللىمايدۇ.';
+
+  @override
+  String get syncPlayGroupFallbackName => 'SyncPlay گۇرۇپپىسى';
+
+  @override
+  String get syncPlayGroupTooltip => 'SyncPlay گۇرۇپپىسى';
+
+  @override
+  String syncPlayParticipantCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '# قاتناشقۇچى',
+      one: '# قاتناشقۇچى',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get syncPlayIgnoreWait => 'ساقلاشقا پەرۋا قىلماڭ';
+
+  @override
+  String get syncPlayIgnoreWaitSubtitle =>
+      'بۇ ئۈسكۈنىنى بۇففېر قىلغاندا گۇرۇپپىنى تۇتماڭ';
+
+  @override
+  String get syncPlayContinueLocallyNoWait =>
+      'ئاستا ئەزالارنى ساقلىماي يەرلىكنى داۋاملاشتۇرۇڭ';
+
+  @override
+  String get syncPlayRepeat => 'تەكرارلاڭ';
+
+  @override
+  String get syncPlayRepeatOne => 'بىرى';
+
+  @override
+  String get syncPlayShuffleModeShuffled => 'تەرتىپسىز';
+
+  @override
+  String get syncPlayShuffleModeSorted => 'تەرتىپلەنگەن';
+
+  @override
+  String get syncPlaySyncCurrentQueue =>
+      'نۆۋەتتىكى قويۇش لىنىيىسىنى ماسقەدەملەڭ';
+
+  @override
+  String get syncPlaySyncCurrentQueueSubtitle =>
+      'گۇرۇپپا ئۆچرەتلىرىنى يەرلىكتە ئويناۋاتقان نەرسىگە ئالماشتۇرۇڭ';
+
+  @override
+  String get syncPlayLeaveGroup => 'گۇرۇپپىدىن ئايرىلىش';
+
+  @override
+  String get syncPlayGroupQueue => 'گۇرۇپپا ئۆچرەت';
+
+  @override
+  String syncPlayQueueItemFallback(int index) {
+    return 'تۈر $index';
+  }
+
+  @override
+  String get syncPlayPlayNow => 'ھازىر ئويناڭ';
+
+  @override
+  String get syncPlayCreateNewGroup => 'يېڭى گۇرۇپپا قۇرۇڭ';
+
+  @override
+  String get syncPlayGroupName => 'گۇرۇپپا ئىسمى';
+
+  @override
+  String get syncPlayDefaultGroupName => 'مېنىڭ SyncPlay گۇرۇپپىسى';
+
+  @override
+  String get syncPlayCreateGroup => 'گۇرۇپپا قۇرۇش';
+
+  @override
+  String get syncPlayAvailableGroups => 'ئىشلەتكىلى بولىدىغان گۇرۇپپىلار';
+
+  @override
+  String get syncPlayNoGroupsAvailable => 'گۇرۇپپا يوق';
+
+  @override
+  String get syncPlayJoinGroupQuestion => 'SyncPlay گۇرۇپپىسىغا قوشۇلۇڭ؟';
+
+  @override
+  String get syncPlayJoinGroupWarning =>
+      'SyncPlay گۇرۇپپىسىغا قوشۇلسىڭىز نۆۋەتتىكى قويۇش ئۆچرەتلىرىڭىزنىڭ ئورنىنى ئېلىشى مۇمكىن. داۋاملاشتۇرامسىز؟';
+
+  @override
+  String get syncPlayJoin => 'قوشۇلۇڭ';
+
+  @override
+  String get syncPlayStateIdle => 'بىكار';
+
+  @override
+  String get syncPlayStateWaiting => 'ساقلاش';
+
+  @override
+  String get syncPlayStatePaused => 'توختاپ قالدى';
+
+  @override
+  String get syncPlayStatePlaying => 'ئويناش';
+
+  @override
+  String syncPlayUserJoinedGroup(String userName) {
+    return '$userName SyncPlay گۇرۇپپىسىغا قوشۇلدى';
+  }
+
+  @override
+  String syncPlayUserLeftGroup(String userName) {
+    return '$userName SyncPlay گۇرۇپپىسىدىن ئايرىلدى';
+  }
+
+  @override
+  String get syncPlayAccessDeniedTitle => 'SyncPlay زىيارەت قىلىش رەت قىلىندى';
+
+  @override
+  String get syncPlayAccessDeniedMessage =>
+      'بۇ SyncPlay گۇرۇپپىسىدىكى بىر ياكى بىر نەچچە تۈرنى زىيارەت قىلالمايسىز. گۇرۇپپا ئىگىسىدىن كۈتۈپخانىنىڭ ئىجازىتىنى دەلىللەشنى ياكى باشقىچە ئۆچرەت تاللاشنى تەلەپ قىلىڭ.';
+
+  @override
+  String syncPlaySyncingPlaybackToGroup(String groupName) {
+    return 'قويۇش $groupName بىلەن ماسقەدەملىنىۋاتىدۇ';
+  }
+
+  @override
+  String get voiceSearchUnavailable => 'ئاۋازلىق ئىزدەش مۇمكىن ئەمەس.';
+
+  @override
+  String get dolbyVisionDirectPlayFailedTitle =>
+      'Dolby Vision Direct Play مەغلۇب بولدى';
+
+  @override
+  String get dolbyVisionDirectPlayFailedMessage =>
+      'بۇ Dolby Vision ئېقىمىغا بىۋاسىتە ئويناش مەغلۇپ بولدى. مۇلازىمېتىر كودنى ئىشلىتىپ قايتا سىناڭ؟';
+
+  @override
+  String get retryWithTranscode => 'Transcode بىلەن قايتا سىناڭ';
+
+  @override
+  String get dolbyVisionNotSupportedTitle => 'Dolby Vision قوللىمايدۇ';
+
+  @override
+  String get dolbyVisionNotSupportedMessage =>
+      'بۇ ئۈسكۈنە Dolby Vision مەزمۇنىنى بىۋاسىتە يېشىپ بېرەلمەيدۇ. HDR10 چۈشۈشنى ئىشلىتىڭ ياكى مۇلازىمېتىرنىڭ كودلاشتۇرۇشىنى تەلەپ قىلىڭ.';
+
+  @override
+  String get rememberMyChoice => 'مېنىڭ تاللىشىمنى ئېسىڭىزدە تۇتۇڭ';
+
+  @override
+  String get playHdr10Fallback => 'HDR10 چۈشۈشنى ئويناڭ';
+
+  @override
+  String get requestTranscode => 'كودنى تەلەپ قىلىڭ';
+
+  @override
+  String integrationRowsDiscoveredCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '# قۇر بايقالدى',
+      one: '# قۇر بايقالدى',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get seeAll => 'ھەممىنى كۆرۈڭ';
+
+  @override
+  String get noItems => 'ھېچقانداق نەرسە يوق';
+
+  @override
+  String get switchUser => 'ئىشلەتكۈچىنى ئالماشتۇرۇش';
+
+  @override
+  String get remoteControl => 'يىراقتىن كونترول قىلىش';
+
+  @override
+  String get mediaBarLoading => 'مېدىيا بالدىقىنى يۈكلەۋاتىدۇ ...';
+
+  @override
+  String get mediaBarError => 'مېدىيا بالدىقى يۈكلەنمىدى';
+
+  @override
+  String get offlineServerUnavailable =>
+      'تورغا ئۇلانغان ، ئەمما نۆۋەتتىكى مۇلازىمېتىرنى ئىشلەتكىلى بولمايدۇ.';
+
+  @override
+  String get offlineNoInternet =>
+      'سىز تورسىز. پەقەت چۈشۈرۈلگەن مەزمۇنلارنىلا ئىشلەتكىلى بولىدۇ.';
+
+  @override
+  String get offlineFileNotAvailable => 'ھۆججەت يوق';
+
+  @override
+  String get offlineSwitchServer => 'مۇلازىمېتىرنى ئالماشتۇرۇش';
+
+  @override
+  String get offlineSavedMedia => 'ساقلانغان مېدىيا';
+
+  @override
+  String get offlineBannerTitle => 'توردا ئەمەسسىز';
+
+  @override
+  String get offlineBannerSubtitle => 'چۈشۈرۈلمىلىرىڭىز كۆرسىتىلىۋاتىدۇ';
+
+  @override
+  String get serverUnreachableBannerTitle =>
+      'مۇلازىمېتىرىڭىزغا ئۇلانغىلى بولمىدى';
+
+  @override
+  String get serverUnreachableBannerSubtitle =>
+      'قايتا ئۇلانغۇچە چۈشۈرۈلمىلەردىن قويۇلىدۇ';
+
+  @override
+  String get castGoogleCast => 'Google Cast';
+
+  @override
+  String get castAirPlay => 'AirPlay';
+
+  @override
+  String get castDlna => 'DLNA';
+
+  @override
+  String get castRemotePlayback => 'يىراقتىن قويۇش';
+
+  @override
+  String castControlFailed(String error) {
+    return 'ئېكرانغا يوللاش كونترولى مەغلۇپ بولدى: $error';
+  }
+
+  @override
+  String castKindControls(String kind) {
+    return '$kind كونتروللىرى';
+  }
+
+  @override
+  String get castDeviceVolume => 'ئۈسكۈنىنىڭ ھەجىمى';
+
+  @override
+  String get castVolumeUnavailable => 'ئىشلەتكىلى بولمايدۇ';
+
+  @override
+  String castStopKind(String kind) {
+    return '$kind نى توختىتىش';
+  }
+
+  @override
+  String get audioLabel => 'ئاۋاز';
+
+  @override
+  String get subtitlesLabel => 'ئېكران خېتى';
+
+  @override
+  String get pinConfirmTitle => 'PIN نى جەزملەشتۈرۈڭ';
+
+  @override
+  String get pinSetTitle => 'PIN نى تەڭشەڭ';
+
+  @override
+  String get pinEnterTitle => 'PIN نى كىرگۈزۈڭ';
+
+  @override
+  String get pinReenterToConfirm => 'جەزملەشتۈرۈش ئۈچۈن PIN نى قايتا كىرگۈزۈڭ';
+
+  @override
+  String pinEnterNDigit(int length) {
+    return '$length خانىلىق PIN كىرگۈزۈڭ';
+  }
+
+  @override
+  String pinEnterYourNDigit(int length) {
+    return 'ئۆزىڭىزنىڭ $length خانىلىق PIN كودىنى كىرگۈزۈڭ';
+  }
+
+  @override
+  String get kidsMode => 'Kids Mode';
+
+  @override
+  String get kidsModeSubtitle =>
+      'Simplify the app and lock the way out with a PIN';
+
+  @override
+  String get kidsModeExit => 'Exit Kids Mode';
+
+  @override
+  String get kidsModeExitSubtitle => 'Enter your PIN to restore the full app';
+
+  @override
+  String get pinIncorrect => 'PIN خاتا';
+
+  @override
+  String pinTryAgainIn(String wait) {
+    return 'Too many attempts. Try again in $wait.';
+  }
+
+  @override
+  String get pinMismatch => 'PIN ماس كەلمەيدۇ';
+
+  @override
+  String get pinForgot => 'PIN نى ئۇنتۇپ قالدىڭىزمۇ؟';
+
+  @override
+  String get pinClear => 'تازىلاش';
+
+  @override
+  String get pinBackspace => 'ئۆچۈرۈش كۇنۇپكىسى';
+
+  @override
+  String get quickConnectAuthorized => 'Quick Connect تەلىپى تەستىقلاندى.';
+
+  @override
+  String get quickConnectInvalidOrExpired =>
+      'Quick Connect كودى ئىناۋەتسىز ياكى ۋاقتى ئۆتكەن.';
+
+  @override
+  String get quickConnectNotSupported =>
+      'بۇ مۇلازىمېتىر Quick Connect نى قوللىمايدۇ.';
+
+  @override
+  String get quickConnectAuthorizeFailed =>
+      'Quick Connect كودىنى تەستىقلاش مەغلۇپ بولدى.';
+
+  @override
+  String get quickConnectDisabled => 'بۇ مۇلازىمېتىردا Quick Connect تاقالغان.';
+
+  @override
+  String get quickConnectForbidden =>
+      'ھېساباتىڭىز بۇ Quick Connect تەلىپىنى تەستىقلىيالمايدۇ.';
+
+  @override
+  String get quickConnectNotFound =>
+      'Quick Connect كودى تېپىلمىدى. يېڭى كود سىناڭ.';
+
+  @override
+  String quickConnectFailedWithMessage(String message) {
+    return 'Quick Connect مەغلۇپ بولدى: $message';
+  }
+
+  @override
+  String get quickConnectEnterCode => 'كود كىرگۈزۈڭ';
+
+  @override
+  String get quickConnectAuthorize => 'ھوقۇق بېرىش';
+
+  @override
+  String remoteCommandFailed(String error) {
+    return 'بۇيرۇق مەغلۇپ بولدى: $error';
+  }
+
+  @override
+  String get remoteControlTitle => 'يىراقتىن كونترول قىلىش';
+
+  @override
+  String get remoteFailedToLoadSessions => 'ئولتۇرۇشنى يۈكلىيەلمىدى';
+
+  @override
+  String get remoteNoSessions => 'كونترول قىلغىلى بولىدىغان يىغىن يوق';
+
+  @override
+  String get remoteStartPlayback => 'باشقا ئۈسكۈنىدە قويۇشنى باشلاڭ';
+
+  @override
+  String get unknownUser => 'نامەلۇم';
+
+  @override
+  String get unknownItem => 'نامەلۇم';
+
+  @override
+  String get remoteNothingPlaying => 'بۇ ئولتۇرۇشتا ھېچ نەرسە ئوينىمايدۇ';
+
+  @override
+  String get castingStarted => 'تاللانغان ئۈسكۈنىدە قۇيۇش باشلاندى';
+
+  @override
+  String castingFailed(String error) {
+    return 'ئېكرانغا يوللاشنى باشلاش مەغلۇپ بولدى: $error';
+  }
+
+  @override
+  String get noRemoteDevices => 'يىراقتىن قويۇش ئۈسكۈنىسى يوق.';
+
+  @override
+  String get noRemoteDevicesIos =>
+      'يىراقتىن قويۇش ئۈسكۈنىسى يوق.\n\nIOS دا ، تەقلىدلىگۈچتە AirPlay نىشانلىرى يوق بولۇشى مۇمكىن.';
+
+  @override
+  String get trackActionPlayNext => 'كېيىنكى ئوينى';
+
+  @override
+  String get trackActionViewDetails => 'View Details';
+
+  @override
+  String get trackActionAddToQueue => 'ئۆچرەتكە قوشۇڭ';
+
+  @override
+  String get trackActionAddToPlaylist => 'قويۇش تىزىملىكىگە قوشۇڭ';
+
+  @override
+  String get trackActionCancelDownload => 'چۈشۈرۈشنى ئەمەلدىن قالدۇرۇڭ';
+
+  @override
+  String get trackActionDeleteFromPlaylist => 'قويۇش تىزىملىكىدىن ئۆچۈرۈڭ';
+
+  @override
+  String get trackActionMoveUp => 'يۆتكەڭ';
+
+  @override
+  String get trackActionMoveDown => 'تۆۋەنگە يۆتكەڭ';
+
+  @override
+  String get trackActionRemoveFromFavorites => 'ياقتۇرىدىغانلاردىن ئۆچۈرۈڭ';
+
+  @override
+  String get trackActionAddToFavorites => 'ياقتۇرىدىغانلارغا قوشۇڭ';
+
+  @override
+  String get trackActionGoToAlbum => 'ئالبۇمغا بېرىڭ';
+
+  @override
+  String get trackActionGoToArtist => 'سەنئەتكارغا بېرىڭ';
+
+  @override
+  String trackActionDownloading(String name) {
+    return '$name چۈشۈرۈلۈۋاتىدۇ...';
+  }
+
+  @override
+  String get trackActionDeletedFile => 'چۈشۈرۈلگەن ھۆججەت ئۆچۈرۈلدى';
+
+  @override
+  String get trackActionDeleteFileFailed => 'چۈشۈرۈلگەن ھۆججەتنى ئۆچۈرەلمىدى';
+
+  @override
+  String get shuffleBy => 'تەرتىپسىز قويۇش ئاساسى';
+
+  @override
+  String get shuffleSelectLibrary => 'كۈتۈپخانىنى تاللاڭ';
+
+  @override
+  String get shuffleSelectGenre => 'ژانىرنى تاللاڭ';
+
+  @override
+  String get shuffleLibrary => 'مېدىيا ئامبىرى';
+
+  @override
+  String get shuffleGenre => 'ژانىر';
+
+  @override
+  String get shuffleNoLibraries => 'ماس كېلىدىغان كۈتۈپخانىلار يوق.';
+
+  @override
+  String get shuffleNoGenres =>
+      'بۇ تەۋرىنىش ھالىتى ئۈچۈن ھېچقانداق ژانىر تېپىلمىدى.';
+
+  @override
+  String get posterDisplayTitle => 'كۆرسىتىش';
+
+  @override
+  String get posterImageType => 'رەسىم تىپى';
+
+  @override
+  String get imageTypePoster => 'پوستېر';
+
+  @override
+  String get imageTypeThumbnail => 'كىچىك كۆرۈنۈش';
+
+  @override
+  String get imageTypeBanner => 'بايراق';
+
+  @override
+  String get playlistAddFailed => 'قويۇش تىزىملىكىگە قوشۇلمىدى';
+
+  @override
+  String get playlistCreateFailed => 'قويۇش تىزىملىكى قۇرالمىدى';
+
+  @override
+  String get playlistNew => 'يېڭى قويۇش تىزىملىكى';
+
+  @override
+  String get playlistCreate => 'قۇرۇش';
+
+  @override
+  String get playlistCreateNew => 'يېڭى قويۇش تىزىملىكى قۇرۇش';
+
+  @override
+  String get playlistNoneFound => 'قويغۇچ تىزىملىكى تېپىلمىدى';
+
+  @override
+  String get addToPlaylist => 'قويۇش تىزىملىكىگە قوشۇڭ';
+
+  @override
+  String get lyricsNotAvailable => 'تېكىست يوق';
+
+  @override
+  String get upNext => 'كېيىنكىسى';
+
+  @override
+  String get playNext => 'كېيىنكى ئوينى';
+
+  @override
+  String get stillWatchingContent => 'قويۇش توختىتىلدى. ھازىرمۇ كۆرۈۋاتامسىز؟';
+
+  @override
+  String get stillWatchingStop => 'توختىتىش';
+
+  @override
+  String get stillWatchingContinue => 'داۋاملاشتۇر';
+
+  @override
+  String skipSegment(String segment) {
+    return '$segment دىن ئاتلاش';
+  }
+
+  @override
+  String get liveTv => 'بىۋاسىتە تېلېۋىزىيە';
+
+  @override
+  String get continueWatchingAndNextUp => 'داۋاملىق كۆرۈش ۋە كېيىنكى باسقۇچ';
+
+  @override
+  String downloadingBatchProgress(int current, int total, String fileName) {
+    return 'چۈشۈرۈلۈۋاتىدۇ $current/$total — $fileName';
+  }
+
+  @override
+  String downloadingFile(String fileName) {
+    return '$fileName چۈشۈرۈلۈۋاتىدۇ';
+  }
+
+  @override
+  String get nextEpisode => 'كېيىنكى بۆلۈم';
+
+  @override
+  String get moreFromThisSeason => 'بۇ پەسىلدىن تېخىمۇ كۆپ';
+
+  @override
+  String get playerTooltipPlaybackSpeed => 'قويۇش سۈرئىتى';
+
+  @override
+  String get playerTooltipCastControls => 'كونترول كونتروللىرى';
+
+  @override
+  String get playerTooltipPlaybackQuality => 'بىت نىسبىتى';
+
+  @override
+  String get playerTooltipEnterFullscreen => 'پۈتۈن ئېكراننى كىرگۈزۈڭ';
+
+  @override
+  String get playerTooltipExitFullscreen => 'پۈتۈن ئېكراندىن چىقىڭ';
+
+  @override
+  String get playerTooltipFloatOnTop => 'ئۈستىدە لەيلەپ تۇرۇڭ';
+
+  @override
+  String get playerTooltipExitFloatOnTop => 'ئۈستىدىكى لەيلىمىنى چەكلەڭ';
+
+  @override
+  String get playerTooltipLockLandscape => 'قۇلۇپ مەنزىرىسى';
+
+  @override
+  String get playerTooltipUnlockOrientation => 'ئايلىنىشقا يول قويۇڭ';
+
+  @override
+  String get playerTooltipPrevious => 'ئالدىنقى';
+
+  @override
+  String get playerTooltipSeekBack => 'قايتا ئىزدەڭ';
+
+  @override
+  String get playerTooltipSeekForward => 'ئالدىغا قاراپ بېقىڭ';
+
+  @override
+  String get playerTooltipMinimize => 'Minimize player';
+
+  @override
+  String get miniPlayerOpenPlayer => 'Open player';
+
+  @override
+  String get contextMenuMarkWatched => 'كۆزىتىلگەندەك بەلگە';
+
+  @override
+  String get contextMenuMarkUnwatched => 'كۆزىتىلمىگەن دەپ بەلگە قويۇڭ';
+
+  @override
+  String get contextMenuAddToFavorites => 'ياقتۇرىدىغانلارغا قوشۇڭ';
+
+  @override
+  String get contextMenuRemoveFromFavorites => 'ياقتۇرىدىغانلاردىن ئۆچۈرۈڭ';
+
+  @override
+  String get contextMenuGoToSeries => 'يۈرۈشلۈككە بېرىڭ';
+
+  @override
+  String get contextMenuHideFromContinueWatching =>
+      'كۆرۈشنى داۋاملاشتۇرۇشتىن يوشۇرۇش';
+
+  @override
+  String get contextMenuHideFromNextUp => 'كېيىنكىسىدىن يوشۇرۇش';
+
+  @override
+  String get contextMenuAddToCollection => 'توپلامغا قوشۇش';
+
+  @override
+  String get contextMenuRemoveFromCollection => 'Remove from Collection';
+
+  @override
+  String removeFromCollectionConfirm(String item, String collection) {
+    return 'Remove $item from $collection? The item stays in your library.';
+  }
+
+  @override
+  String get removeFromCollectionFailed => 'Failed to remove from collection';
+
+  @override
+  String get settingsAdministrationSubtitle =>
+      'مۇلازىمېتىر باشقۇرۇش تاختىسىغا كىرىڭ';
+
+  @override
+  String get settingsDynamicContent => 'ھەرىكەتچان مەزمۇن';
+
+  @override
+  String get settingsDynamicContentSubtitle => 'Media Bar ۋە كۆرۈنۈش قاپلاش';
+
+  @override
+  String get settingsAboutSubtitle =>
+      'ئەپ نۇسخىسى ، قانۇنىي ئۇچۇرلار ۋە ئىناۋەت';
+
+  @override
+  String get settingsSortServersBy => 'مۇلازىمېتىرلارنى تەرتىپلەش';
+
+  @override
+  String get settingsLastUsed => 'ئاخىرقى قېتىم ئىشلىتىلگەن';
+
+  @override
+  String get settingsAlphabetical => 'ئېلىپبە';
+
+  @override
+  String get settingsAllowSelfSignedCerts =>
+      'ئۆزى ئىمزالانغان گۇۋاھنامىلەرگە يول قويۇش';
+
+  @override
+  String get settingsAllowSelfSignedCertsSubtitle =>
+      'ئۆزى ئىمزالانغان ياكى شەخسىي CA TLS گۇۋاھنامىسى ئىشلىتىدىغان مۇلازىمېتىرلارغا ئىشىنىدۇ. پەقەت ئۆزىڭىز باشقۇرىدىغان مۇلازىمېتىرلار ئۈچۈنلا قوزغىتىڭ. بۇ بارلىق ئۇلىنىشلاردا گۇۋاھنامە دەلىللەشنى تاقايدۇ.';
+
+  @override
+  String get untrustedServerCertificate =>
+      'This server\'s certificate isn\'t trusted. If it\'s your own server and uses a self-signed or private certificate, you can allow it here.';
+
+  @override
+  String get clientCertTitle => 'Client certificate';
+
+  @override
+  String clientCertHost(String host) {
+    return 'Certificate for $host';
+  }
+
+  @override
+  String get clientCertChooseFile => 'Choose file';
+
+  @override
+  String get clientCertPassword => 'Certificate password';
+
+  @override
+  String get clientCertStartUpload => 'Send from phone';
+
+  @override
+  String get clientCertUploadHint =>
+      'Scan this code with your phone, or open the address in its browser, then pick the file and enter its password.';
+
+  @override
+  String get clientCertStopUpload => 'Stop waiting';
+
+  @override
+  String get clientCertNoFileData => 'Couldn\'t read the file. Try again.';
+
+  @override
+  String get clientCertPickFailed => 'Couldn\'t open the file picker.';
+
+  @override
+  String get clientCertUploadFailed =>
+      'Couldn\'t start the upload page. Try again.';
+
+  @override
+  String get clientCertNoSecureStorage =>
+      'This device has no secure storage, so the certificate can\'t be saved. On Linux, install libsecret and try again.';
+
+  @override
+  String get clientCertDecodeFailed =>
+      'Couldn\'t read that file as a certificate. Make sure it\'s a .p12 or .pfx.';
+
+  @override
+  String get clientCertWrongPassword =>
+      'That password doesn\'t unlock this certificate.';
+
+  @override
+  String get clientCertRequired =>
+      'This server needs a client certificate (mTLS). Add one for this host to continue.';
+
+  @override
+  String clientCertExpired(String date) {
+    return 'The certificate for this server expired on $date. Replace it to continue.';
+  }
+
+  @override
+  String get clientCertAddButton => 'Add client certificate';
+
+  @override
+  String get settingsClientCertificates => 'Client certificates';
+
+  @override
+  String get settingsClientCertificatesSubtitle =>
+      'Certificates this app presents to servers that require one (mTLS)';
+
+  @override
+  String get clientCertSubject => 'Subject';
+
+  @override
+  String clientCertExpires(String date) {
+    return 'Expires $date';
+  }
+
+  @override
+  String get clientCertReplace => 'Replace';
+
+  @override
+  String get clientCertAdd => 'Add certificate';
+
+  @override
+  String get clientCertAddHostPrompt =>
+      'Which server host needs a certificate?';
+
+  @override
+  String get itemBlockedByParentalControls => 'This isn\'t available';
+
+  @override
+  String get blockedRatingsCeilingHint =>
+      'Blocking a rating also blocks everything stronger than it.';
+
+  @override
+  String get blockedRatingsUnrankedSection => 'Only blocks itself';
+
+  @override
+  String get settingsHomePage => 'باش بەت';
+
+  @override
+  String get settingsTwentyFourHourClock => '24 سائەتلىك سائەت';
+
+  @override
+  String get settingsTwentyFourHourClockSubtitle =>
+      'سائەت كۆرسىتىلگەن يەردە 24 سائەت ۋاقىت فورماتىنى ئىشلىتىڭ';
+
+  @override
+  String get settingsShowShuffleButtonInNavigation =>
+      'يولباشچى ستونىدا ئالماشتۇرۇش كۇنۇپكىسىنى كۆرسىتىڭ';
+
+  @override
+  String get settingsShowGenresButtonInNavigation =>
+      'يولباشچى ستونىدا ژانىر كۇنۇپكىسىنى كۆرسىتىڭ';
+
+  @override
+  String get settingsShowFavoritesButtonInNavigation =>
+      'يولباشچى ستونىدا ياقتۇرىدىغان كۇنۇپكىنى كۆرسىتىڭ';
+
+  @override
+  String get settingsShowLiveTvButtonInNavigation =>
+      'Show the Live TV button in the navigation bar when the server has a Live TV library';
+
+  @override
+  String get settingsShowLibrariesButtonInNavigation =>
+      'يولباشچى ستونىدىكى كۈتۈپخانىلار كۇنۇپكىسىنى كۆرسەت';
+
+  @override
+  String get settingsShowSeerrButtonInNavigation =>
+      'Seerr كۇنۇپكىسىنى يولباشچى بالداقتا كۆرسىتىش';
+
+  @override
+  String get settingsAlwaysExpandNavbarLabels =>
+      'ئۈستى يولباشچى بالداقتا تېكىست خەتلىرىنى ھەمىشە كۆرسىتىش';
+
+  @override
+  String get settingsLibraryVisibilitySubtitle =>
+      'ھەر بىر كۈتۈپخانىنىڭ باش بېتىنىڭ كۆرۈنۈشىنى توغرىلاڭ. ئۆزگەرتىشنىڭ كۈچكە ئىگە بولۇشى ئۈچۈن Moonfin نى قايتا قوزغىتىڭ.';
+
+  @override
+  String get settingsMediaBarAndLocalPreviews =>
+      'مېدىيا بالدىقى ۋە يەرلىك ئالدىن كۆرۈشلەر';
+
+  @override
+  String get settingsVisualOverlays => 'كۆرۈنۈش قاپلىمىلىرى';
+
+  @override
+  String get settingsSeasonalSurprise => 'پەسىل خاراكتېرلىك ھەيران قېلىش';
+
+  @override
+  String get useNativeEmulator => 'Native Emulation';
+
+  @override
+  String get useNativeEmulatorSubtitle =>
+      'Play games with native cores instead of the EmulatorJS web player';
+
+  @override
+  String get emulatorCores => 'Emulator Cores';
+
+  @override
+  String get emulatorCoresSubtitle => 'Download systems to play games natively';
+
+  @override
+  String get emulatorCoresDescription =>
+      'Choose which systems to install. Cores are provided by the libretro project and let games run natively instead of in a browser view.';
+
+  @override
+  String get emulatorCoreDownloading => 'Downloading';
+
+  @override
+  String get emulatorCoreUnavailable => 'Not available for this device';
+
+  @override
+  String get emulatorCoreDownloadFailed =>
+      'Could not download the core. Check your connection and try again.';
+
+  @override
+  String emulatorCoreResetSettings(String system) {
+    return 'Reset $system settings to defaults';
+  }
+
+  @override
+  String get emulatorCoreSettingsReset => 'Settings reset to defaults.';
+
+  @override
+  String get emulatorCoreResetSettingsFailed =>
+      'Could not reset settings. Check your connection and try again.';
+
+  @override
+  String get downloadedGames => 'Downloaded Games';
+
+  @override
+  String get downloadedGamesSubtitle => 'Free up space used by game files';
+
+  @override
+  String get downloadedGamesDescription =>
+      'Games are copied to this device before they play. Remove the ones you have finished to free up space. Saves are kept on the server and are not deleted.';
+
+  @override
+  String get downloadedGamesEmpty =>
+      'No games have been downloaded to this device yet.';
+
+  @override
+  String downloadedGamesTotal(int count, String size) {
+    return '$count games, $size';
+  }
+
+  @override
+  String get removeAllDownloadedGames => 'Remove All';
+
+  @override
+  String removeDownloadedGameConfirm(String title) {
+    return 'Remove $title from this device? It will download again the next time you play it.';
+  }
+
+  @override
+  String get removeAllDownloadedGamesConfirm =>
+      'Remove all downloaded games from this device? They will download again the next time you play them.';
+
+  @override
+  String get settingsHigh => 'ئېگىز';
+
+  @override
+  String get settingsLow => 'تۆۋەن';
+
+  @override
+  String get settingsCustomPath => 'ئىختىيارى يول';
+
+  @override
+  String get settingsEnterDownloadFolderPath =>
+      'چۈشۈرۈش قىسقۇچ يولىنى كىرگۈزۈڭ';
+
+  @override
+  String get settingsConcurrentDownloads => 'ماس قەدەملىك چۈشۈرۈش';
+
+  @override
+  String get settingsConcurrentDownloadsDescription =>
+      'بىراقلا چۈشۈرەلەيدىغان ئەڭ كۆپ تۈر.';
+
+  @override
+  String get settingsAppInfo => 'ئەپ ئۇچۇرى';
+
+  @override
+  String get settingsReportAnIssue => 'مەلۇم بىر مەسىلىنى دوكلات قىلىڭ';
+
+  @override
+  String get settingsReportAnIssueSubtitle =>
+      'GitHub دا مەسىلە ئىز قوغلىغۇچنى ئېچىڭ';
+
+  @override
+  String get settingsJoinDiscord => 'Discord غا قوشۇلۇڭ';
+
+  @override
+  String get settingsJoinDiscordSubtitle => 'مەھەللە بىلەن پاراڭلىشىڭ';
+
+  @override
+  String get settingsJoinTheDiscord => 'Discord غا قوشۇلۇڭ';
+
+  @override
+  String get settingsSupportMoonfin => 'Moonfin نى قوللاڭ';
+
+  @override
+  String get settingsSupportMoonfinSubtitle =>
+      'ئىجادىيەتچىگە بىر چىنە قەھۋە ئىئانە قىلىڭ';
+
+  @override
+  String get settingsLegal => 'قانۇنىي ئۇچۇرلار';
+
+  @override
+  String get settingsLicenses => 'ئىجازەتنامە';
+
+  @override
+  String get settingsOpenSourceLicenseNotices =>
+      'ئوچۇق كودلۇق ئىجازەتنامە ئۇقتۇرۇشى';
+
+  @override
+  String get settingsPrivacyPolicy => 'مەخپىيەتلىك تۈزۈمى';
+
+  @override
+  String get settingsPrivacyPolicySubtitle =>
+      'Moonfin سانلىق مەلۇماتلىرىڭىزنى قانداق بىر تەرەپ قىلىدۇ';
+
+  @override
+  String get settingsCheckForUpdates => 'يېڭىلانمىلارنى تەكشۈرۈڭ';
+
+  @override
+  String get settingsCheckForUpdatesSubtitle =>
+      'Moonfin نىڭ ئەڭ يېڭى تارقىتىلغانلىقىنى تەكشۈرۈڭ';
+
+  @override
+  String get settingsBoth => 'ھەر ئىككىلىسى';
+
+  @override
+  String get settingsShuffleContentTypeFilter => 'Shuffle مەزمۇن تىپى سۈزگۈچ';
+
+  @override
+  String get settingsAudioPreferencesSubtitle =>
+      'ئاۋاز يولى ، بىر تەرەپ قىلىش ۋە ئۆتكەلدىن ئۆتۈش تاللانمىلىرى';
+
+  @override
+  String get settingsAutomationAndQueueSubtitle =>
+      'ئاپتوماتىك قويۇش ۋە تەرتىپلەش';
+
+  @override
+  String get settingsSyncplaySubtitle =>
+      'گۇرۇپپا يىغىنلىرىنىڭ ماس قەدەملىك لوگىكىسى';
+
+  @override
+  String get settingsSkipIntrosAndOutros =>
+      'Intros ۋە Outros نى ئاتلاپ ئۆتۈپ كېتەمسىز؟';
+
+  @override
+  String settingsMediaSegmentTypeAction(String segment) {
+    return '$segment Segments';
+  }
+
+  @override
+  String get settingsMediaSegmentCountdown => 'مېدىيا بۆلىكى تەتۈر ساناش';
+
+  @override
+  String get settingsProgressBar => 'ئىلگىرىلەش بالدىقى';
+
+  @override
+  String get settingsTimer => 'ۋاقىت ساناقچىسى';
+
+  @override
+  String get settingsNone => 'يوق';
+
+  @override
+  String get settingsSkipButtonAutoHide => 'Auto Hide Skip Button';
+
+  @override
+  String get settingsSkipButtonAutoHideDescription =>
+      'Automatically dismiss the skip intro and outro button after a few seconds.';
+
+  @override
+  String get settingsPromptUser => 'تېز ئىشلەتكۈچى';
+
+  @override
+  String get settingsSkip => 'ئاتلاش';
+
+  @override
+  String get settingsDoNothing => 'ھېچ ئىش قىلماڭ';
+
+  @override
+  String get settingsMaxBitrateDescription =>
+      'ئاقما بىتنى قاپلاڭ. بۇ چەكتىن يۇقىرى مەزمۇنلار ماسلاشتۇرۇلىدۇ.';
+
+  @override
+  String get settingsMaxResolutionDescription =>
+      'قويغۇچ تەلەپ قىلىدىغان ئەڭ چوڭ ئېنىقلىقنى چەكلەڭ. تېخىمۇ يۇقىرى ئېنىقلىقتىكى مەزمۇنلار كودلىنىدۇ.';
+
+  @override
+  String get settingsPlayerZoomDescription =>
+      'سىننى ئېكرانغا قانداق ماسلاشتۇرۇش كېرەك.';
+
+  @override
+  String get settingsPlaybackEngineAndroidTv => 'قويۇش ماتورى (Android TV)';
+
+  @override
+  String get settingsPlaybackEngineAndroidTvDescription =>
+      'ئاندىرويىد تېلېۋىزور ئۈسكۈنىلىرىدە سۈكۈتتىكى قويۇش ماتورىنى تاللاڭ. كېيىنكى قېتىملىق قويۇش يىغىنىغا ئۆزگەرتىشلەر قوللىنىلىدۇ.';
+
+  @override
+  String get settingsPlaybackEngineMedia3Recommended =>
+      'Media3 (تەۋسىيە قىلىنغان)';
+
+  @override
+  String get settingsPlaybackEngineMpvLegacy => 'mpv (مىراس)';
+
+  @override
+  String get settingsRedetectDisplay => 'Re-detect display';
+
+  @override
+  String get settingsRedetectDisplayDescription =>
+      'Ask the TV again what HDR formats it supports. Use this if Dolby Vision or HDR10 titles are being transcoded after the TV or receiver was powered on late.';
+
+  @override
+  String get settingsDisplayIsSdr => 'My TV is not HDR';
+
+  @override
+  String get settingsDisplayIsSdrDescription =>
+      'Stop advertising HDR support for this display. Use this only if detection keeps reporting HDR your TV can\'t actually show.';
+
+  @override
+  String settingsDisplayRedetected(String formats) {
+    return 'Display re-detected: $formats';
+  }
+
+  @override
+  String get settingsDisplayNoHdrDetected => 'No HDR formats detected';
+
+  @override
+  String get settingsDisplayMarkedSdr => 'Display saved as SDR';
+
+  @override
+  String get settingsDolbyVisionFallback => 'Dolby Vision چۈشۈش';
+
+  @override
+  String get settingsDolbyVisionFallbackDescription =>
+      'Dolby Vision كودلاش ئۈسكۈنىسى بولمىغان ئۈسكۈنىلەردە Dolby Vision ماۋزۇسىنىڭ ھەرىكىتى.';
+
+  @override
+  String get settingsAskEachTime => 'ھەر قېتىم سوراڭ';
+
+  @override
+  String get settingsPreferHdr10Fallback => 'HDR10 چۈشۈشنى ياخشى كۆرۈڭ';
+
+  @override
+  String get settingsPreferServerTranscode =>
+      'مۇلازىمېتىرنىڭ كود نومۇرىنى تاللاڭ';
+
+  @override
+  String get settingsDolbyVisionProfile7DirectPlay =>
+      'Dolby Vision ئارخىپى 7 بىۋاسىتە ئويۇن';
+
+  @override
+  String get settingsDolbyVisionProfile7DirectPlayDescription =>
+      'Dolby Vision ئارخىپى 7 كۈچەيتمە قەۋەت ئېقىمىنىڭ بىۋاسىتە ئوينىشى كېرەكلىكىنى كونترول قىلىدۇ.';
+
+  @override
+  String get settingsAutoAftkrtEnabled => 'ئاپتوماتىك (AFTKRT قوزغىتىلدى)';
+
+  @override
+  String get settingsEnabledOnThisDevice => 'بۇ ئۈسكۈنىدە قوزغىتىلدى';
+
+  @override
+  String get settingsDisabledPreferTranscode =>
+      'چەكلەنگەن (transcode نى ياخشى كۆرۈڭ)';
+
+  @override
+  String get settingsResumeRewindDescription =>
+      'قويۇشنى ئەسلىگە كەلتۈرگەندە (داۋاملىق كۆرۈشنى ياكى مېدىيا تۈر بېتىدىن) ، قانچە سېكۇنتنى قايتۇرۇش كېرەك؟';
+
+  @override
+  String get settingsUnpauseRewindDescription =>
+      'ۋاقىتلىق توختىتىش كۇنۇپكىسىنى باسقاندىن كېيىن قايتا ئويناشنى ئەسلىگە كەلتۈرگەندە ، قانچە سېكۇنت قايتىشى كېرەك؟';
+
+  @override
+  String get settingsSkipBackLengthDescription =>
+      'كەينىگە قايتۇرۇش كۇنۇپكىسىنى باسقاندىن كېيىن قانچە سېكۇنت كەينىگە سەكرىگىلى بولىدۇ.';
+
+  @override
+  String get settingsOneSecond => '1 سېكۇنت';
+
+  @override
+  String get settingsThreeSeconds => '3 سېكۇنت';
+
+  @override
+  String get settingsFortyFiveSeconds => '45 سېكۇنت';
+
+  @override
+  String get settingsSixtySeconds => '60 سېكۇنت';
+
+  @override
+  String get settingsSkipForwardLengthDescription =>
+      'تېز ئىلگىرىلەش كۇنۇپكىسىنى باسقاندىن كېيىن قانچە سېكۇنت سەكرەش.';
+
+  @override
+  String get settingsBitstreamAc3ToExternalDecoder =>
+      'Bitstream AC3 دىن سىرتقى كود يەشكۈچ';
+
+  @override
+  String get settingsCinemaMode => 'كىنوخانا ھالىتى';
+
+  @override
+  String get settingsCinemaModeSubtitle =>
+      'ئاساسلىق ئىقتىداردىن بۇرۇن يول باشلاش / ئالدىن ئويناش';
+
+  @override
+  String get settingsCinemaModeEpisodes => 'Cinema Mode for episodes';
+
+  @override
+  String get settingsCinemaModeEpisodesSubtitle =>
+      'Also play prerolls before TV episodes';
+
+  @override
+  String get settingsNextUpDisplayDescription =>
+      'كېڭەيتىلگەن بۆلەك سەنئەت ئەسەرلىرى ۋە تەسۋىرلىرى تولۇق كارتىنى كۆرسىتىدۇ. Minimal ئىخچام تەتۈر ساناقنى كۆرسىتىدۇ. چەكلەنگەنلەر ئەسكەرتىشنى پۈتۈنلەي يوشۇرىدۇ.';
+
+  @override
+  String get settingsShort => 'قىسقا';
+
+  @override
+  String get settingsLong => 'ئۇزۇن';
+
+  @override
+  String get settingsVeryLong => 'بەك ئۇزۇن';
+
+  @override
+  String get settingsVideoStartDelay => 'سىن باشلىنىش كېچىكتۈرۈشى';
+
+  @override
+  String settingsMillisecondsValue(int value) {
+    return '$value ms';
+  }
+
+  @override
+  String get settingsLiveTvDirect => 'بىۋاسىتە تېلېۋىزىيەنى بىۋاسىتە قويۇش';
+
+  @override
+  String get settingsLiveTvDirectSubtitle =>
+      'نەق مەيدان تېلېۋىزىيە ئۈچۈن بىۋاسىتە قويۇشنى قوزغىتىڭ';
+
+  @override
+  String get settingsOpenGroups => 'گۇرۇپپىلارنى ئېچىڭ';
+
+  @override
+  String get settingsOpenGroupsSubtitle =>
+      'SyncPlay گۇرۇپپىسىنى قۇرۇش ، قوشۇش ياكى باشقۇرۇش';
+
+  @override
+  String get settingsSyncplayEnabled => 'SyncPlay قوزغىتىلدى';
+
+  @override
+  String get settingsSyncplayEnabledSubtitle =>
+      'گۇرۇپپا كۆرۈش ئىقتىدارىنى قوزغىتىڭ';
+
+  @override
+  String get settingsSyncplayButton => 'SyncPlay كۇنۇپكىسى';
+
+  @override
+  String get settingsSyncplayButtonSubtitle =>
+      'يولباشچى ستونىدا SyncPlay كۇنۇپكىسىنى كۆرسەت';
+
+  @override
+  String get settingsSyncplayAdvancedCorrection => 'ئالىي تۈزىتىش';
+
+  @override
+  String get settingsSyncplayAdvancedCorrectionSubtitle =>
+      'ئىنچىكە ماس قەدەملىك لوگىكىنى قوزغىتىڭ';
+
+  @override
+  String get settingsSyncplaySyncCorrection => 'ماسقەدەملەش';
+
+  @override
+  String get settingsSyncplaySyncCorrectionSubtitle =>
+      'ماس قەدەمدە تۇرۇش ئۈچۈن قويۇشنى ئاپتوماتىك تەڭشەڭ';
+
+  @override
+  String get settingsSyncplaySpeedToSync => 'ماسقەدەملەش';
+
+  @override
+  String get settingsSyncplaySpeedToSyncSubtitle =>
+      'ماس قەدەمدە قويۇش سۈرئىتىنى تەڭشەشنى ئىشلىتىڭ';
+
+  @override
+  String get settingsSyncplaySkipToSync => 'ماسقەدەملەش';
+
+  @override
+  String get settingsSyncplaySkipToSyncSubtitle => 'ماسقەدەملەشنى ئىزدەڭ';
+
+  @override
+  String get settingsSyncplayMinimumSpeedDelay => 'ئەڭ تۆۋەن سۈرئەت كېچىكىشى';
+
+  @override
+  String get settingsSyncplayMaximumSpeedDelay => 'ئەڭ تېز سۈرئەتنى كېچىكتۈرۈش';
+
+  @override
+  String get settingsSyncplaySpeedDuration => 'سۈرئەت ۋاقتى';
+
+  @override
+  String get settingsSyncplayMinimumSkipDelay => 'ئەڭ تۆۋەن ئاتلاپ كېچىكىش';
+
+  @override
+  String get settingsSyncplayExtraOffset => 'SyncPlay قوشۇمچە Offset';
+
+  @override
+  String get onNow => 'ھازىر';
+
+  @override
+  String get collections => 'توپلام';
+
+  @override
+  String get lastPlayed => 'ئەڭ ئاخىرقى قويۇلغان';
+
+  @override
+  String libraryNameWithServer(String libraryName, String serverName) {
+    return '$libraryName ($serverName)';
+  }
+
+  @override
+  String latestLibraryName(String libraryName) {
+    return 'Latest $libraryName';
+  }
+
+  @override
+  String recentlyReleasedLibraryName(String libraryName) {
+    return 'يېقىندا تارقىتىلغان $libraryName';
+  }
+
+  @override
+  String get autoplayNextEpisode => 'كېيىنكى بۆلۈمنى ئاپتوماتىك قويۇش';
+
+  @override
+  String get autoplayNextEpisodeSubtitle =>
+      'كېيىنكى بۆلۈم بار بولسا ئۆزلۈكىدىن قويىدۇ.';
+
+  @override
+  String get skipSilenceTitle => 'جىمجىتلىقتىن ئاتلاش';
+
+  @override
+  String get skipSilenceSubtitle =>
+      'ئېقىم قوللىغاندا ئۈنسىز ئاۋاز بۆلەكلىرىدىن ئۆزلۈكىدىن ئاتلايدۇ.';
+
+  @override
+  String get allowExternalAudioEffectsTitle =>
+      'سىرتقى ئاۋاز ئۈنۈملىرىگە يول قويۇش';
+
+  @override
+  String get allowExternalAudioEffectsSubtitle =>
+      'تەڭشىگۈچ ۋە ئۈنۈم ئەپلىرىنىڭ (مەسىلەن Wavelet) Media3 قويۇش سېئانسلىرىغا ئۇلىنىشىغا يول قويىدۇ.';
+
+  @override
+  String get disableTunnelingTitle => 'تونېللاشنى تاقاش';
+
+  @override
+  String get disableTunnelingSubtitle =>
+      'تونېلسىز قويۇشقا زورلايدۇ. تونېللىق ئاۋاز/سىن ئۈزۈلۈشى بار ئۈسكۈنىلەردە پايدىلىق.';
+
+  @override
+  String get enableTunnelingTitle => 'تونېللاشنى قوزغىتىش';
+
+  @override
+  String get enableTunnelingSubtitle =>
+      'ئالىي تەڭشەك. ئاۋاز ۋە سىننى ماسلاشقان قاتتىق دېتال يولى ئارقىلىق ئۆتكۈزىدۇ. بەزى ئۈسكۈنىلەردە ئاۋاز/سىن ئۈزۈلۈشى پەيدا قىلغاچقا، سۈكۈتتە تاقاق.';
+
+  @override
+  String get mapDolbyVisionP7Title =>
+      'Dolby Vision profile 7 نى HEVC قا خەرىتىلەش';
+
+  @override
+  String get mapDolbyVisionP7Subtitle =>
+      'Dolby Vision profile 7 ئېقىملىرىنى DV يوق ئۈسكۈنىلەردە HDR10 غا ماس HEVC سۈپىتىدە قويىدۇ.';
+
+  @override
+  String get subtitlesUseEmbeddedStyles =>
+      'سىڭدۈرۈلگەن ئېكران خېتى ئۇسلۇبلىرىنى ئىشلىتىش';
+
+  @override
+  String get subtitlesUseEmbeddedStylesSubtitle =>
+      'ئېكران خېتى يولىغا سىڭدۈرۈلگەن رەڭ، خەت نۇسخىسى ۋە ئورۇنلاشتۇرۇشنى قوللىنىدۇ. ئۆزىڭىزنىڭ ئۇسلۇب مايىللىقلىرىنى ئىشلىتىش ئۈچۈن تاقاڭ.';
+
+  @override
+  String get subtitlesUseEmbeddedFontSizes =>
+      'سىڭدۈرۈلگەن ئېكران خېتى خەت چوڭلۇقىنى ئىشلىتىش';
+
+  @override
+  String get subtitlesUseEmbeddedFontSizesSubtitle =>
+      'ئېكران خېتى يولىغا سىڭدۈرۈلگەن خەت چوڭلۇقى ئۇچۇرلىرىنى قوللىنىدۇ. ئۇسلۇب مايىللىقىڭىزدىكى ئېكران خېتى چوڭلۇقىنى ئىشلىتىش ئۈچۈن تاقاڭ.';
+
+  @override
+  String get showMediaDetailsOnLibraryPage => 'مېدىيا تەپسىلاتلىرىنى كۆرسىتىش';
+
+  @override
+  String get showMediaDetailsOnLibraryPageDescription =>
+      'ئامبار بەتلىرىنىڭ ئۈستىدە تاللانغان تۈرنىڭ تەپسىلاتلىرىنى كۆرسىتىدۇ.';
+
+  @override
+  String get hideBackdropsInLibraries =>
+      'كۆرگەندە تەگلىك رەسىملىرى يوشۇرۇلسۇنمۇ؟';
+
+  @override
+  String get useDetailedSubHeadings => 'تەپسىلىي تارماق ماۋزۇلارنى ئىشلىتىش';
+
+  @override
+  String get useDetailedSubHeadingsDescription =>
+      'ئامبار بەتلىرىدە تەپسىلىي ياكى ئاددىي تارماق قۇرنى كۆرسىتىدۇ.';
+
+  @override
+  String get savedThemesDeleteDialogTitle => 'ساقلانغان تېما ئۆچۈرۈلسۇنمۇ؟';
+
+  @override
+  String savedThemesDeleteDialogMessage(String themeName) {
+    return '«$themeName» بۇ ئۈسكۈنىنىڭ غەملىكىدىن چىقىرىۋېتىلسۇنمۇ؟';
+  }
+
+  @override
+  String get themeStore => 'تېما دۇكىنى';
+
+  @override
+  String get themeStoreSubtitle => 'جامائەت تېمىلىرىنى كۆرۈپ ساقلاڭ';
+
+  @override
+  String get themeStoreDescription =>
+      'تېمىنى ساقلىسىڭىز، باشقا ساقلانغان تېمىلىرىڭىزدەك ئىشلىتەلەيسىز.';
+
+  @override
+  String get themeStoreEmpty => 'ھازىرچە تېما يوق.';
+
+  @override
+  String get themeStoreLoadFailed =>
+      'تېما دۇكىنىنى يۈكلىگىلى بولمىدى. ئۇلىنىشىڭىزنى تەكشۈرۈپ قايتا سىناڭ.';
+
+  @override
+  String get themeStoreSave => 'ساقلاش';
+
+  @override
+  String get themeStoreSaveAndApply => 'ساقلاپ قوللىنىش';
+
+  @override
+  String get themeStoreSaved => 'ساقلاندى';
+
+  @override
+  String get themeStoreInvalidMessage => 'بۇ تېمىنى يۈكلىگىلى بولمىدى.';
+
+  @override
+  String themeStoreSavedMessage(String themeName) {
+    return '«$themeName» ساقلاندى.';
+  }
+
+  @override
+  String savedThemesDeletedMessage(String themeName) {
+    return '«$themeName» بۇ ئۈسكۈنىدىن ئۆچۈرۈلدى.';
+  }
+
+  @override
+  String savedThemesDeleteFailedMessage(String themeName) {
+    return '«$themeName» نى ئۆچۈرگىلى بولمىدى.';
+  }
+
+  @override
+  String get savedThemesTitle => 'ساقلانغان تېمىلار';
+
+  @override
+  String get savedThemesDescription =>
+      'بۇلار نۆۋەتتىكى مۇلازىمېتىرنىڭ Moonfin قىستۇرمىسىدىن چۈشۈرۈلگەن تېمىلار. ئۆچۈرسىڭىز پەقەت بۇ يەرلىك نۇسخىلا چىقىرىۋېتىلىدۇ.';
+
+  @override
+  String get savedThemesEmpty =>
+      'بۇ مۇلازىمېتىر ئۈچۈن ساقلانغان تېما تېپىلمىدى.';
+
+  @override
+  String savedThemesCurrentThemeId(String themeId) {
+    return '$themeId • ھازىر ئاكتىپ';
+  }
+
+  @override
+  String get savedThemesDeleteTooltip => 'ساقلانغان تېمىنى ئۆچۈرۈش';
+
+  @override
+  String get savedThemesManageSubtitle =>
+      'بۇ ئۈسكۈنىدىكى چۈشۈرۈلگەن قىستۇرما تېمىلىرىنى باشقۇرۇش';
+
+  @override
+  String get themeEditor => 'تېما تەھرىرلىگۈچ';
+
+  @override
+  String get themeEditorSubtitle =>
+      'Moonfin تېما تەھرىرلىگۈچىنى تور كۆرگۈچىڭىزدە ئېچىش';
+
+  @override
+  String get homeScreen => 'باش ئېكران';
+
+  @override
+  String get bottomBar => 'ئاستى بالداق';
+
+  @override
+  String get homeRowsStyleClassic => 'كلاسسىك';
+
+  @override
+  String get homeRowsStyleModern => 'زامانىۋى';
+
+  @override
+  String get homeRowsSection => 'باش بەت قۇرلىرى';
+
+  @override
+  String get rowsType => 'Rows Type';
+
+  @override
+  String get rowsTypeDescription =>
+      'كلاسسىك ھەر قۇرنىڭ رەسىم تىپى ۋە ئۇچۇر قاپلىمىسىنى ساقلايدۇ. زامانىۋى بوي پوستېردىن تەگلىككە ئۆتىدىغان قۇرلارنى ئىشلىتىدۇ.';
+
+  @override
+  String get modernCardsOnMyMediaRow => 'Modern cards on My Media row';
+
+  @override
+  String get modernCardsOnMyMediaRowDescription =>
+      'Display customizable posters that expand on focus. Disable to always show landscape thumbnail.';
+
+  @override
+  String get sortOrder => 'Sort Order';
+
+  @override
+  String get ascending => 'Ascending';
+
+  @override
+  String get descending => 'Descending';
+
+  @override
+  String get displayFavoritesRows => 'ئامراقلار قۇرلىرىنى كۆرسىتىش';
+
+  @override
+  String get displayFavoritesRowsSubtitle =>
+      'باش بەت بۆلەكلىرىدە ئامراق كىنولار، تىياتىرلار ۋە باشقا ئامراق قۇرلارنى كۆرسىتىدۇ.';
+
+  @override
+  String get favoritesRowSorting => 'ئامراقلار قۇرى تەرتىپلىنىشى';
+
+  @override
+  String get favoritesRowSortingDescription =>
+      'ئامراقلار قۇرلىرىنى قوشۇلغان چېسلا، تارقىتىلغان چېسلا، ئېلىپبە تەرتىپى ۋە باشقىلار بويىچە تەرتىپلەيدۇ.';
+
+  @override
+  String get favoritesRowSortOrderDescription =>
+      'Sort Favorites rows in ascending or descending order.';
+
+  @override
+  String get displayCollectionsRows => 'توپلام قۇرلىرىنى كۆرسىتىش';
+
+  @override
+  String get displayCollectionsRowsSubtitle =>
+      'باش بەت بۆلەكلىرىدە توپلام قۇرلىرىنى كۆرسىتىدۇ.';
+
+  @override
+  String get collectionsRowSorting => 'توپلام قۇرى تەرتىپلىنىشى';
+
+  @override
+  String get collectionsRowSortingDescription =>
+      'توپلام قۇرلىرىنى قوشۇلغان چېسلا، تارقىتىلغان چېسلا، ئېلىپبە تەرتىپى ۋە باشقىلار بويىچە تەرتىپلەيدۇ.';
+
+  @override
+  String get collectionsRowSortOrderDescription =>
+      'Sort Collections rows in ascending or descending order.';
+
+  @override
+  String get collectionsRowShowEpisodes => 'Show Individual Episodes';
+
+  @override
+  String get collectionsRowShowEpisodesSubtitle =>
+      'Expand TV shows to display each episode separately.';
+
+  @override
+  String get displayGenresRows => 'ژانىر قۇرلىرىنى كۆرسىتىش';
+
+  @override
+  String get displayGenresRowsSubtitle =>
+      'باش بەت بۆلەكلىرىدە ژانىر قۇرلىرىنى كۆرسىتىدۇ.';
+
+  @override
+  String get genresRowSorting => 'ژانىر قۇرى تەرتىپلىنىشى';
+
+  @override
+  String get genresRowSortingDescription =>
+      'ژانىر قۇرلىرىنى قوشۇلغان چېسلا، تارقىتىلغان چېسلا، ئېلىپبە تەرتىپى ۋە باشقىلار بويىچە تەرتىپلەيدۇ.';
+
+  @override
+  String get genresRowSortOrderDescription =>
+      'Sort Genres rows in ascending or descending order.';
+
+  @override
+  String get genresRowItems => 'ژانىر قۇرى تۈرلىرى';
+
+  @override
+  String get genresRowItemsDescription =>
+      'ژانىر قۇرلىرىدا كىنو، تىياتىر ياكى ھەر ئىككىسىنى كۆرسىتىدۇ.';
+
+  @override
+  String get displayStudiosRows => 'Display Studio Row';
+
+  @override
+  String get displayStudiosRowsSubtitle => 'Show Studio row in Home Sections.';
+
+  @override
+  String get studiosRowSorting => 'Studio Row Sorting';
+
+  @override
+  String get studiosRowSortingDescription =>
+      'Studio row by name, recently added, and more.';
+
+  @override
+  String get studiosRowSortOrderDescription =>
+      'Choose Ascending or Descending sort order.';
+
+  @override
+  String get selectStudiosToInclude => 'Select Studios to Include';
+
+  @override
+  String get selectStudiosToIncludeDescription =>
+      'Select which studios should be included on the home row.';
+
+  @override
+  String get selectAllStudios => 'Select All';
+
+  @override
+  String get deselectAllStudios => 'Deselect All';
+
+  @override
+  String get tvStudiosFilter => 'TV Studios';
+
+  @override
+  String get movieStudiosFilter => 'Movie Studios';
+
+  @override
+  String get selectedStudiosFilter => 'Selected Studios';
+
+  @override
+  String get unselectedStudiosFilter => 'Unselected Studios';
+
+  @override
+  String get filtersHeader => 'Filters';
+
+  @override
+  String get showHeader => 'Show';
+
+  @override
+  String get displayPlaylistsRows => 'قويۇش تىزىملىكى قۇرلىرىنى كۆرسىتىش';
+
+  @override
+  String get displayPlaylistsRowsSubtitle =>
+      'باش بەت بۆلەكلىرىدە قويۇش تىزىملىكى قۇرلىرىنى كۆرسىتىدۇ.';
+
+  @override
+  String get playlistsRowSorting => 'قويۇش تىزىملىكى قۇرى تەرتىپلىنىشى';
+
+  @override
+  String get playlistsRowSortingDescription =>
+      'قويۇش تىزىملىكى قۇرلىرىنى قوشۇلغان چېسلا، تارقىتىلغان چېسلا، ئېلىپبە تەرتىپى ۋە باشقىلار بويىچە تەرتىپلەيدۇ.';
+
+  @override
+  String get playlistsRowSortOrderDescription =>
+      'Sort Playlist rows in ascending or descending order.';
+
+  @override
+  String get playlistsRowShowEpisodes => 'Show Individual Episodes';
+
+  @override
+  String get playlistsRowShowEpisodesSubtitle =>
+      'Expand TV shows to display each episode separately.';
+
+  @override
+  String get displayAudioRows => 'ئاۋاز قۇرلىرىنى كۆرسىتىش';
+
+  @override
+  String get displayAudioRowsSubtitle =>
+      'باش بەت بۆلەكلىرىدە ئاۋاز قۇرلىرىنى كۆرسىتىدۇ.';
+
+  @override
+  String get audioRowsSorting => 'ئاۋاز قۇرلىرى تەرتىپلىنىشى';
+
+  @override
+  String get audioRowsSortingDescription =>
+      'ئاۋاز قۇرلىرىنى قوشۇلغان چېسلا، تارقىتىلغان چېسلا، ئېلىپبە تەرتىپى ۋە باشقىلار بويىچە تەرتىپلەيدۇ.';
+
+  @override
+  String get audioRowsSortOrderDescription =>
+      'Sort Audio rows in ascending or descending order.';
+
+  @override
+  String get audioPlaylists => 'ئاۋاز قويۇش تىزىملىكلىرى';
+
+  @override
+  String get appearance => 'كۆرۈنۈش';
+
+  @override
+  String get layout => 'ئورۇنلاشتۇرۇش';
+
+  @override
+  String get theme => 'تېما';
+
+  @override
+  String get keyboard => 'ھەرپتاختا';
+
+  @override
+  String get navButtons => 'كۇنۇپكىلار';
+
+  @override
+  String get rendering => 'سىزىش';
+
+  @override
+  String get mpvConfiguration => 'MPV سەپلىمىسى';
+
+  @override
+  String get cardSize => 'Card Size';
+
+  @override
+  String get externalPlayerApp => 'سىرتقى قويغۇچ ئەپ';
+
+  @override
+  String get externalPlayerAppDescription =>
+      'ئۇزۇن بېسىپ قويۇش تاللانمىسىنى ئېچىش ئۈچۈن سىرتقى قويغۇچنى تەڭشەڭ';
+
+  @override
+  String get externalPlayerAskEachTimeSubtitle =>
+      'قويۇش باشلانغاندا ئەپ تاللىغۇچنى كۆرسىتىدۇ.';
+
+  @override
+  String get loadingInstalledPlayers => 'قاچىلانغان قويغۇچلار يۈكلىنىۋاتىدۇ...';
+
+  @override
+  String get connection => 'ئۇلىنىش';
+
+  @override
+  String get locallyDecodedCodecs => 'Locally Decoded Codecs';
+
+  @override
+  String get transcodeTargetCodecs => 'Transcode Target Codecs';
+
+  @override
+  String get passthrough => 'بىۋاسىتە ئۆتكۈزۈش';
+
+  @override
+  String get supportedOnThisDevice => 'بۇ ئۈسكۈنە قوللايدۇ';
+
+  @override
+  String get notSupportedOnThisDevice => 'بۇ ئۈسكۈنە قوللىمايدۇ';
+
+  @override
+  String get mediaPlayerBehavior => 'مېدىيا قويغۇچ ھەرىكىتى';
+
+  @override
+  String get playbackEnhancements => 'قويۇش كۈچەيتمىلىرى';
+
+  @override
+  String get alwaysOn => 'ھەمىشە ئوچۇق.';
+
+  @override
+  String get replaceSkipOutroWithNextUpDisplay =>
+      'ئاخىرقى قىسىمدىن ئاتلاشنى كېيىنكىسى كۆرسىتىلىشىگە ئالماشتۇرۇش';
+
+  @override
+  String get replaceSkipOutroWithNextUpDisplaySubtitle =>
+      'ئاخىرقى قىسىمدىن ئاتلاش كۇنۇپكىسىنىڭ ئورنىغا كېيىنكىسى قاپلىمىسىنى كۆرسىتىدۇ.';
+
+  @override
+  String get playerRouting => 'قويغۇچ يۆنىلىشى';
+
+  @override
+  String get preferSoftwareDecoders =>
+      'يۇمشاق دېتال كودسىزلىغۇچلارنى ئالدىن تاللاش';
+
+  @override
+  String get preferSoftwareDecodersSubtitle =>
+      'قاتتىق دېتال كودسىزلىغۇچتىن بۇرۇن FFmpeg (ئاۋاز) ۋە libgav1 (AV1) نى ئىشلىتىدۇ. HDMI ئاۋاز بىۋاسىتە ئۆتكۈزۈش بۇزۇلسا تاقاڭ.';
+
+  @override
+  String get useExternalPlayer => 'Use external player';
+
+  @override
+  String get useExternalPlayerSubtitle =>
+      'Android TV دا سىن قويۇشنى تاللانغان سىرتقى ئەپتە ئاچىدۇ.';
+
+  @override
+  String get automaticQueuing => 'ئاپتوماتىك ئۆچرەتكە قوشۇش';
+
+  @override
+  String get preferSdhSubtitles => 'SDH ئېكران خېتىنى ئالدىن تاللاش';
+
+  @override
+  String get preferSdhSubtitlesSubtitle =>
+      'ئۆزلۈكىدىن تاللىغاندا SDH/CC ئېكران خېتى يوللىرىنى ئالدىنقى ئورۇنغا قويىدۇ.';
+
+  @override
+  String get preferTextSubtitles => 'Prefer Text Subtitles';
+
+  @override
+  String get preferTextSubtitlesSubtitle =>
+      'Prioritize text-based subtitles (SRT, VTT) over image-based formats (PGS, VobSub).';
+
+  @override
+  String get preferExternalSubtitles => 'Prefer External Subtitles';
+
+  @override
+  String get preferExternalSubtitlesSubtitle =>
+      'Prioritize external subtitle files over embedded tracks.';
+
+  @override
+  String get webDiagnostics => 'تور دىئاگنوزى';
+
+  @override
+  String get webDiagnosticsTitle => 'Moonfin تور دىئاگنوزى';
+
+  @override
+  String get webDiagnosticsIntro =>
+      'بۇ بەتنى تور كۆرگۈچ ئۇلىنىش مەسىلىلىرىنى (CORS، ئارىلاش مەزمۇن ۋە بايقاش تەڭشەكلىرى) دىئاگنوز قىلىشقا ئىشلىتىڭ.';
+
+  @override
+  String get webDiagnosticsDetectedMixedContentFailure =>
+      'ئارىلاش مەزمۇن خاتالىقى بايقالدى';
+
+  @override
+  String get webDiagnosticsDetectedCorsPreflightFailure =>
+      'CORS/Preflight خاتالىقى بايقالدى';
+
+  @override
+  String get webDiagnosticsMixedContentFailureBody =>
+      'Moonfin بىر HTTPS بەتنىڭ HTTP مۇلازىمېتىر URL ئادرېسىنى چاقىرماقچى بولغانلىقىنى بايقىدى. تور كۆرگۈچلەر بۇ تەلەپنى مۇلازىمېتىرىڭىزغا يېتىشتىن بۇرۇن توسىدۇ.';
+
+  @override
+  String get webDiagnosticsCorsFailureBody =>
+      'Moonfin كۆپىنچە مېدىيا مۇلازىمېتىرىدا CORS ياكى preflight قېشى كەم بولغاندا كۆرۈلىدىغان تور كۆرگۈچ دەرىجىلىك تەلەپ خاتالىقىنى بايقىدى.';
+
+  @override
+  String webDiagnosticsTargetUrl(String url) {
+    return 'نىشان URL: $url';
+  }
+
+  @override
+  String webDiagnosticsDetail(String detail) {
+    return 'تەپسىلات: $detail';
+  }
+
+  @override
+  String get webDiagnosticsCurrentRuntimeContext => 'نۆۋەتتىكى ئىجرا مۇھىتى';
+
+  @override
+  String get webDiagnosticsOrigin => 'Origin';
+
+  @override
+  String get webDiagnosticsScheme => 'Scheme';
+
+  @override
+  String get webDiagnosticsPluginMode => 'قىستۇرما ھالىتى';
+
+  @override
+  String get webDiagnosticsWebRtcScan => 'WebRTC سايىلەش';
+
+  @override
+  String get webDiagnosticsForcedServerUrl => 'مەجبۇرىي مۇلازىمېتىر URL';
+
+  @override
+  String get webDiagnosticsDefaultServerUrl => 'سۈكۈتتىكى مۇلازىمېتىر URL';
+
+  @override
+  String get webDiagnosticsDiscoveryProxyUrl => 'بايقاش ۋاكالەتچى URL';
+
+  @override
+  String get notConfigured => 'سەپلەنمىگەن';
+
+  @override
+  String get webDiagnosticsMixedContent => 'ئارىلاش مەزمۇن';
+
+  @override
+  String get webDiagnosticsMixedContentDetected =>
+      'بۇ بەت HTTPS ئارقىلىق يۈكلەنگەن، ئەمما سەپلەنگەن بىر ياكى بىرنەچچە URL بولسا HTTP. تور كۆرگۈچلەر HTTPS بەتلەرنىڭ HTTP API چاقىرىشىنى توسىدۇ.';
+
+  @override
+  String get webDiagnosticsMixedContentFix =>
+      'ھەل قىلىش: مېدىيا مۇلازىمېتىرىڭىز ياكى ۋاكالەتچى ئېغىزىڭىزنى HTTPS ئارقىلىق تەمىنلەڭ، ياكى Moonfin نى پەقەت ئىشەنچلىك يەرلىك تورلاردىلا HTTP ئارقىلىق ئېچىڭ.';
+
+  @override
+  String get webDiagnosticsNoMixedContentDetected =>
+      'نۆۋەتتىكى ئىجرا تەڭشەكلىرىدىن ئېنىق ئارىلاش مەزمۇن سەپلىمىسى بايقالمىدى.';
+
+  @override
+  String get webDiagnosticsCorsChecklist => 'CORS تەكشۈرۈش تىزىملىكى';
+
+  @override
+  String get webDiagnosticsCorsChecklistItem1 =>
+      '• تور كۆرگۈچ Origin نى Access-Control-Allow-Origin غا كىرگۈزۈڭ.';
+
+  @override
+  String get webDiagnosticsCorsChecklistItem2 =>
+      '• Authorization، X-Emby-Authorization ۋە X-Emby-Token نى Access-Control-Allow-Headers غا كىرگۈزۈڭ.';
+
+  @override
+  String get webDiagnosticsCorsChecklistItem3 =>
+      '• ئېقىم قويۇش ۋە ئاتلاش ئۈچۈن Content-Range ۋە Accept-Ranges نى ئاشكارىلاڭ.';
+
+  @override
+  String get webDiagnosticsCorsChecklistItem4 =>
+      '• OPTIONS preflight تەلەپلىرىگە 204 قايتۇرۇڭ.';
+
+  @override
+  String get webDiagnosticsHeaderSnippetTitle =>
+      'قاش مىسال پارچىسى (nginx ئۇسلۇبى)';
+
+  @override
+  String get note => 'ئەسكەرتىش';
+
+  @override
+  String get webDiagnosticsNonWebNote =>
+      'بۇ دىئاگنوز بېتى تور نەشرى ئۈچۈن. باشقا سۇپىدا كۆرۈۋاتقان بولسىڭىز، بۇ تەكشۈرۈشلەر ماس كەلمەسلىكى مۇمكىن.';
+
+  @override
+  String get backToServerSelect => 'مۇلازىمېتىر تاللاشقا قايتىش';
+
+  @override
+  String get signOutAllUsers => 'بارلىق ئىشلەتكۈچىلەرنى چىقىرىش';
+
+  @override
+  String get voiceSearchPermissionPermanentlyDenied =>
+      'مىكروفون ھوقۇقى مەڭگۈلۈك رەت قىلىنغان. سىستېما تەڭشەكلىرىدىن قوزغىتىڭ.';
+
+  @override
+  String get voiceSearchPermissionRequired =>
+      'ئاۋازلىق ئىزدەشكە مىكروفون ھوقۇقى كېرەك.';
+
+  @override
+  String get voiceSearchNoMatch => 'ئېنىق ئاڭلانمىدى. قايتا سىناڭ.';
+
+  @override
+  String get voiceSearchNoSpeechDetected => 'سۆز بايقالمىدى.';
+
+  @override
+  String get voiceSearchMicrophoneError => 'مىكروفون خاتالىقى.';
+
+  @override
+  String get voiceSearchNeedsInternet => 'ئاۋازلىق ئىزدەشكە تور كېرەك.';
+
+  @override
+  String get voiceSearchServiceBusy =>
+      'ئاۋاز مۇلازىمىتى ئالدىراش. قايتا سىناڭ.';
+
+  @override
+  String get microphonePermissionPermanentlyDenied =>
+      'مىكروفون ھوقۇقى مەڭگۈلۈك رەت قىلىنغان.';
+
+  @override
+  String get microphonePermissionDenied => 'مىكروفون ھوقۇقى رەت قىلىندى.';
+
+  @override
+  String get speechRecognitionUnavailable =>
+      'بۇ ئۈسكۈنىدە سۆز تونۇش ئىقتىدارى يوق.';
+
+  @override
+  String get openIosRoutePicker => 'iOS يۆنىلىش تاللىغۇچنى ئېچىش';
+
+  @override
+  String get airPlayRoutePickerUnavailable =>
+      'بۇ ئۈسكۈنىدە AirPlay يۆنىلىش تاللىغۇچ يوق.';
+
+  @override
+  String get videos => 'سىنلار';
+
+  @override
+  String get programs => 'پروگراممىلار';
+
+  @override
+  String get songs => 'ناخشىلار';
+
+  @override
+  String get photoAlbums => 'سۈرەت ئالبوملىرى';
+
+  @override
+  String get photos => 'سۈرەتلەر';
+
+  @override
+  String get people => 'كىشىلەر';
+
+  @override
+  String get recentlyReleasedEpisodes => 'يېقىندا تارقىتىلغان بۆلۈملەر';
+
+  @override
+  String get watchAgain => 'قايتا كۆرۈش';
+
+  @override
+  String get guestAppearances => 'مېھمان روللىرى';
+
+  @override
+  String get appearancesSeerr => 'قاتناشقان ئەسەرلەر (Seerr)';
+
+  @override
+  String get crewContributionsSeerr => 'خادىم تۆھپىلىرى (Seerr)';
+
+  @override
+  String get watchWithGroup => 'گۇرۇپپا بىلەن كۆرۈش';
+
+  @override
+  String get disk => 'دىسكا';
+
+  @override
+  String get openInBrowser => 'تور كۆرگۈچتە ئېچىش';
+
+  @override
+  String get achievementBadges => 'Achievement Badges';
+
+  @override
+  String get achievementBadgesSubtitle =>
+      'Badges, ranks and quests earned from what you watch';
+
+  @override
+  String get achievementsBadges => 'Badges';
+
+  @override
+  String achievementsBadgeCount(int unlocked, int total) {
+    return '$unlocked of $total badges';
+  }
+
+  @override
+  String get achievementsUnlockToasts => 'Unlock Notifications';
+
+  @override
+  String get achievementsUnlockToastsSubtitle =>
+      'Show a notification when you unlock a badge';
+
+  @override
+  String get achievementsUnlockedNotification => 'Achievement unlocked';
+
+  @override
+  String achievementsUnlockedCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count achievements unlocked',
+      one: '$count achievement unlocked',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String achievementsUnlockedMore(int count) {
+    return '+$count more';
+  }
+
+  @override
+  String get achievementsQuests => 'Quests';
+
+  @override
+  String achievementsQuestCount(int count) {
+    return '$count completed';
+  }
+
+  @override
+  String get achievementsLeaderboard => 'Leaderboard';
+
+  @override
+  String get achievementsLeaderboardSubtitle =>
+      'How you compare with other users on this server';
+
+  @override
+  String get achievementsRecap => 'Recap';
+
+  @override
+  String get achievementsRecapSubtitle => 'What you watched recently';
+
+  @override
+  String get achievementsLibraryCompletion => 'Library completion';
+
+  @override
+  String achievementsLibraryCount(int count) {
+    return '$count libraries';
+  }
+
+  @override
+  String achievementsScore(int score) {
+    return '$score points';
+  }
+
+  @override
+  String get achievementsScoreLabel => 'Score';
+
+  @override
+  String get achievementsTopRank => 'Top rank reached';
+
+  @override
+  String achievementsPointsToNextRank(int points, String tier) {
+    return '$points points to $tier';
+  }
+
+  @override
+  String achievementsCurrentStreak(int days) {
+    return '$days day streak';
+  }
+
+  @override
+  String achievementsBestStreak(int days) {
+    return 'Best: $days days';
+  }
+
+  @override
+  String get achievementsShowcase => 'Showcase';
+
+  @override
+  String get achievementsUnlocked => 'Unlocked';
+
+  @override
+  String get achievementsLocked => 'Locked';
+
+  @override
+  String get achievementsNothingHere => 'Nothing here yet.';
+
+  @override
+  String get achievementsHiddenBadge => 'Hidden achievement';
+
+  @override
+  String achievementsUnlockedOn(String date) {
+    return 'Unlocked $date';
+  }
+
+  @override
+  String achievementsPoints(int points) {
+    return '$points pts';
+  }
+
+  @override
+  String get achievementsDailyQuests => 'Daily';
+
+  @override
+  String get achievementsWeeklyQuests => 'Weekly';
+
+  @override
+  String achievementsQuestReward(int points) {
+    return '+$points';
+  }
+
+  @override
+  String get achievementsRerollDaily => 'Reroll daily quests';
+
+  @override
+  String get achievementsRerollWeekly => 'Reroll weekly quests';
+
+  @override
+  String get achievementsRerollOffer => 'Swap this set for a different one';
+
+  @override
+  String get achievementsRerollSpentDaily =>
+      'Used today, comes back at midnight UTC';
+
+  @override
+  String get achievementsRerollSpentWeekly =>
+      'Used this week, comes back Monday UTC';
+
+  @override
+  String get achievementsRerollConfirm => 'Reroll these quests?';
+
+  @override
+  String get achievementsRerollConfirmBody =>
+      'You get one daily and one weekly reroll, and this spends it.';
+
+  @override
+  String get achievementsRerollFailed => 'Could not reroll those quests.';
+
+  @override
+  String get achievementsSuggested => 'Suggested items to watch';
+
+  @override
+  String get achievementsNoSuggestions => 'Nothing to suggest for this badge.';
+
+  @override
+  String get achievementsProgressLabel => 'Progress';
+
+  @override
+  String get achievementsLoadout => 'Loadout';
+
+  @override
+  String get achievementsLoadoutSubtitle =>
+      'Score to spend and the boosts you hold';
+
+  @override
+  String get achievementsAppearance => 'Appearance';
+
+  @override
+  String get achievementsAppearanceSubtitle =>
+      'The avatar and title on your profile';
+
+  @override
+  String get achievementsAvatars => 'Avatars';
+
+  @override
+  String get achievementsTitles => 'Titles';
+
+  @override
+  String get achievementsEquipped => 'Equipped';
+
+  @override
+  String get achievementsOwned => 'Owned';
+
+  @override
+  String achievementsEarnedAt(int score) {
+    return 'Earned at $score lifetime score';
+  }
+
+  @override
+  String get achievementsAppearanceEmpty =>
+      'This server has no avatars or titles to wear.';
+
+  @override
+  String get achievementsAppearanceFailed =>
+      'Could not change how the profile looks.';
+
+  @override
+  String get achievementsPowerUps => 'Power-ups';
+
+  @override
+  String get achievementsStats => 'Stats';
+
+  @override
+  String get achievementsStatsSubtitle =>
+      'Your records and how the server is doing';
+
+  @override
+  String get achievementsStatsWatched => 'Watched';
+
+  @override
+  String get achievementsStatsBests => 'Bests';
+
+  @override
+  String get achievementsStatsHabits => 'Habits';
+
+  @override
+  String get achievementsStatsVariety => 'Variety';
+
+  @override
+  String get achievementsStatsServer => 'This server';
+
+  @override
+  String get achievementsStatsClock => 'When you watch';
+
+  @override
+  String get achievementsStatItems => 'Items watched';
+
+  @override
+  String get achievementsStatMovies => 'Films watched';
+
+  @override
+  String get achievementsStatSeries => 'Series finished';
+
+  @override
+  String get achievementsStatHours => 'Hours watched';
+
+  @override
+  String get achievementsStatDays => 'Days watched';
+
+  @override
+  String get achievementsStatRewatches => 'Rewatches';
+
+  @override
+  String get achievementsStatBestWatchStreak => 'Best watch streak';
+
+  @override
+  String get achievementsStatBestLoginStreak => 'Best login streak';
+
+  @override
+  String get achievementsStatMostEpisodes => 'Most episodes in a day';
+
+  @override
+  String get achievementsStatMostMovies => 'Most films in a day';
+
+  @override
+  String get achievementsStatLongestItem => 'Longest single item';
+
+  @override
+  String get achievementsStatBestCombo => 'Best combo';
+
+  @override
+  String get achievementsStatLateNight => 'Late night sessions';
+
+  @override
+  String get achievementsStatEarlyMorning => 'Early morning sessions';
+
+  @override
+  String get achievementsStatWeekend => 'Weekend sessions';
+
+  @override
+  String get achievementsStatDaysSignedIn => 'Days signed in';
+
+  @override
+  String get achievementsStatLibraries => 'Libraries visited';
+
+  @override
+  String get achievementsStatGenres => 'Genres watched';
+
+  @override
+  String get achievementsStatDecades => 'Decades watched';
+
+  @override
+  String get achievementsStatCountries => 'Countries watched';
+
+  @override
+  String get achievementsStatLanguages => 'Languages watched';
+
+  @override
+  String get achievementsStatUsers => 'Users';
+
+  @override
+  String get achievementsStatBadgesUnlocked => 'Badges unlocked';
+
+  @override
+  String get achievementsStatScoreEarned => 'Score earned';
+
+  @override
+  String get achievementsStatCommonBadge => 'Most common badge';
+
+  @override
+  String get achievementsActivity => 'Activity';
+
+  @override
+  String get achievementsActivitySubtitle =>
+      'What the server has unlocked lately';
+
+  @override
+  String achievementsActivityUnlocked(String user, String badge) {
+    return '$user unlocked $badge';
+  }
+
+  @override
+  String get achievementsShop => 'Shop';
+
+  @override
+  String get achievementsShopSubtitle => 'Spend score on more boosts';
+
+  @override
+  String achievementsShopPack(String name, int count) {
+    return '$name ×$count';
+  }
+
+  @override
+  String get achievementsShopEmpty => 'Nothing for sale right now.';
+
+  @override
+  String get achievementsBuyConfirm => 'Buy this?';
+
+  @override
+  String get achievementsBuyConfirmBody =>
+      'It comes straight out of your score bank.';
+
+  @override
+  String get achievementsBuyFailed => 'Could not buy that.';
+
+  @override
+  String get achievementsScoreBank => 'Score bank';
+
+  @override
+  String get achievementsBoost => 'XP Boost';
+
+  @override
+  String get achievementsBoostBody =>
+      'Doubles score for an hour. Using it again restarts the hour.';
+
+  @override
+  String get achievementsDoubleCredit => 'Double Credit';
+
+  @override
+  String get achievementsDoubleCreditBody =>
+      'The next thing you finish counts twice towards badges.';
+
+  @override
+  String get achievementsStreakFreeze => 'Streak Freeze';
+
+  @override
+  String get achievementsStreakFreezeBody =>
+      'Covers one missed day. Only one can be banked.';
+
+  @override
+  String achievementsPowerUpHeld(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count held',
+      one: '1 held',
+      zero: 'None held',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get achievementsPowerUpActive => 'Running now';
+
+  @override
+  String get achievementsUsePowerUp => 'Use this power-up?';
+
+  @override
+  String get achievementsUsePowerUpBody =>
+      'It\'s spent as soon as you confirm.';
+
+  @override
+  String get achievementsPowerUpFailed => 'Could not use that power-up.';
+
+  @override
+  String get achievementsHours => 'Hours';
+
+  @override
+  String get achievementsStreak => 'Streak';
+
+  @override
+  String get achievementsPeriodWeek => 'Week';
+
+  @override
+  String get achievementsPeriodMonth => 'Month';
+
+  @override
+  String get achievementsPeriodYear => 'Year';
+
+  @override
+  String achievementsDaysWatched(int count) {
+    return '$count days watched';
+  }
+
+  @override
+  String achievementsBadgesEarned(int count) {
+    return '$count badges earned';
+  }
+
+  @override
+  String get achievementsTopDirectors => 'Top directors';
+
+  @override
+  String get achievementsTopActors => 'Top actors';
+
+  @override
+  String get achievementsLoadFailed => 'Could not load your achievements.';
+
+  @override
+  String get friends => 'Friends';
+
+  @override
+  String get friendsSubtitle =>
+      'See who\'s online and chat with people on this server';
+
+  @override
+  String get friendsShowButton => 'Show Friends Button';
+
+  @override
+  String get friendsShowButtonSubtitle =>
+      'Friends and chat from the Achievement Badges plugin';
+
+  @override
+  String get friendsMessages => 'Messages';
+
+  @override
+  String friendsUnreadCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count unread messages',
+      one: '1 unread message',
+      zero: 'No unread messages',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get friendsRequests => 'Friend requests';
+
+  @override
+  String friendsRequestCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count waiting for you',
+      one: '1 waiting for you',
+      zero: 'Nothing waiting',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get friendsAdd => 'Add friends';
+
+  @override
+  String get friendsAddSubtitle => 'Find people on this server';
+
+  @override
+  String get friendsPrivacy => 'Privacy';
+
+  @override
+  String get friendsPrivacySubtitle => 'What your friends can see';
+
+  @override
+  String get friendsOnline => 'Online';
+
+  @override
+  String get friendsOffline => 'Offline';
+
+  @override
+  String get friendsNone =>
+      'No friends yet. Add people from this server to see them here.';
+
+  @override
+  String friendsWatching(String title) {
+    return 'Watching $title';
+  }
+
+  @override
+  String friendsLastWatched(String title) {
+    return 'Last watched $title';
+  }
+
+  @override
+  String friendsLastSeen(String time) {
+    return 'Last seen $time';
+  }
+
+  @override
+  String get friendsLoadFailed =>
+      'Could not load this. Check your connection and try again.';
+
+  @override
+  String get friendsActionFailed => 'That didn\'t work. Try again in a moment.';
+
+  @override
+  String get friendsIncoming => 'Waiting for you';
+
+  @override
+  String get friendsOutgoing => 'Sent by you';
+
+  @override
+  String get friendsNoRequests => 'No friend requests.';
+
+  @override
+  String get friendsAccept => 'Accept';
+
+  @override
+  String get friendsDecline => 'Decline';
+
+  @override
+  String get friendsCancelRequest => 'Cancel request';
+
+  @override
+  String friendsRequestFrom(String name) {
+    return '$name wants to be friends';
+  }
+
+  @override
+  String friendsCancelRequestBody(String name) {
+    return 'Take back the request you sent to $name?';
+  }
+
+  @override
+  String get friendsSearchHint => 'Search people';
+
+  @override
+  String get friendsNoMatches => 'No one matches that name.';
+
+  @override
+  String friendsRequestSent(String name) {
+    return 'Request sent to $name';
+  }
+
+  @override
+  String get friendsSendRequest => 'Add as friend';
+
+  @override
+  String get friendsSendMessage => 'Send message';
+
+  @override
+  String friendsOpenItem(String title) {
+    return 'Open $title';
+  }
+
+  @override
+  String get friendsRemove => 'Remove friend';
+
+  @override
+  String friendsRemoveBody(String name) {
+    return 'Remove $name from your friends? You can add them again later.';
+  }
+
+  @override
+  String get friendsBlock => 'Block';
+
+  @override
+  String get friendsUnblock => 'Unblock';
+
+  @override
+  String friendsBlockBody(String name) {
+    return 'Block $name? Neither of you will be able to message the other directly. Group chats you share stay open.';
+  }
+
+  @override
+  String friendsUnblockBody(String name) {
+    return 'Unblock $name?';
+  }
+
+  @override
+  String get friendsBlocked => 'Blocked users';
+
+  @override
+  String friendsProfileHidden(String name) {
+    return '$name keeps their profile private.';
+  }
+
+  @override
+  String get friendsAppearOffline => 'Appear Offline';
+
+  @override
+  String get friendsAppearOfflineSubtitle =>
+      'Friends always see you as offline';
+
+  @override
+  String get friendsHideNowPlaying => 'Hide What I\'m Watching';
+
+  @override
+  String get friendsHideNowPlayingSubtitle =>
+      'Friends still see you online, but not what\'s playing';
+
+  @override
+  String get friendsHideLastWatched => 'Hide My Last Watched';
+
+  @override
+  String get friendsHideLastWatchedSubtitle =>
+      'Friends won\'t see what you watched last while you\'re offline';
+
+  @override
+  String get friendsMessageNotifications => 'Message Notifications';
+
+  @override
+  String get friendsMessageNotificationsSubtitle =>
+      'Show a banner when a friend messages you';
+
+  @override
+  String get friendsMuteDuringPlayback => 'Mute During Playback';
+
+  @override
+  String get friendsMuteDuringPlaybackSubtitle =>
+      'No message banners while a video or game is playing';
+
+  @override
+  String get friendsSaveFailed => 'Could not save your settings.';
+
+  @override
+  String get chatNew => 'New message';
+
+  @override
+  String get chatNewSubtitle => 'Start a chat with a friend';
+
+  @override
+  String get chatNewGroup => 'New group';
+
+  @override
+  String get chatNewGroupSubtitle => 'Chat with several friends at once';
+
+  @override
+  String get chatNone => 'No messages yet.';
+
+  @override
+  String get chatYou => 'You';
+
+  @override
+  String chatYouSaid(String text) {
+    return 'You: $text';
+  }
+
+  @override
+  String get chatPhoto => 'Photo';
+
+  @override
+  String get chatEmoji => 'Emoji';
+
+  @override
+  String get chatEmojiSearch => 'Search emoji';
+
+  @override
+  String get chatNoRecentEmoji => 'No recent emoji';
+
+  @override
+  String get chatViewPhoto => 'View photo';
+
+  @override
+  String get chatHint => 'Write a message';
+
+  @override
+  String get chatAttach => 'Send a photo';
+
+  @override
+  String get chatEdited => 'edited';
+
+  @override
+  String get chatSeen => 'Seen';
+
+  @override
+  String get chatSent => 'Sent';
+
+  @override
+  String get chatEditing => 'Editing message';
+
+  @override
+  String get chatMessageOptions => 'Message options';
+
+  @override
+  String get chatDeleteBody => 'Delete this message for everyone?';
+
+  @override
+  String get chatClear => 'Clear conversation';
+
+  @override
+  String get chatClearBody =>
+      'Delete every message in this chat for everyone in it?';
+
+  @override
+  String get chatGroupInfo => 'Group info';
+
+  @override
+  String get chatGroupName => 'Group name';
+
+  @override
+  String chatMemberCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count members',
+      one: '1 member',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get chatOwner => 'Owner';
+
+  @override
+  String get chatAdmin => 'Admin';
+
+  @override
+  String get chatMakeAdmin => 'Make admin';
+
+  @override
+  String get chatRemoveAdmin => 'Remove admin';
+
+  @override
+  String get chatRemoveMember => 'Remove from group';
+
+  @override
+  String get chatAddMember => 'Add people';
+
+  @override
+  String get chatNobodyToAdd => 'No one left to add.';
+
+  @override
+  String get chatLeave => 'Leave group';
+
+  @override
+  String get chatLeaveBody =>
+      'Leave this group? Someone will have to add you back to rejoin.';
+
+  @override
+  String get chatCreate => 'Create group';
+
+  @override
+  String get chatPickMembers => 'Pick at least two friends';
+
+  @override
+  String chatNewMessageFrom(String name) {
+    return 'New message from $name';
+  }
+
+  @override
+  String get chatImageTooLarge => 'That image is over 8 MB.';
+
+  @override
+  String get chatImageUnsupported =>
+      'Only PNG, JPEG, GIF and WebP images can be sent.';
+
+  @override
+  String get embeddedBrowserNotAvailable =>
+      'بۇ سۇپىدا قىستۇرما تور كۆرگۈچ يوق.';
+
+  @override
+  String get adminRestartServerConfirmation =>
+      'مۇلازىمېتىرنى راستىنلا قايتا قوزغىتامسىز؟';
+
+  @override
+  String get adminShutdownServerConfirmation =>
+      'مۇلازىمېتىرنى راستىنلا تاقامسىز؟ ئۇنى قولدا قايتا قوزغىتىشىڭىز كېرەك بولىدۇ.';
+
+  @override
+  String get internal => 'ئىچكى';
+
+  @override
+  String get idle => 'بىكار';
+
+  @override
+  String get os => 'OS';
+
+  @override
+  String get adminNoUsersFound => 'ئىشلەتكۈچى تېپىلمىدى';
+
+  @override
+  String get adminNoUsersMatchSearch => 'ئىزدىگىنىڭىزگە ماس ئىشلەتكۈچى يوق';
+
+  @override
+  String get adminNoDevicesFound => 'ئۈسكۈنە تېپىلمىدى';
+
+  @override
+  String get adminNoDevicesMatchCurrentFilters =>
+      'نۆۋەتتىكى سۈزگۈچلەرگە ماس ئۈسكۈنە يوق';
+
+  @override
+  String get remoteAccess => 'يىراقتىن زىيارەت';
+
+  @override
+  String get localOnly => 'پەقەت يەرلىك';
+
+  @override
+  String get adminMediaAnalyticsLoadFailed =>
+      'مېدىيا ئىستاتىستىكىسىنى يۈكلەش مەغلۇپ بولدى';
+
+  @override
+  String get analyticsCombinedAcrossLibraries =>
+      'بارلىق مېدىيا ئامبارلىرىنىڭ بىرلەشتۈرۈلگەن ئىستاتىستىكىسى.';
+
+  @override
+  String get analyticsTopArtists => 'ئالدىنقى سەنئەتكارلار';
+
+  @override
+  String get analyticsTopAuthors => 'ئالدىنقى ئاپتورلار';
+
+  @override
+  String get analyticsTopContributors => 'ئالدىنقى تۆھپىكارلار';
+
+  @override
+  String analyticsLibrariesCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count ئامبار',
+      one: '1 ئامبار',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get analyticsNoIndexedMediaTotals =>
+      'بۇ تاللاش ئۈچۈن ئىندېكسلانغان مېدىيا ئومۇمىي سانلىرى تېخى يوق.';
+
+  @override
+  String get analyticsLibraryDetails => 'ئامبار تەپسىلاتلىرى';
+
+  @override
+  String get analyticsLibraryBreakdown => 'ئامبار تەقسىماتى';
+
+  @override
+  String get analyticsNoLibrariesAvailable => 'ئامبار يوق.';
+
+  @override
+  String get analyticsLibraryShare => 'Share of items by library';
+
+  @override
+  String get analyticsTopRating => 'Most common rating';
+
+  @override
+  String get analyticsTypicalRuntime => 'Typical runtime';
+
+  @override
+  String analyticsShareOfItems(String percent) {
+    return '$percent% of items';
+  }
+
+  @override
+  String get adminServerAdministrationTitle => 'مۇلازىمېتىر باشقۇرۇش';
+
+  @override
+  String get adminServerPathData => 'سانلىق مەلۇمات';
+
+  @override
+  String get adminServerPathImageCache => 'رەسىم غەملىكى';
+
+  @override
+  String get adminServerPathCache => 'غەملەك';
+
+  @override
+  String get adminServerPathLogs => 'خاتىرىلەر';
+
+  @override
+  String get adminServerPathMetadata => 'مېتا ئۇچۇر';
+
+  @override
+  String get adminServerPathTranscode => 'كود ئۆزگەرتىش';
+
+  @override
+  String get adminServerPathWeb => 'Web';
+
+  @override
+  String get adminNoServerPathsReturned =>
+      'بۇ مۇلازىمېتىر ھېچقانداق يول قايتۇرمىدى.';
+
+  @override
+  String adminPercentUsed(int percent) {
+    return '$percent% ئىشلىتىلگەن';
+  }
+
+  @override
+  String get userActivity => 'ئىشلەتكۈچى پائالىيىتى';
+
+  @override
+  String get systemEvents => 'سىستېما ھادىسىلىرى';
+
+  @override
+  String get needsAttention => 'دىققەت تەلەپ قىلىدۇ';
+
+  @override
+  String get homeVideos => 'ئائىلە سىنلىرى';
+
+  @override
+  String get mixedContent => 'ئارىلاش مەزمۇن';
+
+  @override
+  String get homeVideosAndPhotos => 'ئائىلە سىنلىرى ۋە سۈرەتلەر';
+
+  @override
+  String get mixedMoviesAndShows => 'ئارىلاش كىنو ۋە تىياتىرلار';
+
+  @override
+  String get dolbyVision => 'Dolby Vision';
+
+  @override
+  String get noRecordingsFound => 'خاتىرىلەنمە تېپىلمىدى';
+
+  @override
+  String noImagePagesFoundInArchive(String extension) {
+    return '.$extension ئارخىپىدىن رەسىم بەتلىرى تېپىلمىدى.';
+  }
+
+  @override
+  String embeddedRendererFailed(int code, String description) {
+    return 'قىستۇرما سىزغۇچ مەغلۇپ بولدى ($code): $description';
+  }
+
+  @override
+  String epubRendererFailed(int code, String description) {
+    return 'EPUB سىزغۇچى مەغلۇپ بولدى ($code): $description';
+  }
+
+  @override
+  String missingLocalFileForReader(String uri) {
+    return 'ئوقۇغۇچ ئۈچۈن يەرلىك ھۆججەت كەم: $uri';
+  }
+
+  @override
+  String httpStatusWhileOpeningBookData(int status, String uri) {
+    return '$uri دىن كىتاب سانلىق مەلۇماتىنى ئېچىۋاتقاندا HTTP $status';
+  }
+
+  @override
+  String get noReadableBookEndpointAvailable =>
+      'ئوقۇغىلى بولىدىغان كىتاب ئېغىزى يوق';
+
+  @override
+  String unsupportedComicArchiveFormat(String extension) {
+    return 'قوللىمايدىغان كومىكس ئارخىپى فورماتى: .$extension';
+  }
+
+  @override
+  String get cbrExtractionPluginUnavailable =>
+      'بۇ سۇپىدا CBR ئاجرىتىش قىستۇرمىسى يوق.';
+
+  @override
+  String get failedToExtractCbrArchive =>
+      '.cbr ئارخىپىنى ئاجرىتىش مەغلۇپ بولدى.';
+
+  @override
+  String get cb7ExtractionUnavailable =>
+      'بۇ سۇپىدا CB7 ئاجرىتىش ئىقتىدارى يوق.';
+
+  @override
+  String get cb7ExtractionPluginUnavailable =>
+      'بۇ سۇپىدا CB7 ئاجرىتىش قىستۇرمىسى يوق.';
+
+  @override
+  String get closeGenrePanel => 'ژانىر تاختىسىنى تاقاش';
+
+  @override
+  String get loadingShuffle => 'تەرتىپسىز قويۇش يۈكلىنىۋاتىدۇ...';
+
+  @override
+  String get libraryShuffleLabel => 'ئامبار تەرتىپسىز قويۇش';
+
+  @override
+  String get randomShuffleLabel => 'خالىغانچە تەرتىپسىز قويۇش';
+
+  @override
+  String get genresShuffleLabel => 'ژانىر تەرتىپسىز قويۇش';
+
+  @override
+  String get autoHdrSwitching => 'ئاپتوماتىك HDR ئالماشتۇرۇش';
+
+  @override
+  String get autoHdrSwitchingDescription =>
+      'HDR سىن قويۇلغاندا HDR نى ئۆزلۈكىدىن قوزغىتىپ، چېكىنگەندە ئېكران ھالىتىنى ئەسلىگە قايتۇرىدۇ.';
+
+  @override
+  String get whenFullscreen => 'پۈتۈن ئېكران بولغاندا';
+
+  @override
+  String get changeArtwork => 'بېزەك رەسىمىنى ئۆزگەرتىش';
+
+  @override
+  String get missing => 'كەم';
+
+  @override
+  String get clearAllArtworkButton => 'بارلىق بېزەك رەسىملىرى تازىلانسۇنمۇ؟';
+
+  @override
+  String get clearAllArtworkWarning =>
+      'بارلىق چۈشۈرۈلگەن بېزەك رەسىملىرىنى راستىنلا تازىلامسىز؟';
+
+  @override
+  String get confirmClear => 'تازىلاشنى جەزملەش';
+
+  @override
+  String confirmClearMessage(String itemType) {
+    return 'بۇ $itemType نى راستىنلا تازىلامسىز؟';
+  }
+
+  @override
+  String get uploadButton => 'يوللامسىز؟';
+
+  @override
+  String get resolutionLabel => 'ئېنىقلىق: ';
+
+  @override
+  String get onlyShowInterfaceLanguage =>
+      'پەقەت كۆرۈنمە يۈز تىلىدىكى بېزەك رەسىملىرىنىلا كۆرسىتىش';
+
+  @override
+  String get confirmClearAll => 'ھەممىنى تازىلاشنى جەزملەش';
+
+  @override
+  String get imageUploadSuccess => 'رەسىم مۇۋەپپەقىيەتلىك يوللاندى!';
+
+  @override
+  String imageUploadFailed(String error) {
+    return 'رەسىم يوللاش مەغلۇپ بولدى: $error';
+  }
+
+  @override
+  String imageDownloadFailed(String error) {
+    return 'رەسىمنى تەڭشەش مەغلۇپ بولدى: $error';
+  }
+
+  @override
+  String imageDeleteFailed(String error) {
+    return 'رەسىمنى ئۆچۈرۈش مەغلۇپ بولدى: $error';
+  }
+
+  @override
+  String clearAllArtworkFailed(String error) {
+    return 'بارلىق بېزەك رەسىملىرىنى تازىلاش مەغلۇپ بولدى: $error';
+  }
+
+  @override
+  String get yes => 'ھەئە';
+
+  @override
+  String get posterCategory => 'پوستېر';
+
+  @override
+  String get backdropsCategory => 'تەگلىكلەر';
+
+  @override
+  String get bannerCategory => 'لەۋھە';
+
+  @override
+  String get logoCategory => 'لوگو';
+
+  @override
+  String get thumbnailCategory => 'كىچىك كۆرۈنۈش';
+
+  @override
+  String get artCategory => 'بېزەك';
+
+  @override
+  String get discArtCategory => 'دىسكا بېزىكى';
+
+  @override
+  String get screenshotCategory => 'ئېكران كۆرۈنۈشى';
+
+  @override
+  String get boxCoverCategory => 'قاپ مۇقاۋىسى';
+
+  @override
+  String get boxRearCoverCategory => 'قاپ ئارقا مۇقاۋىسى';
+
+  @override
+  String get menuArtCategory => 'تىزىملىك بېزىكى';
+
+  @override
+  String get confirmItemPoster => 'پوستېر';
+
+  @override
+  String get confirmItemBackdrop => 'تەگلىك';
+
+  @override
+  String get confirmItemBanner => 'لەۋھە';
+
+  @override
+  String get confirmItemLogo => 'لوگو';
+
+  @override
+  String get confirmItemThumbnail => 'كىچىك كۆرۈنۈش';
+
+  @override
+  String get confirmItemArt => 'بېزەك';
+
+  @override
+  String get confirmItemDiscArt => 'دىسكا بېزىكى';
+
+  @override
+  String get confirmItemScreenshot => 'ئېكران كۆرۈنۈشى';
+
+  @override
+  String get confirmItemBoxCover => 'قاپ مۇقاۋىسى';
+
+  @override
+  String get confirmItemBoxRearCover => 'قاپ ئارقا مۇقاۋىسى';
+
+  @override
+  String get confirmItemMenuArt => 'تىزىملىك بېزىكى';
+
+  @override
+  String get resolutionAll => 'ھەممىسى';
+
+  @override
+  String get resolutionHigh => 'يۇقىرى (1080p+)';
+
+  @override
+  String get resolutionMedium => 'ئوتتۇرا (720p)';
+
+  @override
+  String get resolutionLow => 'تۆۋەن (<720p)';
+
+  @override
+  String get sources => 'مەنبەلەر';
+
+  @override
+  String get audiobookChapters => 'بابلار';
+
+  @override
+  String get audiobookBookmarks => 'خەتكۈشلەر';
+
+  @override
+  String get audiobookNotes => 'ئىزاھاتلار';
+
+  @override
+  String get audiobookQueue => 'ئۆچرەت';
+
+  @override
+  String get audiobookTimeline => 'ۋاقىت ئوقى';
+
+  @override
+  String get audiobookTimelineEmpty => 'ۋاقىت ئوقى قۇرۇق';
+
+  @override
+  String get audiobookFocusedTimeline => 'مەركەزلەشكەن ۋاقىت ئوقى';
+
+  @override
+  String get audiobookFullTimeline => 'Full Timeline';
+
+  @override
+  String get audiobookExportBookmarks => 'خەتكۈشلەرنى چىقىرىش';
+
+  @override
+  String get audiobookExportNotes => 'ئىزاھاتلارنى چىقىرىش';
+
+  @override
+  String get audiobookExportAll => 'ھەممىنى چىقىرىش';
+
+  @override
+  String audiobookExportSuccess(String path) {
+    return '$path غا چىقىرىلدى';
+  }
+
+  @override
+  String audiobookExportFailed(String error) {
+    return 'چىقىرىش مەغلۇپ بولدى: $error';
+  }
+
+  @override
+  String get audiobookLyrics => 'ناخشا تېكىستى';
+
+  @override
+  String get audiobookAddBookmark => 'خەتكۈش قوشۇش';
+
+  @override
+  String get audiobookAddNote => 'ئىزاھات قوشۇش';
+
+  @override
+  String get audiobookEditNote => 'ئىزاھاتنى تەھرىرلەش';
+
+  @override
+  String get audiobookNoteHint => 'بۇ پەيت ئۈچۈن ئىزاھات يېزىڭ';
+
+  @override
+  String get audiobookSleepTimer => 'ئۇيقۇ ۋاقىت ساناقچىسى';
+
+  @override
+  String get audiobookSleepOff => 'تاقاق';
+
+  @override
+  String get audiobookSleepEndOfChapter => 'باب ئاخىرى';
+
+  @override
+  String get audiobookSleepCustom => 'ئىختىيارى';
+
+  @override
+  String audiobookSleepRemaining(String remaining) {
+    return '$remaining قالدى';
+  }
+
+  @override
+  String audiobookSleepMinutes(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count مىنۇت',
+      one: '1 مىنۇت',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get audiobookPlaybackSpeed => 'قويۇش سۈرئىتى';
+
+  @override
+  String get audiobookRemainingTime => 'قالغىنى';
+
+  @override
+  String get audiobookElapsedTime => 'ئۆتكىنى';
+
+  @override
+  String audiobookSkipBackSeconds(int seconds) {
+    return '$seconds سېكۇنت كەينىگە';
+  }
+
+  @override
+  String audiobookSkipForwardSeconds(int seconds) {
+    return '$seconds سېكۇنت ئالدىغا';
+  }
+
+  @override
+  String get audiobookPreviousChapter => 'ئالدىنقى باب';
+
+  @override
+  String get audiobookNextChapter => 'كېيىنكى باب';
+
+  @override
+  String audiobookChapterIndicator(int current, int total) {
+    return '$total بابتىن $current-باب';
+  }
+
+  @override
+  String get audiobookNoChapters => 'باب يوق';
+
+  @override
+  String get audiobookNoBookmarks => 'تېخى خەتكۈش يوق';
+
+  @override
+  String get audiobookNoNotes => 'تېخى ئىزاھات يوق';
+
+  @override
+  String audiobookBookmarkAdded(String position) {
+    return '$position غا خەتكۈش قوشۇلدى';
+  }
+
+  @override
+  String get audiobookSpeedReset => '1.0x قا قايتۇرۇش';
+
+  @override
+  String audiobookSpeedCustomLabel(String value) {
+    return '${value}x';
+  }
+
+  @override
+  String get audiobookSave => 'ساقلاش';
+
+  @override
+  String get audiobookCancel => 'بىكار قىلىش';
+
+  @override
+  String get audiobookDelete => 'ئۆچۈرۈش';
+
+  @override
+  String get subtitlePreferencesDescription =>
+      'ئېكران خېتى ھالەتلىرى، سۈكۈتتىكى تىللار، كۆرۈنۈش ۋە سىزىش تاللانمىلىرىنى ئۆزگەرتىڭ.';
+
+  @override
+  String get subtitleRendering => 'ئېكران خېتى سىزىلىشى';
+
+  @override
+  String get displayOptions => 'كۆرسىتىش تاللانمىلىرى';
+
+  @override
+  String get releaseDateAscending => 'تارقىتىلغان چېسلا (ئۆسۈش تەرتىپى)';
+
+  @override
+  String get releaseDateDescending => 'تارقىتىلغان چېسلا (كېمىيىش تەرتىپى)';
+
+  @override
+  String get groupContributions => 'تۆھپىلەرنى گۇرۇپپىلاش';
+
+  @override
+  String get groupMultipleRoles => 'كۆپ روللارنى گۇرۇپپىلاش';
+
+  @override
+  String get libraryWriteAccessWarningTitle =>
+      'ئامبارغا يېزىش ھوقۇقى ئاگاھلاندۇرۇشى';
+
+  @override
+  String get libraryWriteAccessHowToFix => 'ھەل قىلىش ئۇسۇلى:';
+
+  @override
+  String get libraryWriteAccessFixSteps =>
+      '1. مۇلازىمېتىردىكى مېدىيا ئامبار قىسقۇچلىرىڭىز ئۈچۈن Jellyfin مۇلازىمەت ئىشلەتكۈچىسىگە (مەسىلەن jellyfin ياكى Docker PUID/PGID) يېزىش ھوقۇقى بېرىڭ.\n\n2. ياكى Jellyfin باشقۇرۇش تاختىسى -> ئامبارلار غا بېرىپ، بۇ ئامبارنى تەھرىرلەپ، بېزەك رەسىملىرىنى Jellyfin نىڭ ئىچكى ساندانىدا ساقلاش ئۈچۈن «بېزەك رەسىملىرىنى مېدىيا قىسقۇچلىرىغا ساقلاش» نى تاقاڭ.';
+
+  @override
+  String get dismiss => 'يېپىش';
+
+  @override
+  String libraryWriteAccessProactiveBody(
+    String libraryName,
+    String failedPath,
+  ) {
+    return '«$libraryName» ئامبىرىڭىز بېزەك رەسىملىرىنى بىۋاسىتە مېدىيا قىسقۇچلىرىغا ساقلايدىغان قىلىپ سەپلەنگەن («بېزەك رەسىملىرىنى مېدىيا قىسقۇچلىرىغا ساقلاش» قوزغىتىلغان). ئەمما Jellyfin يېزىش ھوقۇقىنى سىناپ كۆردى ۋە بۇ مۇندەرىجىگە ھۆججەت يازالمايدۇ:\n\n$failedPath';
+  }
+
+  @override
+  String get libraryWriteAccessReactiveBody =>
+      'Jellyfin بېزەك رەسىمىنى يېڭىلىيالمىغاندەك قىلىدۇ. ئامبىرىڭىز بېزەك رەسىملىرىنى بىۋاسىتە مېدىيا قىسقۇچلىرىغا ساقلايدىغان قىلىپ سەپلەنگەن («بېزەك رەسىملىرىنى مېدىيا قىسقۇچلىرىغا ساقلاش» قوزغىتىلغان). بۇ خاتالىق ئادەتتە Jellyfin مۇلازىمېتىر جەريانىنىڭ مېدىيا مۇندەرىجىلىرىڭىزگە ھۆججەت يېزىش ھوقۇقى بولمىغاندا كۆرۈلىدۇ.';
+
+  @override
+  String get replay => 'قايتا قويۇش';
+
+  @override
+  String get fileInformation => 'ھۆججەت ئۇچۇرى';
+
+  @override
+  String fileSizeFormat(Object size, Object format) {
+    return 'چوڭلۇقى: $size  •  فورماتى: $format';
+  }
+
+  @override
+  String dateCreatedFormat(Object date) {
+    return 'Date Added: $date';
+  }
+
+  @override
+  String showAllAudioTracks(int count) {
+    return 'بارلىق ($count) ئاۋاز يوللىرىنى كۆرسىتىش';
+  }
+
+  @override
+  String showAllSubtitleTracks(int count) {
+    return 'بارلىق ($count) ئېكران خېتى يوللىرىنى كۆرسىتىش';
+  }
+
+  @override
+  String get checkingDirectPlay =>
+      'بىۋاسىتە قويۇش ئىقتىدارى تەكشۈرۈلۈۋاتىدۇ...';
+
+  @override
+  String get directPlayCapabilityLabel => 'بىۋاسىتە قويۇش ئىقتىدارى: ';
+
+  @override
+  String get forced => 'مەجبۇرىي';
+
+  @override
+  String get transcodeContainerNotSupported =>
+      'قاچا فورماتىنى قويغۇچ قوللىمايدۇ.';
+
+  @override
+  String get transcodeVideoCodecNotSupported => 'سىن كودېكىنى قوللىمايدۇ.';
+
+  @override
+  String get transcodeAudioCodecNotSupported => 'ئاۋاز كودېكىنى قوللىمايدۇ.';
+
+  @override
+  String get transcodeSubtitleCodecNotSupported =>
+      'ئېكران خېتى فورماتىنى قوللىمايدۇ (كۆيدۈرۈش كېرەك).';
+
+  @override
+  String get transcodeAudioProfileNotSupported => 'ئاۋاز پروفىلىنى قوللىمايدۇ.';
+
+  @override
+  String get transcodeVideoProfileNotSupported => 'سىن پروفىلىنى قوللىمايدۇ.';
+
+  @override
+  String get transcodeVideoLevelNotSupported => 'سىن دەرىجىسىنى قوللىمايدۇ.';
+
+  @override
+  String get transcodeVideoResolutionNotSupported =>
+      'بۇ ئۈسكۈنە سىن ئېنىقلىقىنى قوللىمايدۇ.';
+
+  @override
+  String get transcodeVideoBitDepthNotSupported =>
+      'سىن بىت چوڭقۇرلۇقىنى قوللىمايدۇ.';
+
+  @override
+  String get transcodeVideoFramerateNotSupported =>
+      'سىن كادر تېزلىكىنى قوللىمايدۇ.';
+
+  @override
+  String get transcodeContainerBitrateExceedsLimit =>
+      'ھۆججەت بىت نىسبىتى قويغۇچنىڭ ئېقىم چېكىدىن ئېشىپ كەتتى.';
+
+  @override
+  String get transcodeVideoBitrateExceedsLimit =>
+      'سىن بىت نىسبىتى ئېقىم چېكىدىن ئېشىپ كەتتى.';
+
+  @override
+  String get transcodeAudioBitrateExceedsLimit =>
+      'ئاۋاز بىت نىسبىتى ئېقىم چېكىدىن ئېشىپ كەتتى.';
+
+  @override
+  String get transcodeAudioChannelsNotSupported =>
+      'ئاۋاز قاناللىرىنىڭ سانىنى قوللىمايدۇ.';
+
+  @override
+  String transcodeAudioCodecWithCodec(String codec) {
+    return 'Audio codec ($codec) is not supported directly.';
+  }
+
+  @override
+  String transcodeAudioCodecHintPassthrough(String codec) {
+    return 'Tip: If your audio receiver or soundbar supports $codec, enable Audio Passthrough in Audio settings.';
+  }
+
+  @override
+  String transcodeAudioChannelsExceeded(int channels) {
+    return 'Audio channel count (${channels}ch) exceeds the player limit.';
+  }
+
+  @override
+  String get transcodeAudioChannelsHint =>
+      'Tip: Adjust \'Max Audio Channels\' or multichannel downmixing in Audio settings.';
+
+  @override
+  String get transcodeSubtitleBurnInAssDisabled =>
+      'ASS/SSA subtitles require transcoding because direct play is turned off.';
+
+  @override
+  String get transcodeSubtitleBurnInAssHint =>
+      'Tip: Enable \'ASS/SSA Direct Play\' in Playback settings to play directly without transcoding.';
+
+  @override
+  String get transcodeSubtitleBurnInPgsDisabled =>
+      'PGS subtitles require transcoding because direct play is turned off.';
+
+  @override
+  String get transcodeSubtitleBurnInPgsHint =>
+      'Tip: Enable \'PGS Direct Play\' in Playback settings to play directly without transcoding.';
+
+  @override
+  String transcodeSubtitleNotSupportedWithCodec(String codec) {
+    return 'Subtitle format ($codec) is not supported directly and must be burned in.';
+  }
+
+  @override
+  String transcodeBitrateExceededWithValues(
+    String fileBitrate,
+    String maxBitrate,
+  ) {
+    return 'File bitrate ($fileBitrate) exceeds the configured streaming limit ($maxBitrate).';
+  }
+
+  @override
+  String get transcodeBitrateHint =>
+      'Tip: Increase \'Maximum Bitrate\' in Playback settings to allow direct streaming.';
+
+  @override
+  String get transcodeResolutionHint =>
+      'Tip: Increase \'Maximum Resolution\' in Playback settings to allow direct streaming.';
+
+  @override
+  String get transcodeVideoRangeNotSupported =>
+      'Video dynamic range (e.g. Dolby Vision / HDR) is not supported by this display.';
+
+  @override
+  String get transcodeDolbyVisionProfile7ElDisabled =>
+      'Dolby Vision Profile 7 enhancement layer direct play is disabled.';
+
+  @override
+  String get transcodeDolbyVisionProfile7ElHint =>
+      'Tip: Enable \'Dolby Vision Profile 7 Direct Play\' in Playback settings if your display supports it.';
+
+  @override
+  String get transcodeDolbyVisionFallbackPreferenceTranscode =>
+      'Transcoding is preferred for Dolby Vision fallback per user settings.';
+
+  @override
+  String get transcodeDolbyVisionFallbackHint =>
+      'Tip: Set \'Dolby Vision Fallback\' to \'Play as HDR10\' in Playback settings to avoid transcoding.';
+
+  @override
+  String get transcodeDisplayReportsNoHdr =>
+      'Connected display does not report support for HDR or Dolby Vision.';
+
+  @override
+  String get transcodeDisplayLacksHdr10ForFallback =>
+      'Connected display lacks HDR10 support needed for Dolby Vision fallback.';
+
+  @override
+  String get transcodeAudioSampleRateNotSupported =>
+      'Audio sample rate is not supported.';
+
+  @override
+  String get transcodeAudioBitDepthNotSupported =>
+      'Audio bit depth is not supported.';
+
+  @override
+  String get transcodeRefFramesNotSupported =>
+      'Video reference frames exceed player limits.';
+
+  @override
+  String get transcodeAnamorphicVideoNotSupported =>
+      'Anamorphic video is not supported.';
+
+  @override
+  String get transcodeInterlacedVideoNotSupported =>
+      'Interlaced video is not supported.';
+
+  @override
+  String get transcodeSecondaryAudioNotSupported =>
+      'Secondary audio stream requires transcoding.';
+
+  @override
+  String get transcodeDirectPlayError =>
+      'Direct play is not supported for this media format.';
+
+  @override
+  String get sortAlphabetical => 'ئېلىپبە تەرتىپى';
+
+  @override
+  String get sortReleaseAscending => 'تارقىتىلىش تەرتىپى (ئۆسۈش)';
+
+  @override
+  String get sortReleaseDescending => 'تارقىتىلىش تەرتىپى (كېمىيىش)';
+
+  @override
+  String get sortCustomDragDrop => 'ئىختىيارى (سۆرەپ-تاشلاش)';
+
+  @override
+  String get playlistSortOptions => 'قويۇش تىزىملىكى تەرتىپلەش تاللانمىلىرى';
+
+  @override
+  String get resetSort => 'تەرتىپنى ئەسلىگە قايتۇرۇش';
+
+  @override
+  String rewatchSeasonEpisode(int season, int episode) {
+    return 'S$season:E$episode نى قايتا كۆرۈش';
+  }
+
+  @override
+  String get rewatchPlaylist => 'قايتا كۆرۈش تىزىملىكى';
+
+  @override
+  String get noSubtitlesFound => 'ئېكران خېتى تېپىلمىدى.';
+
+  @override
+  String get adminControls => 'باشقۇرغۇچى كونتروللىرى';
+
+  @override
+  String get impellerRendering => 'سىزىش ماتورى (Impeller)';
+
+  @override
+  String get impellerRenderingSubtitle =>
+      'Impeller بولسا Flutter نىڭ زامانىۋى GPU سىزغۇچى بولۇپ، ھەرىكەتلەرنى تېخىمۇ سىلىق قىلىپ توختاپ قېلىشنى ئازايتىدۇ. بەزى TV قۇتىلىرى ۋە كونا GPU لاردا خاتالىق ياكى قارا سىن پەيدا قىلىشى مۇمكىن؛ شۇنداق ئەھۋال كۆرۈلسە ئۇنى تاقاق قىلىڭ. ئاپتوماتىك ئۈسكۈنىڭىزگە ئەڭ ماس سۈكۈتتىكىنى تاللايدۇ. قوللىنىش ئۈچۈن Moonfin نى قايتا قوزغىتىڭ.';
+
+  @override
+  String get impellerAuto => 'ئاپتوماتىك';
+
+  @override
+  String get impellerOn => 'ئوچۇق';
+
+  @override
+  String get impellerOff => 'تاقاق';
+
+  @override
+  String get impellerRestartTitle => 'قايتا قوزغىتىش كېرەك';
+
+  @override
+  String get impellerRestartMessage =>
+      'سىزىش ماتورىنى ئۆزگەرتىش ئۈچۈن Moonfin قايتا قوزغىتىلىشى كېرەك. ئەپنى ھازىر تاقاپ، ئاندىن قايتا ئېچىڭ.';
+
+  @override
+  String get impellerCloseNow => 'ئەپنى ھازىر تاقاش';
+
+  @override
+  String get adminRefreshLibrary => 'ئامبارنى يېڭىلاش';
+
+  @override
+  String get adminRefreshAllLibraries => 'بارلىق ئامبارلارنى يېڭىلاش';
+
+  @override
+  String get adminRepoSortDateOldest => 'قوشۇلغان چېسلا (كونىسى ئالدىدا)';
+
+  @override
+  String get adminRepoSortDateNewest => 'قوشۇلغان چېسلا (يېڭىسى ئالدىدا)';
+
+  @override
+  String get adminRepoSortNameAsc => 'ئېلىپبە تەرتىپى (A دىن Z گە)';
+
+  @override
+  String get adminRepoSortNameDesc => 'ئېلىپبە تەرتىپى (Z دىن A غا)';
+
+  @override
+  String adminAnalyticsLoadingProgress(int percentage) {
+    return 'مۇلازىمېتىر ئىستاتىستىكىسى يۈكلىنىۋاتىدۇ... $percentage%';
+  }
+
+  @override
+  String get adminLibChapterImageResolutionMatchSource => 'مەنبەگە ماسلاش';
+
+  @override
+  String get imdbTop250Movies => 'IMDb ئالدىنقى 250 كىنو';
+
+  @override
+  String get imdbTop250TvShows => 'IMDb ئالدىنقى 250 تېلېۋىزىيە تىياتىرى';
+
+  @override
+  String get imdbMostPopularMovies => 'IMDb ئەڭ ئالقىشلانغان كىنولار';
+
+  @override
+  String get imdbMostPopularTvShows =>
+      'IMDb ئەڭ ئالقىشلانغان تېلېۋىزىيە تىياتىرلىرى';
+
+  @override
+  String get imdbLowestRatedMovies => 'IMDb ئەڭ تۆۋەن باھالانغان كىنولار';
+
+  @override
+  String get imdbTopEnglishMovies =>
+      'IMDb ئەڭ يۇقىرى باھالانغان ئىنگلىزچە كىنولار';
+
+  @override
+  String get addToWatchlist => 'Add to Watchlist';
+
+  @override
+  String get removeFromWatchlist => 'Remove from Watchlist';
+
+  @override
+  String get watchlistUpdateFailed => 'Couldn\'t update watchlist';
+
+  @override
+  String get adminSearchParameters => 'Search Parameters';
+
+  @override
+  String get adminCurrentMetadata => 'Current Metadata';
+
+  @override
+  String get adminLabelYear => 'Year';
+
+  @override
+  String get adminReplaceImages => 'Replace existing images';
+
+  @override
+  String get adminBackToSearch => 'Back to Search Criteria';
+
+  @override
+  String get grouping => 'Grouping';
+
+  @override
+  String get groupByType => 'Group by Type';
+
+  @override
+  String get playlistTypes => 'Playlist Types';
+
+  @override
+  String get playlistTypeVideo => 'Video';
+
+  @override
+  String get playlistTypeMusicVideo => 'Music Video';
+
+  @override
+  String get playlistTypeAudio => 'Audio (Music)';
+
+  @override
+  String get playlistTypeAudiobook => 'Audiobook';
+
+  @override
+  String get playlistTypeBook => 'Book';
+
+  @override
+  String get playlistTypePhoto => 'Photo';
+
+  @override
+  String get playlistTypeMixed => 'Mixed';
+
+  @override
+  String get videoPlaylistsSection => 'Video Playlists';
+
+  @override
+  String get musicVideoPlaylistsSection => 'Music Video Playlists';
+
+  @override
+  String get audioPlaylistsSection => 'Audio Playlists';
+
+  @override
+  String get audiobookPlaylistsSection => 'Audiobook Playlists';
+
+  @override
+  String get bookPlaylistsSection => 'Book Playlists';
+
+  @override
+  String get photoPlaylistsSection => 'Photo Playlists';
+
+  @override
+  String get mixedPlaylistsSection => 'Mixed Playlists';
+
+  @override
+  String get currentTime => 'Current Time';
+
+  @override
+  String get playbackTimeDisplay => 'Progress Bar Time';
+
+  @override
+  String get settingsPlaybackTimeDisplayDescription =>
+      'Choose which time labels appear around the playback progress bar.';
+
+  @override
+  String get playbackTimeTotal => 'Total duration';
+
+  @override
+  String get playbackTimeRemaining => 'Time remaining';
+
+  @override
+  String get playbackTimeEndsAt => 'Ends at';
+
+  @override
+  String get playbackTimeElapsed => 'Time elapsed';
+
+  @override
+  String get playbackTimeVideoSection => 'Video Player';
+
+  @override
+  String get playbackTimeMusicSection => 'Music Player';
+
+  @override
+  String get playbackTimeSlotDescription =>
+      'Choose what is shown here, or hide it.';
+
+  @override
+  String get playbackTimeAboveBarLeft => 'Above bar, left';
+
+  @override
+  String get playbackTimeAboveBarCenter => 'Above bar, center';
+
+  @override
+  String get playbackTimeAboveBarRight => 'Above bar, right';
+
+  @override
+  String get playbackTimeBelowBarLeft => 'Below bar, left';
+
+  @override
+  String get playbackTimeBelowBarCenter => 'Below bar, center';
+
+  @override
+  String get playbackTimeBelowBarRight => 'Below bar, right';
+
+  @override
+  String get settingsMusicPlaybackTimeDescription =>
+      'Choose what is shown on the right side of the music progress bar.';
+
+  @override
+  String get groupByTitle => 'Group By';
+
+  @override
+  String get groupByDecade => 'Decade (Year)';
+
+  @override
+  String get groupByParentalRating => 'Parental Rating';
+
+  @override
+  String get groupByStudio => 'Studio';
+
+  @override
+  String get showAlphabeticalFilters => 'Show Alphabet';
+
+  @override
+  String get personalRatingStyle => 'Personal Rating Style';
+
+  @override
+  String get personalRatingThumbs => 'Like / dislike';
+
+  @override
+  String get personalRatingStars => '5 stars';
+
+  @override
+  String get personalRatingNumeric => 'Numeric score out of 10';
+
+  @override
+  String get rate => 'Rate';
+
+  @override
+  String get like => 'Like';
+
+  @override
+  String get dislike => 'Dislike';
+
+  @override
+  String get personalRatingClear => 'Clear rating';
+
+  @override
+  String get personalRatingRated => 'Rated';
+
+  @override
+  String get personalRatingMine => 'My Rating';
+
+  @override
+  String get personalRatingSaveFailed => 'Could not save rating';
+
+  @override
+  String get increase => 'Increase';
+
+  @override
+  String get decrease => 'Decrease';
+
+  @override
+  String personalRatingOutOfTen(String rating) {
+    return '$rating / 10';
+  }
+
+  @override
+  String personalRatingOutOfFive(String rating) {
+    return '$rating / 5';
+  }
+
+  @override
+  String get filterInProgress => 'In Progress';
+
+  @override
+  String get filterUnreleased => 'Unreleased';
+
+  @override
+  String get filterTrailers => 'Trailers';
+
+  @override
+  String get filterExtras => 'Extras';
+
+  @override
+  String get filterThemeSongs => 'Theme Songs';
+
+  @override
+  String get filterThemeVideos => 'Theme Videos';
+
+  @override
+  String get source => 'Source';
+
+  @override
+  String get years => 'Years';
+
+  @override
+  String get audioLanguage => 'Audio Language';
+
+  @override
+  String get subtitleLanguage => 'Subtitle Language';
+
+  @override
+  String get clearFilters => 'Clear Filters';
+
+  @override
+  String get seerrShortcutsRow => 'Seerr Browse';
+
+  @override
+  String get seerrReleased => 'Released';
+
+  @override
+  String get seerrMinRating => 'Minimum Rating';
+
+  @override
+  String get seerrMinVotes => 'Minimum Votes';
+
+  @override
+  String get seerrOriginalLanguage => 'Original Language';
+
+  @override
+  String get seerrRuntime => 'Runtime';
+
+  @override
+  String get subtitleHdrSeparate => 'Separate HDR Style';
+
+  @override
+  String get subtitleHdrSeparateSubtitle =>
+      'White is much brighter in HDR than in SDR, so a dimmer style here avoids the glare';
+
+  @override
+  String get scrollSensitivity => 'Scroll Sensitivity';
+
+  @override
+  String get scrollSensitivitySubtitle =>
+      'How far one mouse wheel notch scrolls';
+
+  @override
+  String get mediaDetailsAndSpoilers => 'Media Details and Spoilers';
+
+  @override
+  String get openTrailersExternally => 'Open Trailers in External App';
+
+  @override
+  String get openTrailersExternallySubtitle =>
+      'Trailers open in the YouTube app or browser instead of the built-in player';
+
+  @override
+  String get hideDetailsMediaDescription => 'Hide Media Description';
+
+  @override
+  String get hideDetailsMediaDescriptionSubtitle =>
+      'Hide the movie or episode descriptive text.';
+
+  @override
+  String get detailUseSeriesThumbnails => 'Use Series Thumbnails';
+
+  @override
+  String get detailUseSeriesThumbnailsSubtitle =>
+      'Replace all thumbnails on Classic details page with series thumbnail';
+
+  @override
+  String get hideHomeMediaDescription => 'Hide Media Description';
+
+  @override
+  String get hideHomeMediaDescriptionSubtitle =>
+      'Hide the movie or episode descriptive text.';
+
+  @override
+  String get continueWatchingAndNextUpHeader => 'Continue Watching and Next Up';
+
+  @override
+  String get setupSkip => 'Skip setup';
+
+  @override
+  String get setupNavbarQuestion => 'Where should navigation go?';
+
+  @override
+  String get setupMediaBarQuestion =>
+      'How should the top of your Home screen look?';
+
+  @override
+  String get setupHomeRowsQuestion => 'How should your rows look?';
+
+  @override
+  String get setupDetailQuestion =>
+      'How should a movie or show look when you open it?';
+
+  @override
+  String get setupTourQuestion => 'You\'re set. Here\'s what else is in here.';
+
+  @override
+  String get setupPlaybackLanguages => 'Playback languages';
+
+  @override
+  String get setupOptional => 'Optional';
+
+  @override
+  String get setupStyleClassic => 'Classic';
+
+  @override
+  String get setupStyleModern => 'Modern';
+
+  @override
+  String get setupRowsClassicHint => 'Compact. More rows on screen at once.';
+
+  @override
+  String get setupRowsModernHint => 'Larger cards with titles underneath.';
+
+  @override
+  String get setupDetailClassicHint => 'Everything centred in one stack.';
+
+  @override
+  String get setupDetailModernHint =>
+      'Cinematic, with tabs for cast and extras.';
+
+  @override
+  String get setupStyleSpotlight => 'Spotlight';
+
+  @override
+  String get setupDetailSpotlightHint =>
+      'Hero-first, with pop-up cards for cast and extras.';
+
+  @override
+  String get setupStyleNouveau => 'Nouveau';
+
+  @override
+  String get setupDetailNouveauHint =>
+      'Full-screen, with sections stacked instead of tabs.';
+
+  @override
+  String get setupStyleMinimalist => 'Minimalist';
+
+  @override
+  String get setupDetailMinimalistHint =>
+      'Artwork, one play button and the episodes.';
+
+  @override
+  String get setupNavbarStyleQuestion => 'How should the bottom bar look?';
+
+  @override
+  String get setupNavbarStyleDockHint =>
+      'A floating pill with labels under every tab.';
+
+  @override
+  String get setupNavbarStyleSplitHint =>
+      'Search gets its own button, and the bar shrinks while you scroll.';
+
+  @override
+  String get setupNavbarStyleStripHint =>
+      'A full-width bar along the bottom edge.';
+
+  @override
+  String get setupPickALook => 'Pick a look';
+
+  @override
+  String get setupTourMoreHeader => 'There is more waiting in Settings';
+
+  @override
+  String get setupTourBulletRequests => 'Seerr requests';
+
+  @override
+  String get setupTourBulletSyncPlay => 'SyncPlay watch parties';
+
+  @override
+  String get setupTourBulletThemes => 'Custom themes';
+
+  @override
+  String get setupTourBulletDownloads => 'Offline downloads';
+
+  @override
+  String get setupTourBulletMore => 'And plenty more';
+
+  @override
+  String get runSetupAgain => 'Run setup again';
+
+  @override
+  String get serverMessages => 'Messages';
+
+  @override
+  String get serverMessagesEmpty => 'No messages from your server yet';
+
+  @override
+  String get serverMessagesMarkAllRead => 'Mark all as read';
+
+  @override
+  String get serverMessagesShowButton => 'Show Messages Button';
+
+  @override
+  String get serverMessagesShowButtonSubtitle =>
+      'Adds a button to the menu for messages sent by your server admin';
+
+  @override
+  String get showBookDiscoverTab => 'Show Book Library Discovery';
+
+  @override
+  String get showBookDiscoverTabDescription =>
+      'Browse titles from Open Library and LibriVox in your book and audiobook libraries';
+
+  @override
+  String get autoDownloadNewEpisodes => 'Auto-download new episodes';
+
+  @override
+  String get autoDownloadStop => 'Stop auto-download';
+
+  @override
+  String autoDownloadKeepUnwatchedSubtitle(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Downloads new episodes, up to $count unwatched at a time',
+      one: 'Downloads new episodes, up to 1 unwatched at a time',
+      zero: 'Downloads every new episode',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String autoDownloadStopSubtitle(String quality) {
+    return 'On • $quality';
+  }
+
+  @override
+  String get autoDownloadTranscodedForegroundNote =>
+      'Transcoded qualities only download while Moonfin is open. Original quality also downloads in the background.';
+
+  @override
+  String get autoDownloadTranscodedRunningNote =>
+      'Transcoded downloads can\'t resume after an interruption and start over from the beginning. Original quality can resume.';
+
+  @override
+  String get autoDownloadForegroundOnly =>
+      'Downloads only while Moonfin is open';
+
+  @override
+  String get autoDownloadQualityTitle => 'Auto-download quality';
+
+  @override
+  String autoDownloadEnabledFor(String title) {
+    return 'Auto-download enabled for $title';
+  }
+
+  @override
+  String autoDownloadStoppedFor(String title) {
+    return 'Auto-download stopped for $title';
+  }
+
+  @override
+  String get smartDownloadsSection => 'Smart downloads';
+
+  @override
+  String get smartDownloadsEnable => 'Download Next Episodes';
+
+  @override
+  String get smartDownloadsEnableDescription =>
+      'When you finish an episode on any device, Moonfin downloads the next ones. Episodes it downloads are deleted once watched.';
+
+  @override
+  String get smartDownloadsKeepReady => 'Episodes to Keep Downloaded';
+
+  @override
+  String smartDownloadsKeepReadySubtitle(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Keeps the next $count episodes downloaded',
+      one: 'Keeps the next episode downloaded',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get smartDownloadsKeepReadyLowered =>
+      'Episodes already downloaded stay on your device. The new number applies to future downloads.';
+
+  @override
+  String get autoDownloadSection => 'Automatic downloads';
+
+  @override
+  String get autoDownloadEnable => 'Enable Automatic Downloads';
+
+  @override
+  String get autoDownloadEnableSubtitle =>
+      'Downloads new episodes of the series you follow. Existing episodes can still be downloaded manually.';
+
+  @override
+  String get autoDownloadKeepUnwatched => 'Keep Unwatched Episodes';
+
+  @override
+  String get autoDownloadKeepAll => 'All';
+
+  @override
+  String get autoDownloadDelete => 'Delete Downloaded Episodes';
+
+  @override
+  String get autoDownloadDeleteFollowedSubtitle =>
+      'When to remove episodes downloaded for series you follow, after you watch them';
+
+  @override
+  String get removeWatchedDownloads => 'Remove Watched Downloads';
+
+  @override
+  String get removeWatchedDownloadsSubtitle =>
+      'When to remove episodes and movies you downloaded yourself. Only those you watch after turning this on are removed';
+
+  @override
+  String get keepDownloaded => 'Keep Downloaded';
+
+  @override
+  String get keepDownloadedSubtitle =>
+      'Never remove this automatically after watching';
+
+  @override
+  String get autoDownloadDeleteNever => 'Never';
+
+  @override
+  String get autoDownloadDeleteImmediately => 'Right after watching';
+
+  @override
+  String get autoDownloadDeleteAfterDay => '1 day after watching';
+
+  @override
+  String get autoDownloadDeleteAfterWeek => '1 week after watching';
+
+  @override
+  String get autoDownloadBackgroundRefresh => 'Check in the Background';
+
+  @override
+  String get autoDownloadBackgroundRefreshSubtitle =>
+      'Allow the system to check for new episodes periodically while Moonfin is closed';
+
+  @override
+  String get autoDownloadBackgroundRefreshDenied =>
+      'Background App Refresh is disabled for Moonfin. Enable it in iOS Settings.';
+
+  @override
+  String get autoDownloadBackgroundRestrictedAndroid =>
+      'Background usage is restricted for Moonfin in Android Settings.';
+
+  @override
+  String get autoDownloadCheckNow => 'Check Now';
+
+  @override
+  String get autoDownloadChecking => 'Checking...';
+
+  @override
+  String get autoDownloadNeverChecked => 'Not checked yet';
+
+  @override
+  String autoDownloadLastCheck(String when, int queued) {
+    String _temp0 = intl.Intl.pluralLogic(
+      queued,
+      locale: localeName,
+      other: '$queued episodes queued',
+      one: '1 episode queued',
+      zero: 'nothing new',
+    );
+    return 'Last check $when: $_temp0';
+  }
+
+  @override
+  String autoDownloadLastCheckFailed(String when, String error) {
+    return 'Last check $when failed: $error';
+  }
+
+  @override
+  String get autoDownloadFollowedSeries => 'Followed series';
+
+  @override
+  String get autoDownloadNoSubscriptions =>
+      'Open a series and choose \"Auto-download new episodes\" from its download menu';
+
+  @override
+  String get autoDownloadRemove => 'Stop following';
+
+  @override
+  String get autoDownloadStorageFull => 'Not enough storage';
+
+  @override
+  String get autoDownloadWaitingForWifi => 'Waiting for WiFi';
+
+  @override
+  String get downloadNotificationRunning => 'Downloading';
+
+  @override
+  String downloadNotificationRunningBatch(int done, int total) {
+    return 'Downloading ($done/$total)';
+  }
+
+  @override
+  String downloadNotificationProgress(String name, int percent) {
+    return '$name — $percent%';
+  }
+
+  @override
+  String downloadNotificationTransfer(
+    String name,
+    String progress,
+    String timeRemaining,
+  ) {
+    return '$name — $progress · $timeRemaining';
+  }
+
+  @override
+  String downloadNotificationStarting(String name) {
+    return '$name...';
+  }
+
+  @override
+  String downloadNotificationCompleteTitle(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Downloads complete',
+      one: 'Download complete',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String downloadNotificationSaved(String name) {
+    return '$name saved for offline';
+  }
+
+  @override
+  String downloadNotificationSavedCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count items saved for offline',
+      one: '1 item saved for offline',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String downloadNotificationSeriesEpisodes(String series, int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count episodes',
+      one: '1 episode',
+    );
+    return '$series: $_temp0';
+  }
+
+  @override
+  String get downloadNotificationFailedTitle => 'Download failed';
+
+  @override
+  String downloadNotificationFailedBody(String name, String error) {
+    return '$name: $error';
+  }
+
+  @override
+  String get serverMessagesNotificationTitle => 'Remote message';
+
+  @override
+  String get serverMessagesNotificationReceived => 'Message received';
+
+  @override
+  String get downloadStorageLimitReached =>
+      'Storage limit reached. Free up space or increase the limit.';
+
+  @override
+  String downloadNotEnoughStorage(String needed, String free) {
+    return 'Not enough storage: $needed needed, $free free';
+  }
+
+  @override
+  String get autoDownloadStorageFullTitle =>
+      'Not enough storage for new episodes';
+
+  @override
+  String autoDownloadStorageFullBody(int count, String name, String size) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count episodes are waiting for space.',
+      one: '$name needs $size.',
+    );
+    return '$_temp0 Free up space or raise the download limit.';
+  }
+
+  @override
+  String get pageTransitions => 'Page Transitions';
+
+  @override
+  String get pageTransitionsSubtitle =>
+      'Adjusts fade time when navigating between pages';
+
+  @override
+  String get navigationSpeed => 'Navigation Speed';
+
+  @override
+  String get navigationSpeedSubtitle =>
+      'Adjusts how quickly the focus indicator moves between items and rows';
+
+  @override
+  String get modernCardsTransitionSpeed => 'Modern Cards Transition Speed';
+
+  @override
+  String get modernCardsTransitionSpeedSubtitle =>
+      'Adjusts animation speed when expanding focused modern cards';
+
+  @override
+  String get delayCardExpansionOnRapidScroll =>
+      'Delay Card Expansion on Rapid Scroll';
+
+  @override
+  String get delayCardExpansionOnRapidScrollSubtitle =>
+      'Waits for focus movement to pause before expanding modern cards';
+
+  @override
+  String get animationSpeedExtraSlow => 'Extra Slow';
+
+  @override
+  String get animationSpeedSlow => 'Slow';
+
+  @override
+  String get animationSpeedMedium => 'Medium';
+
+  @override
+  String get animationSpeedFast => 'Fast';
+
+  @override
+  String get animationSpeedOff => 'Off';
+
+  @override
+  String get pageTransitionFadeNone => 'No Fade';
+
+  @override
+  String get pageTransitionFadeShort => 'Short Fade';
+
+  @override
+  String get pageTransitionFadeMedium => 'Medium Fade';
+
+  @override
+  String get pageTransitionFadeLong => 'Long Fade';
+
+  @override
+  String get siriRemoteSwipeSensitivity => 'Touchpad Swipe Sensitivity';
+
+  @override
+  String get siriRemoteSwipeSensitivityDescription =>
+      'How far focus moves for each swipe on the Siri Remote touchpad';
+
+  @override
+  String get appleTvHomeScreen => 'Apple TV home screen';
+
+  @override
+  String get topShelf => 'Top Shelf';
+
+  @override
+  String get topShelfDescription =>
+      'What the Apple TV home screen shows above the Moonfin icon when it is selected. This setting stays on this device.';
+
+  @override
+  String get topShelfLatestMedia => 'Latest media';
+
+  @override
+  String get topShelfAppBanner => 'Moonfin banner';
+
+  @override
+  String get keepVideoClearOfDynamicIsland =>
+      'Keep Video Clear of the Dynamic Island';
+
+  @override
+  String get keepVideoClearOfDynamicIslandDescription =>
+      'In landscape the camera housing covers one edge of the screen. This holds the picture back from it, which only changes anything for video wide enough to reach that far.';
+
+  @override
+  String get bottomNavbarStyle => 'Bottom Bar Style';
+
+  @override
+  String get bottomNavbarStyleDock => 'Dock';
+
+  @override
+  String get bottomNavbarStyleSplit => 'Split';
+
+  @override
+  String get bottomNavbarStyleStrip => 'Strip';
+
+  @override
+  String get bottomNavbarTabs => 'Bottom Bar Tabs';
+
+  @override
+  String get bottomNavbarTabsDescription =>
+      'Pin up to 3 tabs between Home and You. Everything else is in the bottom navbar hub.';
+
+  @override
+  String get bottomNavbarTabsAutomatic => 'Automatic';
+
+  @override
+  String get bottomNavbarTabsPinned => 'Pinned';
+
+  @override
+  String get bottomNavbarTabsAvailable => 'Available';
+
+  @override
+  String get bottomNavbarTabsReset => 'Reset to Automatic';
+
+  @override
+  String get bottomNavbarTabsLimit =>
+      'You can pin up to 3 tabs. Remove one to pin another.';
+
+  @override
+  String get bottomNavbarTabTurnedOff => 'Turned off under Buttons';
+
+  @override
+  String get bottomNavbarSplitSearchNote =>
+      'In the Split style, Search always has its own button.';
+
+  @override
+  String get bottomNavbarButtonsNote =>
+      'These decide what shows in the bottom navbar hub and which tabs you can pin to the bottom bar. Tabs already on the bar aren\'t listed here.';
+
+  @override
+  String get navYou => 'You';
+
+  @override
+  String get detailsPage => 'Details Page';
+
+  @override
+  String get storageAndDownloads => 'Storage & Downloads';
+
+  @override
+  String get integrations => 'بىرىكتۈرۈش';
+
+  @override
+  String get settingsSync => 'Settings Sync';
+
+  @override
+  String get settingsSyncSubtitle =>
+      'Moonbase plugin sync and customization profiles';
+
+  @override
+  String get navigationBar => 'Navigation Bar';
+
+  @override
+  String get homeRows => 'Rows';
+
+  @override
+  String get homeRowsSubtitle => 'Turn rows on or off and change their order';
+
+  @override
+  String get rowOptions => 'Row Options';
+
+  @override
+  String get rowOptionsSubtitle => 'Sorting and content for each row';
+
+  @override
+  String get imageTypePerRow => 'Image Type per Row';
+
+  @override
+  String get externalSources => 'External Sources';
+
+  @override
+  String get qualityAndDecoding => 'Quality & Decoding';
+
+  @override
+  String get qualityAndDecodingSubtitle =>
+      'Bitrate, resolution, decoding, HDR, and Dolby Vision';
+
+  @override
+  String get skippingAndAutoplay => 'Skipping & Autoplay';
+
+  @override
+  String get advancedPlayback => 'Advanced Playback';
+
+  @override
+  String get advancedPlaybackSubtitle =>
+      'Player routing, external players, and mpv';
+
+  @override
+  String get settingsAccountSubtitle =>
+      'Sign-in, PIN code, Kids Mode, parental controls, and settings sync';
+
+  @override
+  String get settingsGeneralSubtitle =>
+      'Language, clock, input, and performance';
+
+  @override
+  String get settingsAppearanceSubtitle =>
+      'Navigation, home screen, libraries, details page, and themes';
+
+  @override
+  String get settingsHomeScreenSubtitle =>
+      'Rows, media bar, looks, and external sources';
+
+  @override
+  String get settingsLibrariesEntrySubtitle =>
+      'Library visibility, order, and library pages';
+
+  @override
+  String get settingsDetailsPageSubtitle =>
+      'Layout, buttons, sections, ratings, and theme music';
+
+  @override
+  String get settingsPlaybackSubtitle =>
+      'Player, quality, audio, subtitles, skipping, and SyncPlay';
+
+  @override
+  String get settingsStorageSubtitle =>
+      'Downloads, storage location, and the image cache';
+
+  @override
+  String get settingsServicesSubtitle => 'Seerr and Achievement Badges';
+
+  @override
+  String get settingsSignInSection => 'Sign-in';
+
+  @override
+  String get settingsFamilySection => 'Family';
+
+  @override
+  String get settingsServersSection => 'Servers';
+
+  @override
+  String get settingsLanguageSection => 'Language';
+
+  @override
+  String get settingsInputSection => 'Input';
+
+  @override
+  String get settingsMotionSection => 'Motion';
+
+  @override
+  String get settingsContentsSection => 'Contents';
+
+  @override
+  String get settingsLooksSection => 'Looks';
+
+  @override
+  String get settingsAudioAndSubtitlesSection => 'Audio & Subtitles';
+
+  @override
+  String get settingsSkippingAndQueueSection => 'Skipping & Queue';
+
+  @override
+  String get settingsWatchTogetherSection => 'Watch Together';
+
+  @override
+  String get settingsAdvancedSection => 'Advanced';
+
+  @override
+  String get playerSettingsSubtitle =>
+      'Controls, seeking, player buttons, and trick play';
+
+  @override
+  String get playlistSortReleaseDate => 'Release Date';
+
+  @override
+  String get playlistSortCriticRating => 'Critic Rating';
+
+  @override
+  String get playlistSortRuntime => 'Runtime';
+
+  @override
+  String get playlistSortLastPlayed => 'Last Played';
+
+  @override
+  String get playlistSortPlayCount => 'Play Count';
+
+  @override
+  String get playlistSortRandom => 'Random';
+
+  @override
+  String playlistFilterActiveCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count active',
+      one: '1 active',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get playlistNoMatchingTracks => 'No tracks match the active filters';
+
+  @override
+  String get librarySortPlaylistOrder => 'Playlist Order';
+
+  @override
+  String get librarySortDateAdded => 'Date Added';
+
+  @override
+  String get librarySortDateEpisodeAdded => 'Date Episode Added';
+
+  @override
+  String get librarySortParentalRating => 'Parental Rating';
+
+  @override
+  String get librarySortMyRating => 'My Rating';
+
+  @override
+  String get librarySortAlbumArtist => 'Album Artist';
+
+  @override
+  String get librarySortAlbum => 'Album';
+
+  @override
+  String get librarySortArtist => 'Artist';
+
+  @override
+  String get librarySortTrackNumber => 'Track Number';
+
+  @override
+  String get librarySortGenre => 'Genre';
+
+  @override
+  String get librarySortFoldersFirst => 'Folders First';
+
+  @override
+  String get librarySortLength => 'Length';
+}

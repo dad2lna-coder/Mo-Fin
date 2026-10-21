@@ -1,0 +1,504 @@
+import 'dart:async';
+
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:moonfin_design/moonfin_design.dart';
+
+import '../../data/services/pin_guard.dart';
+import '../../l10n/app_localizations.dart';
+import '../../util/focus/dpad_keys.dart';
+import 'overlay_sheet.dart';
+
+enum PinEntryMode { set, verify }
+
+/// A TV-friendly PIN entry dialog with a numeric keypad grid.
+///
+/// Supports two modes:
+/// - [PinEntryMode.set]: Setting a new PIN (requires confirmation).
+/// - [PinEntryMode.verify]: Verifying an existing PIN.
+class PinEntryDialog extends StatefulWidget {
+  final PinEntryMode mode;
+  final bool Function(String pin)? onVerify;
+
+  /// Checks a PIN that may have to ask the server, and says how long to wait
+  /// after too many wrong guesses. Used instead of [onVerify] when given, and
+  /// the one that counts the guesses, so [onFailedAttempt] is not needed with it.
+  final Future<PinOutcome> Function(String pin)? onVerifyAsync;
+  final Future<void> Function(String pin)? onPinSet;
+  final VoidCallback? onForgotPin;
+  final int pinLength;
+
+  /// Called after a wrong guess, returning how long the next one has to wait.
+  /// Without it guessing stays free, which is fine for a convenience lock and
+  /// not for one holding a child out.
+  final Future<Duration> Function()? onFailedAttempt;
+
+  /// How long the caller is already making the user wait when the dialog
+  /// opens, so a reopen doesn't hand back a fresh set of free guesses.
+  final Duration Function()? lockoutRemaining;
+
+  const PinEntryDialog({
+    super.key,
+    required this.mode,
+    this.onVerify,
+    this.onVerifyAsync,
+    this.onPinSet,
+    this.onForgotPin,
+    this.pinLength = 4,
+    this.onFailedAttempt,
+    this.lockoutRemaining,
+  });
+
+  /// How long a wait is said to be in the dialog.
+  static String formatWait(Duration wait) {
+    if (wait.inSeconds < 60) return '${wait.inSeconds}s';
+    return '${wait.inMinutes}m';
+  }
+
+  /// Show the PIN dialog and return true if verified/set, false otherwise.
+  static Future<bool> show(
+    BuildContext context, {
+    required PinEntryMode mode,
+    bool Function(String pin)? onVerify,
+    Future<PinOutcome> Function(String pin)? onVerifyAsync,
+    Future<void> Function(String pin)? onPinSet,
+    VoidCallback? onForgotPin,
+    int pinLength = 4,
+    Future<Duration> Function()? onFailedAttempt,
+    Duration Function()? lockoutRemaining,
+  }) async {
+    final result = await showFocusRestoringDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => PinEntryDialog(
+        mode: mode,
+        onVerify: onVerify,
+        onVerifyAsync: onVerifyAsync,
+        onPinSet: onPinSet,
+        onForgotPin: onForgotPin,
+        pinLength: pinLength,
+        onFailedAttempt: onFailedAttempt,
+        lockoutRemaining: lockoutRemaining,
+      ),
+    );
+    return result ?? false;
+  }
+
+  @override
+  State<PinEntryDialog> createState() => _PinEntryDialogState();
+}
+
+class _PinEntryDialogState extends State<PinEntryDialog> {
+  String _enteredPin = '';
+  String? _firstPin;
+  String? _errorText;
+  bool _isConfirming = false;
+  bool _isVerifying = false;
+  DateTime? _lastButtonPressAt;
+
+  bool _consumeButtonPress() {
+    final now = DateTime.now();
+    final last = _lastButtonPressAt;
+    if (last != null && now.difference(last).inMilliseconds < 140) {
+      return false;
+    }
+    _lastButtonPressAt = now;
+    return true;
+  }
+
+  String _title(AppLocalizations l10n) {
+    if (widget.mode == PinEntryMode.set) {
+      return _isConfirming ? l10n.pinConfirmTitle : l10n.pinSetTitle;
+    }
+    return l10n.pinEnterTitle;
+  }
+
+  String _subtitle(AppLocalizations l10n) {
+    if (widget.mode == PinEntryMode.set) {
+      return _isConfirming
+          ? l10n.pinReenterToConfirm
+          : l10n.pinEnterNDigit(widget.pinLength);
+    }
+    return l10n.pinEnterYourNDigit(widget.pinLength);
+  }
+
+  void _onDigitPressed(int digit) {
+    if (_isVerifying || _enteredPin.length >= widget.pinLength) return;
+    setState(() {
+      _enteredPin += digit.toString();
+      _errorText = null;
+    });
+
+    if (_enteredPin.length == widget.pinLength) {
+      unawaited(_onPinComplete());
+    }
+  }
+
+  void _onBackspace() {
+    if (_isVerifying || _enteredPin.isEmpty) return;
+    setState(() {
+      _enteredPin = _enteredPin.substring(0, _enteredPin.length - 1);
+      _errorText = null;
+    });
+  }
+
+  void _onClear() {
+    if (_isVerifying) return;
+    setState(() {
+      _enteredPin = '';
+      _errorText = null;
+    });
+  }
+
+  Future<void> _onPinComplete() async {
+    if (widget.mode == PinEntryMode.verify && widget.onVerifyAsync != null) {
+      setState(() => _isVerifying = true);
+      final PinOutcome outcome;
+      try {
+        outcome = await widget.onVerifyAsync!(_enteredPin);
+      } catch (_) {
+        if (!mounted) return;
+        setState(() {
+          _isVerifying = false;
+          _errorText = AppLocalizations.of(context).pinIncorrect;
+          _enteredPin = '';
+        });
+        return;
+      }
+      if (!mounted) return;
+      if (outcome is PinAccepted) {
+        Navigator.of(context).pop(true);
+        return;
+      }
+      final l10n = AppLocalizations.of(context);
+      setState(() {
+        _isVerifying = false;
+        _errorText = outcome is PinLockedOut
+            ? l10n.pinTryAgainIn(PinEntryDialog.formatWait(outcome.wait))
+            : l10n.pinIncorrect;
+        _enteredPin = '';
+      });
+      return;
+    }
+    if (widget.mode == PinEntryMode.verify) {
+      // Reopening the dialog must not hand back a fresh set of free guesses.
+      final locked = widget.lockoutRemaining?.call() ?? Duration.zero;
+      if (locked > Duration.zero) {
+        final l10n = AppLocalizations.of(context);
+        setState(() {
+          _errorText = l10n.pinTryAgainIn(PinEntryDialog.formatWait(locked));
+          _enteredPin = '';
+        });
+        return;
+      }
+      if (widget.onVerify?.call(_enteredPin) ?? false) {
+        Navigator.of(context).pop(true);
+      } else {
+        final wait = await widget.onFailedAttempt?.call() ?? Duration.zero;
+        if (!mounted) return;
+        final l10n = AppLocalizations.of(context);
+        setState(() {
+          _errorText = wait > Duration.zero
+              ? l10n.pinTryAgainIn(PinEntryDialog.formatWait(wait))
+              : l10n.pinIncorrect;
+          _enteredPin = '';
+        });
+      }
+    } else {
+      if (!_isConfirming) {
+        setState(() {
+          _firstPin = _enteredPin;
+          _enteredPin = '';
+          _isConfirming = true;
+        });
+      } else {
+        if (_enteredPin == _firstPin) {
+          if (widget.onPinSet != null) {
+            try {
+              await widget.onPinSet!.call(_enteredPin);
+            } on PinChangeRefused catch (refused) {
+              if (!mounted) return;
+              final l10n = AppLocalizations.of(context);
+              final outcome = refused.outcome;
+              setState(() {
+                _errorText = refused.unreachable
+                    ? l10n.unableToConnectToServer
+                    : outcome is PinLockedOut
+                    ? l10n.pinTryAgainIn(PinEntryDialog.formatWait(outcome.wait))
+                    : l10n.pinIncorrect;
+                _enteredPin = '';
+                _isConfirming = false;
+                _firstPin = null;
+              });
+              return;
+            }
+          }
+          if (!mounted) return;
+          Navigator.of(context).pop(true);
+        } else {
+          final l10n = AppLocalizations.of(context);
+          setState(() {
+            _errorText = l10n.pinMismatch;
+            _enteredPin = '';
+            _isConfirming = false;
+            _firstPin = null;
+          });
+        }
+      }
+    }
+  }
+
+  KeyEventResult _onDialogKey(FocusNode node, KeyEvent event) {
+    final isHandledKey = event.logicalKey.isBackKey ||
+        _getDigitFromKey(event.logicalKey) != null;
+
+    if (event is! KeyDownEvent) {
+      return isHandledKey ? KeyEventResult.handled : KeyEventResult.ignored;
+    }
+
+    if (event.logicalKey.isBackKey) {
+      Navigator.of(context).pop(false);
+      return KeyEventResult.handled;
+    }
+
+    final digit = _getDigitFromKey(event.logicalKey);
+    if (digit != null) {
+      _onDigitPressed(digit);
+      return KeyEventResult.handled;
+    }
+
+    return KeyEventResult.ignored;
+  }
+
+  int? _getDigitFromKey(LogicalKeyboardKey key) {
+    if (key == LogicalKeyboardKey.digit0 || key == LogicalKeyboardKey.numpad0) return 0;
+    if (key == LogicalKeyboardKey.digit1 || key == LogicalKeyboardKey.numpad1) return 1;
+    if (key == LogicalKeyboardKey.digit2 || key == LogicalKeyboardKey.numpad2) return 2;
+    if (key == LogicalKeyboardKey.digit3 || key == LogicalKeyboardKey.numpad3) return 3;
+    if (key == LogicalKeyboardKey.digit4 || key == LogicalKeyboardKey.numpad4) return 4;
+    if (key == LogicalKeyboardKey.digit5 || key == LogicalKeyboardKey.numpad5) return 5;
+    if (key == LogicalKeyboardKey.digit6 || key == LogicalKeyboardKey.numpad6) return 6;
+    if (key == LogicalKeyboardKey.digit7 || key == LogicalKeyboardKey.numpad7) return 7;
+    if (key == LogicalKeyboardKey.digit8 || key == LogicalKeyboardKey.numpad8) return 8;
+    if (key == LogicalKeyboardKey.digit9 || key == LogicalKeyboardKey.numpad9) return 9;
+    return null;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    final borders = ThemeRegistry.active.borders;
+    final l10n = AppLocalizations.of(context);
+
+    return PopScope(
+      canPop: true,
+      child: Focus(
+        canRequestFocus: false,
+        skipTraversal: true,
+        onKeyEvent: _onDialogKey,
+        child: Dialog(
+          shape: RoundedRectangleBorder(borderRadius: AppRadius.circular(16)),
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+            Icon(Icons.lock, size: 40, color: colorScheme.primary),
+            const SizedBox(height: 12),
+            Text(_title(l10n), style: theme.textTheme.headlineSmall),
+            const SizedBox(height: 4),
+            Text(
+              _subtitle(l10n),
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: colorScheme.onSurfaceVariant,
+              ),
+            ),
+            const SizedBox(height: 20),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: List.generate(widget.pinLength, (i) {
+                final isFilled = i < _enteredPin.length;
+                return Container(
+                  margin: const EdgeInsets.symmetric(horizontal: 8),
+                  width: 16,
+                  height: 16,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: isFilled
+                        ? colorScheme.primary
+                        : colorScheme.surfaceContainerHighest,
+                    border: Border.fromBorderSide(
+                      borders.chipBorder.copyWith(
+                        color: colorScheme.outline,
+                        width: 1.5,
+                      ),
+                    ),
+                  ),
+                );
+              }),
+            ),
+            if (_errorText != null) ...[
+              const SizedBox(height: 8),
+              Text(
+                _errorText!,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: colorScheme.error,
+                ),
+              ),
+            ],
+
+            const SizedBox(height: 20),
+            _buildKeypad(context),
+
+            const SizedBox(height: 16),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                if (widget.mode == PinEntryMode.verify &&
+                    widget.onForgotPin != null)
+                  TextButton(
+                    onPressed: () {
+                      Navigator.of(context).pop(false);
+                      widget.onForgotPin!();
+                    },
+                    child: Text(l10n.pinForgot),
+                  )
+                else
+                  const SizedBox.shrink(),
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(false),
+                  child: Text(l10n.cancel),
+                ),
+              ],
+            ),
+          ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildKeypad(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    return Column(
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            _buildKeypadButton(1),
+            _buildKeypadButton(2),
+            _buildKeypadButton(3),
+          ],
+        ),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            _buildKeypadButton(4),
+            _buildKeypadButton(5),
+            _buildKeypadButton(6),
+          ],
+        ),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            _buildKeypadButton(7),
+            _buildKeypadButton(8),
+            _buildKeypadButton(9),
+          ],
+        ),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            _buildActionButton(
+              icon: Icons.clear_all,
+              onPressed: _onClear,
+              semanticLabel: l10n.pinClear,
+            ),
+            _buildKeypadButton(0),
+            _buildActionButton(
+              icon: Icons.backspace_outlined,
+              onPressed: _onBackspace,
+              semanticLabel: l10n.pinBackspace,
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildKeypadButton(int digit) {
+    return Padding(
+      padding: const EdgeInsets.all(4),
+      child: SizedBox(
+        width: 64,
+        height: 56,
+        child: ElevatedButton(
+          onPressed: () => _onDigitButtonPressed(digit),
+          style: _keypadButtonStyle(),
+          autofocus: digit == 1,
+          child: Text(
+            '$digit',
+            style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w500),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildActionButton({
+    required IconData icon,
+    required VoidCallback onPressed,
+    required String semanticLabel,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.all(4),
+      child: SizedBox(
+        width: 64,
+        height: 56,
+        child: ElevatedButton(
+          onPressed: () => _onActionButtonPressed(onPressed),
+          style: _keypadButtonStyle(),
+          child: Semantics(
+            label: semanticLabel,
+            child: Icon(icon, size: 22),
+          ),
+        ),
+      ),
+    );
+  }
+
+  ButtonStyle _keypadButtonStyle() {
+    return ElevatedButton.styleFrom(
+      shape: RoundedRectangleBorder(
+        borderRadius: AppRadius.circular(12),
+      ),
+    ).copyWith(
+      backgroundColor: WidgetStateProperty.resolveWith((states) {
+        if (states.contains(WidgetState.focused)) return AppColorScheme.onSurface;
+        if (states.contains(WidgetState.pressed)) {
+          return AppColorScheme.onSurface.withValues(alpha: 0.92);
+        }
+        return null;
+      }),
+      foregroundColor: WidgetStateProperty.resolveWith((states) {
+        if (states.contains(WidgetState.focused) ||
+            states.contains(WidgetState.pressed)) {
+          return AppColors.black;
+        }
+        return null;
+      }),
+    );
+  }
+
+  void _onDigitButtonPressed(int digit) {
+    if (!_consumeButtonPress()) return;
+    _onDigitPressed(digit);
+  }
+
+  void _onActionButtonPressed(VoidCallback action) {
+    if (!_consumeButtonPress()) return;
+    action();
+  }
+}

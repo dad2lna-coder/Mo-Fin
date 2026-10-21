@@ -1,0 +1,2527 @@
+import 'dart:async';
+
+import 'package:flutter/foundation.dart';
+import 'package:get_it/get_it.dart';
+import 'package:server_core/server_core.dart';
+import 'package:dio/dio.dart';
+
+import '../../preference/preference_constants.dart';
+import '../../preference/user_preferences.dart';
+import '../models/aggregated_item.dart';
+import '../models/lyrics.dart';
+import '../models/tmdb_item_ref.dart';
+import '../services/blocked_content_gate.dart';
+import '../services/row_data_source.dart';
+import '../repositories/item_mutation_repository.dart';
+import '../repositories/mdblist_repository.dart';
+import '../repositories/tmdb_repository.dart';
+import '../repositories/seerr_repository.dart';
+import '../utils/blocked_ratings.dart';
+import '../utils/playlist_utils.dart';
+import '../../preference/seerr_preferences.dart';
+import '../../util/episode_playability.dart';
+import '../services/plugin_sync_service.dart';
+import '../services/user_data_sync.dart';
+import '../services/seerr/seerr_api_models.dart';
+import 'seerr_discover_view_model.dart';
+import 'seerr_media_detail_view_model.dart';
+import '../models/upcoming_episode_info.dart';
+import '../services/upcoming_episode_service.dart';
+
+enum CollectionSortOption {
+  alphabetical,
+  releaseAscending,
+  releaseDescending,
+  custom,
+}
+
+/// Lightweight metadata entry used to build and re-sort the flat playlist index
+/// without holding full [AggregatedItem] objects in memory.
+class _PlaylistItemIndexEntry {
+  final String id;
+  final String name;
+  final DateTime? premiereDate;
+  final int? productionYear;
+
+  const _PlaylistItemIndexEntry({
+    required this.id,
+    required this.name,
+    this.premiereDate,
+    this.productionYear,
+  });
+
+  static int compareReleaseAscending(
+    _PlaylistItemIndexEntry a,
+    _PlaylistItemIndexEntry b,
+  ) {
+    final aDate =
+        a.premiereDate ??
+        (a.productionYear != null ? DateTime(a.productionYear!) : null);
+    final bDate =
+        b.premiereDate ??
+        (b.productionYear != null ? DateTime(b.productionYear!) : null);
+    if (aDate == null && bDate == null) {
+      return a.name.toLowerCase().compareTo(b.name.toLowerCase());
+    }
+    if (aDate == null) return 1;
+    if (bDate == null) return -1;
+    final byDate = aDate.compareTo(bDate);
+    if (byDate != 0) return byDate;
+    return a.name.toLowerCase().compareTo(b.name.toLowerCase());
+  }
+}
+
+enum ItemDetailState { loading, ready, blocked, error }
+
+/// Why a delete request failed.
+///
+/// [detail] is a short status line safe to show the user. The raw response
+/// body never travels here because it can leak server paths.
+class DeleteItemFailure {
+  final int? statusCode;
+  final String? detail;
+
+  const DeleteItemFailure({this.statusCode, this.detail});
+}
+
+class ParentCollection {
+  final String id;
+  final String name;
+
+  /// The collection itself as an item, for a grid cell that opens it.
+  final AggregatedItem boxSetItem;
+
+  /// The collection's library members, in release order.
+  final List<AggregatedItem> items;
+
+  /// Titles TMDB files under this collection that the library lacks, from
+  /// Seerr. Kept apart from [items] because the library lists feed user-data
+  /// sync and the classic collection rows, and neither can take a Seerr id.
+  final List<AggregatedItem> missingItems;
+
+  ParentCollection({
+    required this.id,
+    required this.name,
+    required this.boxSetItem,
+    required this.items,
+    this.missingItems = const [],
+  });
+
+  /// Library members with the missing titles slotted in by release date.
+  List<AggregatedItem> get itemsWithMissing =>
+      mergeMissingByReleaseOrder(items, missingItems);
+
+  ParentCollection withMissingItems(List<AggregatedItem> missing) =>
+      ParentCollection(
+        id: id,
+        name: name,
+        boxSetItem: boxSetItem,
+        items: items,
+        missingItems: missing,
+      );
+
+  ParentCollection withItems(List<AggregatedItem> updated) =>
+      ParentCollection(
+        id: id,
+        name: name,
+        boxSetItem: boxSetItem,
+        items: updated,
+        missingItems: missingItems,
+      );
+}
+
+/// Where the detail page's similar-titles list came from, so a section can be
+/// named for the source that produced it.
+enum SimilarSource { jellyfin, moonfin, tmdb }
+
+// How many cards the More Like This row draws, so every source is asked for
+// the same count.
+const int _similarLimit = 20;
+
+/// Slots [missing] into [library] by release date without reordering the
+/// library entries, so a collection keeps whatever order the server gave it
+/// and each absent title lands where it belongs in the run.
+List<AggregatedItem> mergeMissingByReleaseOrder(
+  List<AggregatedItem> library,
+  List<AggregatedItem> missing,
+) {
+  if (missing.isEmpty) return library;
+  DateTime? released(AggregatedItem item) {
+    final date = item.premiereDate;
+    if (date != null) return date;
+    final year = item.productionYear;
+    return year == null ? null : DateTime(year);
+  }
+
+  final merged = List<AggregatedItem>.of(library);
+  for (final item in missing) {
+    final key = released(item);
+    var at = merged.length;
+    if (key != null) {
+      final later = merged.indexWhere((existing) {
+        final date = released(existing);
+        return date != null && key.isBefore(date);
+      });
+      if (later >= 0) at = later;
+    }
+    merged.insert(at, item);
+  }
+  return merged;
+}
+
+/// The parts of a TMDB collection the library lacks, as Seerr-backed items.
+/// Ids are bare TMDB numbers carrying a `SeerrMediaType`, the shape every
+/// other Seerr item in the app has, so the Seerr detail route resolves them.
+/// Adult titles are dropped under the same rule the discover rows apply.
+@visibleForTesting
+List<AggregatedItem> seerrMissingCollectionItems({
+  required Iterable<SeerrDiscoverItem> parts,
+  required Set<String> libraryTmdbIds,
+  required bool blockNsfw,
+}) {
+  final missing = <AggregatedItem>[];
+  for (final part in parts) {
+    final tmdbId = part.id.toString();
+    if (libraryTmdbIds.contains(tmdbId)) continue;
+    if (blockNsfw && SeerrDiscoverViewModel.isNsfw(part)) continue;
+    final releaseDate = part.releaseDate;
+    missing.add(
+      AggregatedItem(
+        id: tmdbId,
+        serverId: 'seerr',
+        rawData: {
+          'Id': tmdbId,
+          'Name': part.title ?? part.name ?? '',
+          'Type': 'Movie',
+          'Overview': part.overview,
+          'PosterPath': part.posterPath,
+          'BackdropPath': part.backdropPath,
+          'PremiereDate': releaseDate,
+          'ProductionYear': releaseDate != null && releaseDate.length >= 4
+              ? int.tryParse(releaseDate.substring(0, 4))
+              : null,
+          'SeerrMediaType': 'movie',
+          'SeerrStatus': part.mediaInfo?.status,
+          'ProviderIds': {'Tmdb': tmdbId},
+        },
+      ),
+    );
+  }
+  return missing;
+}
+
+class ItemDetailViewModel extends ChangeNotifier {
+  static const _episodeOverviewFields = 'Overview,RunTimeTicks,UserData';
+
+  final MediaServerClient _client;
+  final ItemMutationRepository _mutations;
+  final MdbListRepository _mdbListRepository;
+  final TmdbRepository _tmdbRepository;
+
+  final String itemId;
+
+  /// The season the viewer was browsing when they opened this item. Only set
+  /// when it differs from the item's own season, which happens for a special
+  /// that DisplaySpecialsWithinSeasons lists inside a regular season.
+  final String? contextSeasonId;
+
+  String? _resolvedEpisodesSeasonId;
+
+  /// The season [episodes] was actually loaded from, so callers queue playback
+  /// and build links against the list that is on screen.
+  String? get effectiveSeasonId {
+    final item = _item;
+    if (item == null) return _resolvedEpisodesSeasonId ?? contextSeasonId;
+    if (item.type == 'Season') return itemId;
+    return _resolvedEpisodesSeasonId ?? contextSeasonId ?? item.seasonId;
+  }
+
+  ItemDetailState _state = ItemDetailState.loading;
+  ItemDetailState get state => _state;
+
+  AggregatedItem? _item;
+  AggregatedItem? get item => _item;
+
+  String? _localPersonId;
+  String? get localPersonId => _localPersonId;
+
+  int? _selectedAudioIndex;
+  int? get selectedAudioIndex => _selectedAudioIndex;
+  set selectedAudioIndex(int? value) {
+    if (_selectedAudioIndex != value) {
+      _selectedAudioIndex = value;
+      GetIt.instance<UserPreferences>().setItemAudioStreamIndex(itemId, value);
+      notifyListeners();
+    }
+  }
+
+  int? _selectedSubtitleIndex;
+  int? get selectedSubtitleIndex => _selectedSubtitleIndex;
+  set selectedSubtitleIndex(int? value) {
+    if (_selectedSubtitleIndex != value) {
+      _selectedSubtitleIndex = value;
+      GetIt.instance<UserPreferences>().setItemSubtitleStreamIndex(itemId, value);
+      notifyListeners();
+    }
+  }
+
+  List<AggregatedItem> _similar = const [];
+  List<AggregatedItem> get similar => _similar;
+  bool _similarInitialLoadComplete = false;
+  bool get similarInitialLoadComplete => _similarInitialLoadComplete;
+
+  SimilarSource _similarSource = SimilarSource.jellyfin;
+
+  /// Where [similar] came from, for a label that matches the list.
+  SimilarSource get similarSource => _similarSource;
+
+  List<AggregatedItem> _filmography = const [];
+  List<AggregatedItem> get filmography => _filmography;
+
+  List<AggregatedItem> _seasons = const [];
+  List<AggregatedItem> get seasons => _seasons;
+
+  bool _seasonsLoaded = false;
+
+  /// Whether the seasons fetch has finished, however it went. An empty
+  /// [seasons] says nothing on its own until this is true, so callers can tell
+  /// a load still in flight from a series that really has none.
+  bool get seasonsLoaded => _seasonsLoaded;
+
+  List<AggregatedItem> _episodes = const [];
+  List<AggregatedItem> get episodes => _episodes;
+
+  bool _episodesLoaded = false;
+
+  /// The [seasonsLoaded] contract, for [episodes].
+  bool get episodesLoaded => _episodesLoaded;
+
+  List<AggregatedItem> _seriesEpisodes = const [];
+  bool _seriesEpisodesRequested = false;
+  bool _seriesEpisodesLoaded = false;
+
+  /// Whether [seriesEpisodes] has arrived. Unlike [seasonsLoaded] this only
+  /// turns true on a fetch that worked, because a failed one is tried again.
+  bool get seriesEpisodesLoaded => _seriesEpisodesLoaded;
+
+  /// All episodes of a Series across every season, in the server's
+  /// season/episode order. Empty until [loadAllSeriesEpisodes] completes.
+  List<AggregatedItem> get seriesEpisodes => _seriesEpisodes;
+
+  AggregatedItem? _nextUp;
+  AggregatedItem? get nextUp => _nextUp;
+
+  Map<String, double> _ratings = const {};
+  Map<String, double> get ratings => _ratings;
+
+  List<AggregatedItem> _albums = const [];
+  List<AggregatedItem> get albums => _albums;
+
+  List<AggregatedItem> _tracks = const [];
+  List<AggregatedItem> get tracks => _tracks;
+
+  List<AggregatedItem> _collectionItems = const [];
+  List<AggregatedItem> get collectionItems => _collectionItems;
+
+  List<AggregatedItem> _missingCollectionItems = const [];
+  List<AggregatedItem> get missingCollectionItems => _missingCollectionItems;
+
+  // --- Collection grid pagination state ---
+  static const _collectionPageSize = 50;
+
+  /// Items fetched so far for the grid (startIndex).
+  int _collectionFetchedCount = 0;
+  int _collectionTotalCount = 0;
+  bool _collectionHasMore = false;
+  bool _collectionLoadingMore = false;
+
+  // --- Playlist index ---
+
+  /// How much of a collection the index scan will walk. Past this the playlist
+  /// tab covers the head rather than the whole thing.
+  static const _indexScanLimit = 2000;
+
+  /// How many series are asked for their episodes at once during the scan.
+  static const _indexScanBatchSize = 8;
+
+  /// True while the index is being built. The playlist area shows a spinner.
+  bool _playlistIndexBuilding = false;
+  bool get playlistIndexBuilding => _playlistIndexBuilding;
+
+  /// The id and sort keys of every playable item, kept so the order can change
+  /// without fetching anything again. Null until the collection is scanned.
+  List<_PlaylistItemIndexEntry>? _playlistIndexEntries;
+
+  /// Ids in the order the playlist currently shows, which pages are read from.
+  List<String>? _flattenedIds;
+
+  /// Ids in the order the user arranged them, either dragged here or saved on
+  /// the server. Kept apart from [_flattenedIds] so switching to another sort
+  /// and back doesn't lose it.
+  List<String>? _customOrderIds;
+
+  // --- Playlist page loading ---
+  static const _playlistPageSize = 50;
+  int _playlistFetchedCount = 0;
+  bool _playlistHasMore = false;
+  bool _playlistLoadingMore = false;
+
+  bool get playlistLoadingMore => _playlistLoadingMore;
+
+  // Cached BoxSet cast/crew, rebuilt only when _collectionItems changes.
+  List<AggregatedItem>? _boxSetPeopleSource;
+  List<Map<String, dynamic>> _boxSetDirectors = const [];
+  List<Map<String, dynamic>> _boxSetWriters = const [];
+  List<Map<String, dynamic>> _boxSetActors = const [];
+
+  void _ensureBoxSetPeople() {
+    if (identical(_boxSetPeopleSource, _collectionItems)) return;
+    _boxSetPeopleSource = _collectionItems;
+
+    final directors = <Map<String, dynamic>>[];
+    final writers = <Map<String, dynamic>>[];
+    final actors = <Map<String, dynamic>>[];
+    final dirNames = <String>{};
+    final writNames = <String>{};
+    final actorNames = <String>{};
+
+    for (final child in _collectionItems) {
+      final people = child.rawData['People'] as List?;
+      if (people == null) continue;
+      for (final person in people.cast<Map<String, dynamic>>()) {
+        final name = person['Name'] as String?;
+        if (name == null) continue;
+        switch (person['Type']) {
+          case 'Director':
+            if (dirNames.add(name)) directors.add(person);
+          case 'Writer':
+            if (writNames.add(name)) writers.add(person);
+        }
+      }
+    }
+    for (final child in _collectionItems) {
+      final people = child.rawData['People'] as List?;
+      if (people == null) continue;
+      for (final person in people.cast<Map<String, dynamic>>()) {
+        final type = person['Type'] as String?;
+        if (type != 'Actor' && type != 'GuestStar') continue;
+        final name = person['Name'] as String?;
+        if (name == null ||
+            dirNames.contains(name) ||
+            writNames.contains(name)) {
+          continue;
+        }
+        if (actorNames.add(name)) actors.add(person);
+      }
+    }
+
+    _boxSetDirectors = directors;
+    _boxSetWriters = writers;
+    _boxSetActors = actors;
+  }
+
+  List<AggregatedItem> _playlistItems = const [];
+  List<AggregatedItem> get playlistItems => _playlistItems;
+
+  CollectionSortOption _collectionSort = CollectionSortOption.releaseAscending;
+  CollectionSortOption get collectionSort => _collectionSort;
+
+  List<ParentCollection> _parentCollections = const [];
+
+  /// Bumped on every publication of [_parentCollections], so a Seerr pass
+  /// started for an earlier load can tell it has gone stale.
+  int _parentCollectionsLoad = 0;
+  List<ParentCollection> get parentCollections => _parentCollections;
+
+  List<AggregatedItem> _features = const [];
+  List<AggregatedItem> get features => _features;
+
+  LyricsData _lyrics = LyricsData.empty;
+  LyricsData get lyrics => _lyrics;
+
+  Object? _error;
+  Object? get error => _error;
+
+  ImageApi get imageApi => _client.imageApi;
+  String get baseUrl => _client.baseUrl;
+  bool get supportsNumericUserRatings =>
+      _client.userLibraryApi.supportsNumericUserRatings;
+
+  bool _isRatingMutationInProgress = false;
+  bool get isRatingMutationInProgress => _isRatingMutationInProgress;
+
+  bool get canManagePlaylistTracks =>
+      _item?.type == 'Playlist' &&
+      _tracks.isNotEmpty &&
+      _tracks.every(hasPlaylistEntryId);
+
+  final String? _serverId;
+  bool _isDisposed = false;
+
+  /// The Seerr side of this title, when there is one. Null until the lookup
+  /// lands, and null forever when Seerr is off or doesn't know the title.
+  SeerrMediaDetailViewModel? _seerr;
+  SeerrMediaDetailViewModel? get seerr => _seerr;
+
+  /// Whether this screen stands in for a title that is not in the library, in
+  /// which case there is nothing to play, mark watched or download.
+  bool _isSeerrOnly = false;
+  bool get isSeerrOnly => _isSeerrOnly;
+
+  /// The library id of a title asked for by TMDB id that turned out to be in
+  /// the library after all. The screen swaps itself for the real item, which
+  /// has playback and everything else a synthetic one cannot offer.
+  String? _seerrResolvedLibraryId;
+  String? get seerrResolvedLibraryId => _seerrResolvedLibraryId;
+
+  UpcomingEpisodeInfo? _upcomingEpisode;
+  UpcomingEpisodeInfo? get upcomingEpisode => _upcomingEpisode;
+
+  /// Only used to resolve an IMDb-keyed id by searching for it.
+  String? _seerrOnlyTitle;
+  set seerrOnlyTitle(String? value) => _seerrOnlyTitle = value;
+
+  /// Resolves the Seerr side of a library item, if there is one to resolve.
+  /// A miss leaves the screen exactly as it was, so nothing here ever surfaces
+  /// an error.
+  Future<void> _loadSeerrOverlay() async {
+    final item = _item;
+    if (item == null) return;
+    final isMedia = item.type == 'Movie' || item.type == 'Series';
+    final isTvPart = item.type == 'Season' || item.type == 'Episode';
+    if (!isMedia && !isTvPart) return;
+    if (!GetIt.instance<PluginSyncService>().seerrAvailable) return;
+
+    String? lookupId;
+    String mediaType = 'movie';
+    String title = item.name;
+
+    if (item.type == 'Movie') {
+      lookupId = (item.tmdbId != null && item.tmdbId!.isNotEmpty)
+          ? item.tmdbId
+          : item.imdbId;
+      mediaType = 'movie';
+      title = item.name;
+    } else if (item.type == 'Series') {
+      lookupId = (item.tmdbId != null && item.tmdbId!.isNotEmpty)
+          ? item.tmdbId
+          : item.imdbId;
+      mediaType = 'tv';
+      title = item.name;
+    } else if (isTvPart) {
+      final seriesId = item.seriesId;
+      if (seriesId != null && seriesId.isNotEmpty) {
+        try {
+          final seriesData = await _client.itemsApi.getItem(seriesId);
+          if (_isDisposed) return;
+          final seriesItem = AggregatedItem(
+            id: seriesId,
+            serverId: _serverId ?? _client.baseUrl,
+            rawData: seriesData,
+          );
+          lookupId =
+              (seriesItem.tmdbId != null && seriesItem.tmdbId!.isNotEmpty)
+                  ? seriesItem.tmdbId
+                  : seriesItem.imdbId;
+          mediaType = 'tv';
+          title = seriesItem.name;
+        } catch (_) {}
+      }
+    }
+
+    if (lookupId == null || lookupId.isEmpty) return;
+
+    try {
+      final vm = await _ensureSeerr();
+      if (_isDisposed) return;
+      await vm.load(
+        lookupId,
+        mediaType,
+        title: title,
+      );
+    } catch (_) {}
+  }
+
+  /// One child view model for the life of this one. [load] is re-entered when
+  /// the viewer switches media source, and a second child would leak both a
+  /// view model and its download poll timer.
+  Future<SeerrMediaDetailViewModel> _ensureSeerr() async {
+    final existing = _seerr;
+    if (existing != null) return existing;
+    final repo = await GetIt.instance.getAsync<SeerrRepository>();
+    final created = SeerrMediaDetailViewModel(
+      repo,
+      GetIt.instance<SeerrPreferences>(),
+    );
+    // Disposal races the await above, so hand back a child nobody listens to
+    // rather than wiring one into a dead view model.
+    if (_isDisposed) return created;
+    created.addListener(_onSeerrChanged);
+    _seerr = created;
+    return created;
+  }
+
+  // The open page keeps refreshing a request, so a title that lands in the
+  // library while it's showing swaps the page out the same way it would on
+  // load.
+  void _onSeerrChanged() {
+    final seerr = _seerr;
+    if (_isSeerrOnly && _seerrResolvedLibraryId == null && seerr != null) {
+      _seerrResolvedLibraryId = _libraryIdFromSeerr(seerr.state);
+    }
+    notifyListeners();
+  }
+
+  // Seerr hands back the media server's own id for a title it knows is there.
+  static String? _libraryIdFromSeerr(SeerrMediaDetailState state) {
+    final id =
+        state.mediaInfo?.jellyfinMediaId ?? state.mediaInfo?.jellyfinMediaId4k;
+    return id == null || id.isEmpty ? null : id;
+  }
+
+  ItemDetailViewModel({
+    required this.itemId,
+    String? serverId,
+    this.contextSeasonId,
+    required MediaServerClient client,
+    required ItemMutationRepository mutations,
+    required MdbListRepository mdbListRepository,
+    required TmdbRepository tmdbRepository,
+  }) : _serverId = serverId,
+       _client = client,
+       _mutations = mutations,
+       _mdbListRepository = mdbListRepository,
+       _tmdbRepository = tmdbRepository {
+    userDataSync.addListener(_onUserDataChanged);
+  }
+
+  /// Whether anything this page shows has been watched, favourited or rated
+  /// since it was loaded. [syncUserDataIfStale] clears it, which is what
+  /// catches the series' own state after an episode of it was played.
+  bool _userDataStale = false;
+  bool _syncingUserData = false;
+
+  void _onUserDataChanged() {
+    if (_isDisposed) return;
+    var changed = false;
+
+    final item = userDataSync.applyOrNull(_item);
+    if (!identical(item, _item)) {
+      _item = item;
+      changed = true;
+    }
+    final nextUp = userDataSync.applyOrNull(_nextUp);
+    if (!identical(nextUp, _nextUp)) {
+      _nextUp = nextUp;
+      changed = true;
+    }
+
+    List<AggregatedItem> patch(List<AggregatedItem> list) {
+      final patched = userDataSync.applyAll(list);
+      if (!identical(patched, list)) changed = true;
+      return patched;
+    }
+
+    _episodes = patch(_episodes);
+    _seriesEpisodes = patch(_seriesEpisodes);
+    _seasons = patch(_seasons);
+    _similar = patch(_similar);
+    _filmography = patch(_filmography);
+    _albums = patch(_albums);
+    _tracks = patch(_tracks);
+    _collectionItems = patch(_collectionItems);
+    _playlistItems = patch(_playlistItems);
+    _features = patch(_features);
+    final collections = [..._parentCollections];
+    var collectionsChanged = false;
+    for (var i = 0; i < collections.length; i++) {
+      final items = patch(collections[i].items);
+      if (identical(items, collections[i].items)) continue;
+      collections[i] = collections[i].withItems(items);
+      collectionsChanged = true;
+    }
+    if (collectionsChanged) _parentCollections = collections;
+
+    if (changed) notifyListeners();
+    if (!_syncingUserData) _userDataStale = true;
+  }
+
+  /// Does nothing until a change has actually been recorded, so coming back to
+  /// the page normally costs no request.
+  Future<void> syncUserDataIfStale() async {
+    if (_isDisposed || _syncingUserData || !_userDataStale) return;
+    final ids = <String>{
+      itemId,
+      if (_nextUp != null) _nextUp!.id,
+      for (final list in [
+        _episodes,
+        _seriesEpisodes,
+        _seasons,
+        _similar,
+        _filmography,
+        _albums,
+        _tracks,
+        _collectionItems,
+        _playlistItems,
+        _features,
+      ])
+        for (final item in list) item.id,
+      for (final collection in _parentCollections)
+        for (final item in collection.items) item.id,
+    };
+    _syncingUserData = true;
+    try {
+      await userDataSync.refreshFromServer(_client, ids);
+    } finally {
+      _syncingUserData = false;
+      _userDataStale = false;
+    }
+  }
+
+  /// Builds the screen for a title that is not in the library at all, out of
+  /// what Seerr knows about it. The shape is the same, so the layouts, the
+  /// button row and the Seerr tab all work unchanged.
+  Future<void> _loadSeerrOnly(TmdbItemRef ref) async {
+    _isSeerrOnly = true;
+    final vm = await _ensureSeerr();
+    await vm.load(ref.id, ref.seerrMediaType, title: _seerrOnlyTitle);
+
+    final state = vm.state;
+    if (state.error != null || state.tmdbId == 0) {
+      _error = state.error ?? 'Media not found on Seerr';
+      _state = ItemDetailState.error;
+      notifyListeners();
+      return;
+    }
+
+    // Nothing else is set for a title already in the library, so the screen
+    // stays on its loading state until it has swapped itself out.
+    final libraryId = _libraryIdFromSeerr(state);
+    if (libraryId != null) {
+      _seerrResolvedLibraryId = libraryId;
+      notifyListeners();
+      return;
+    }
+
+    _item = AggregatedItem(
+      id: itemId,
+      // The convention the Seerr rows already use, which the detail screens
+      // read to decide where a tap should land.
+      serverId: 'seerr',
+      rawData: _seerrRawData(state),
+    );
+    // Seerr owns the seasons here, so nothing goes looking for them on a server
+    // that has never heard of this title.
+    _seasons = _seerrSeasons(state);
+    _seasonsLoaded = true;
+    _state = ItemDetailState.ready;
+    notifyListeners();
+
+    // Everything else in _loadSecondary needs a library id, but ratings are
+    // keyed by TMDB id, which this does have.
+    unawaited(_loadRatings());
+    if (state.isTv) {
+      unawaited(_loadUpcomingEpisode());
+    }
+  }
+
+  Map<String, dynamic> _seerrRawData(SeerrMediaDetailState s) {
+    final date = s.releaseDate ?? s.firstAirDate;
+    final year = date != null && date.length >= 4
+        ? int.tryParse(date.substring(0, 4))
+        : null;
+    final runtimeMinutes = s.runtime;
+    return {
+      'Name': s.displayTitle,
+      'Overview': s.overview,
+      'Type': s.isTv ? 'Series' : 'Movie',
+      'ProviderIds': {
+        'Tmdb': '${s.tmdbId}',
+        if (s.externalIds?.imdbId != null) 'Imdb': s.externalIds!.imdbId,
+      },
+      'PosterPath': s.posterPath,
+      'BackdropPath': s.backdropPath,
+      if (year != null) 'ProductionYear': year,
+      'PremiereDate': s.releaseDate ?? s.firstAirDate,
+      'CommunityRating': s.voteAverage,
+      'Genres': [for (final g in s.genres) g.name],
+      'Studios': [for (final n in s.networks) {'Name': n.name}],
+      'Taglines': [?s.tagline],
+      'People': [
+        for (final c in s.credits?.cast ?? const [])
+          {
+            'Id': '${c.id}',
+            'Name': c.name,
+            'Role': c.character,
+            'Type': 'Actor',
+            'ProfilePath': c.profilePath,
+          },
+      ],
+      if (runtimeMinutes != null && runtimeMinutes > 0)
+        'RunTimeTicks': runtimeMinutes * 600000000,
+      'Status': s.tvStatus,
+      'ChildCount': s.numberOfSeasons,
+      'SeerrMediaType': s.isTv ? 'tv' : 'movie',
+      'SeerrStatus': s.mediaInfo?.status,
+      'UserData': const {'Played': false, 'IsFavorite': false},
+      'MediaSources': const [],
+      'MediaStreams': const [],
+      'CanDelete': false,
+    };
+  }
+
+  List<AggregatedItem> _seerrSeasons(SeerrMediaDetailState s) => [
+        for (final season in s.tv?.seasons ?? const [])
+          if (season.seasonNumber > 0)
+            AggregatedItem(
+              id: '$itemId:s${season.seasonNumber}',
+              serverId: 'seerr',
+              rawData: {
+                'Name': season.name ?? '',
+                'Type': 'Season',
+                'IndexNumber': season.seasonNumber,
+                'ChildCount': season.episodeCount,
+              },
+            ),
+      ];
+
+  Future<void> load({String? mediaSourceId}) async {
+    _similarInitialLoadComplete = false;
+    _state = ItemDetailState.loading;
+    _collectionItems = const [];
+    _missingCollectionItems = const [];
+    _parentCollections = const [];
+    _flattenedIds = null;
+    _customOrderIds = null;
+    _playlistIndexEntries = null;
+    _collectionFetchedCount = 0;
+    _collectionTotalCount = 0;
+    _collectionHasMore = false;
+    _collectionLoadingMore = false;
+    _playlistIndexBuilding = false;
+    _playlistFetchedCount = 0;
+    _playlistHasMore = false;
+    _playlistLoadingMore = false;
+    _playlistItems = const [];
+    notifyListeners();
+
+    try {
+      final tmdbRef = TmdbItemRef.tryParse(itemId);
+      if (tmdbRef != null && tmdbRef.kind != TmdbItemKind.person) {
+        await _loadSeerrOnly(tmdbRef);
+        return;
+      }
+      if (tmdbRef != null) {
+        final tmdbId = tmdbRef.id;
+        final seerrRepo = await GetIt.instance.getAsync<SeerrRepository>();
+        await seerrRepo.ensureInitialized();
+        final tmdbIdInt = int.tryParse(tmdbId);
+        if (tmdbIdInt == null) throw Exception('Invalid TMDB ID');
+        final seerrPerson = await seerrRepo.getPersonDetails(tmdbIdInt);
+
+        final rawData = {
+          'Name': seerrPerson.name,
+          'Overview': seerrPerson.biography,
+          'ProviderIds': {'Tmdb': tmdbId},
+          'Type': 'Person',
+          'PrimaryImageTag': seerrPerson.profilePath,
+          'ProfilePath': seerrPerson.profilePath,
+          'PremiereDate': seerrPerson.birthday,
+          'EndDate': seerrPerson.deathday,
+        };
+
+        _item = AggregatedItem(
+          id: itemId,
+          serverId: _serverId ?? _client.baseUrl,
+          rawData: rawData,
+        );
+
+        try {
+          final localPeople = await _client.itemsApi.getPersons(
+            searchTerm: seerrPerson.name,
+            limit: 20,
+            fields: 'ProviderIds',
+          );
+          final itemsList = (localPeople['Items'] as List? ?? [])
+              .map((e) => e is Map ? Map<String, dynamic>.from(e) : null)
+              .whereType<Map<String, dynamic>>()
+              .toList();
+          for (final localItem in itemsList) {
+            final localPIds = localItem['ProviderIds'] as Map?;
+            if (localPIds?['Tmdb']?.toString() == tmdbId) {
+              _localPersonId = localItem['Id']?.toString();
+              break;
+            }
+          }
+        } catch (_) {}
+
+        if (_localPersonId != null) {
+          try {
+            final localData = await _client.itemsApi.getItem(_localPersonId!);
+            final mergedData = Map<String, dynamic>.from(localData);
+            if (mergedData['Overview'] == null ||
+                (mergedData['Overview'] as String).isEmpty) {
+              mergedData['Overview'] = seerrPerson.biography;
+            }
+            mergedData['ProfilePath'] = seerrPerson.profilePath;
+            _item = AggregatedItem(
+              id: _localPersonId!,
+              serverId: _serverId ?? _client.baseUrl,
+              rawData: mergedData,
+            );
+          } catch (_) {}
+        }
+      } else {
+        final data = await _client.itemsApi.getItem(itemId, mediaSourceId: mediaSourceId);
+        final candidate = AggregatedItem(
+          id: itemId,
+          serverId: _serverId ?? _client.baseUrl,
+          rawData: data,
+        );
+        // Checked before the item is published and before the secondary loads
+        // fan out, so nothing downstream can read the title and nothing goes
+        // off fetching episodes for a page that will never be shown. No gate
+        // registered means a boot ordering this knows nothing about, and
+        // refusing the screen outright would be worse than the gap.
+        final gate = GetIt.instance.isRegistered<BlockedContentGate>()
+            ? GetIt.instance<BlockedContentGate>()
+            : null;
+        if (gate != null && await gate.isBlocked(candidate)) {
+          _item = null;
+          _state = ItemDetailState.blocked;
+          notifyListeners();
+          return;
+        }
+        gate?.observe(candidate);
+        _item = candidate;
+      }
+      _lyrics = LyricsData.empty;
+      final prefs = GetIt.instance<UserPreferences>();
+      final savedSubIndex = prefs.getItemSubtitleStreamIndex(itemId);
+      _selectedSubtitleIndex = savedSubIndex == -2 ? null : savedSubIndex;
+      final savedAudioIndex = prefs.getItemAudioStreamIndex(itemId);
+      _selectedAudioIndex = savedAudioIndex == -2 ? null : savedAudioIndex;
+      _state = ItemDetailState.ready;
+      notifyListeners();
+
+      _loadSecondary();
+    } catch (e) {
+      _error = e;
+      _state = ItemDetailState.error;
+      notifyListeners();
+    }
+  }
+
+  Future<void> _loadSecondary() async {
+    final type = _item?.type;
+    final futures = <Future>[];
+    // Deliberately outside the Future.wait below, so a slow Seerr server never
+    // holds up library content that is already here.
+    unawaited(_loadSeerrOverlay());
+    if (type == 'Person') {
+      futures.add(_loadFilmography());
+    } else if (type == 'Series') {
+      futures.add(_loadRatings());
+      futures.add(_loadSeasons());
+      futures.add(_loadNextUp());
+      futures.add(_loadSimilar());
+      futures.add(_loadFeatures());
+      futures.add(_loadParentCollection());
+      unawaited(_loadUpcomingEpisode());
+    } else if (type == 'Season') {
+      futures.add(_loadRatings());
+      futures.add(_loadEpisodes());
+      futures.add(_loadFeatures());
+    } else if (type == 'Episode') {
+      futures.add(_loadRatings());
+      futures.add(_loadEpisodes());
+      futures.add(_loadSimilar());
+      futures.add(_loadFeatures());
+    } else if (type == 'MusicArtist') {
+      futures.add(_loadAlbums());
+      futures.add(_loadTracks(artistId: itemId));
+      futures.add(_loadSimilar());
+    } else if (type == 'MusicAlbum' || type == 'Playlist') {
+      futures.add(_loadTracks());
+    } else if (type == 'AudioBook') {
+      futures.add(_loadRatings());
+      futures.add(_loadSimilar());
+    } else if (type == 'Audio') {
+      futures.add(_loadLyrics());
+    } else if (type == 'BoxSet') {
+      futures.add(_loadCollectionItems());
+      // Deliberately not awaited, so a slow Seerr server never holds the
+      // collection's own members back.
+      unawaited(_loadBoxSetSeerrItems());
+      futures.add(_buildPlaylistIndex());  // playlist — Phase 1, runs concurrently
+    } else if (type == 'MusicVideo' ||
+        type == 'Movie' ||
+        type == 'Trailer' ||
+        type == 'Video') {
+      futures.add(_loadRatings());
+      futures.add(_loadSimilar());
+      futures.add(_loadFeatures());
+      if (type != 'MusicVideo') {
+        futures.add(_loadParentCollection());
+      }
+    } else {
+      futures.add(_loadRatings());
+      futures.add(_loadSimilar());
+    }
+    await Future.wait(futures);
+  }
+
+  Future<void> _loadSeasons() async {
+    try {
+      final data = await _client.itemsApi.getSeasons(
+        itemId,
+        fields: 'ChildCount,UserData',
+      );
+      final items = (data['Items'] as List?) ?? [];
+      _seasons = _mapItems(items, fallbackRating: _item?.officialRating);
+    } catch (_) {
+    } finally {
+      _seasonsLoaded = true;
+      notifyListeners();
+    }
+  }
+
+  Future<void> _loadEpisodes() async {
+    final item = _item;
+    if (item == null) return;
+    final seriesId = item.seriesId ?? itemId;
+    final ownSeasonId = item.type == 'Season' ? itemId : item.seasonId;
+    final requestedSeasonId = item.type == 'Season'
+        ? itemId
+        : (contextSeasonId ?? item.seasonId);
+    try {
+      Future<List<AggregatedItem>> episodesOf(String? seasonId) async {
+        final data = await _client.itemsApi.getEpisodes(
+          seriesId,
+          seasonId: seasonId,
+          fields: _episodeOverviewFields,
+        );
+        return _mapItems(
+          (data['Items'] as List?) ?? [],
+          fallbackRating: _item?.officialRating,
+        );
+      }
+
+      var seasonId = requestedSeasonId;
+      var episodes = await episodesOf(seasonId);
+
+      // The browsed season only holds this item while the server inlines
+      // specials. A stale link, or an offline catalogue that files specials
+      // strictly under season 0, leaves it out — fall back to its own season
+      // rather than stranding the page on a list it does not appear in.
+      // Without a season to fall back to there is nothing better to ask for:
+      // a null season id would fetch every episode of the series.
+      if (ownSeasonId != null &&
+          seasonId != ownSeasonId &&
+          !episodes.any((e) => e.id == itemId)) {
+        seasonId = ownSeasonId;
+        episodes = await episodesOf(ownSeasonId);
+      }
+
+      _resolvedEpisodesSeasonId = seasonId;
+      _episodes = episodes;
+    } catch (_) {
+    } finally {
+      _episodesLoaded = true;
+      notifyListeners();
+    }
+  }
+
+  /// Loads every episode of the current Series (all seasons) on demand. Used by
+  /// the Modern and Nouveau detail layout's Episodes tab, accurate season counts,
+  /// and the Spotlight More Episodes modal. No-op once already loaded.
+  Future<void> loadAllSeriesEpisodes() async {
+    final item = _item;
+    if (item == null) return;
+    final seriesId = item.type == 'Series' ? itemId : item.seriesId;
+    if (seriesId == null || seriesId.isEmpty) return;
+    if (_seriesEpisodesRequested) return;
+    _seriesEpisodesRequested = true;
+    try {
+      final data = await _client.itemsApi.getEpisodes(
+        seriesId,
+        fields: _episodeOverviewFields,
+      );
+      final items = (data['Items'] as List?) ?? [];
+      _seriesEpisodes = _mapItems(
+        items,
+        fallbackRating: _item?.officialRating,
+      );
+      _seriesEpisodesLoaded = true;
+      notifyListeners();
+    } catch (_) {
+      // Left unloaded and silent on purpose. The Modern layout calls this from
+      // build, so the next rebuild gets another go, and notifying here would
+      // turn that into a loop against a server that is down.
+      _seriesEpisodesRequested = false;
+    }
+  }
+
+  Future<void> refreshSeriesEpisodes() {
+    _seriesEpisodesRequested = false;
+    _seriesEpisodesLoaded = false;
+    return loadAllSeriesEpisodes();
+  }
+
+  Future<void> _loadNextUp() async {
+    final previousId = _nextUp?.id;
+    AggregatedItem? nextUp;
+    try {
+      final data = await _client.itemsApi.getNextUp(
+        seriesId: itemId,
+        limit: 1,
+        fields: _episodeOverviewFields,
+      );
+      final items = (data['Items'] as List?) ?? [];
+      if (items.isNotEmpty) {
+        final raw = items.first as Map<String, dynamic>;
+        final candidate = AggregatedItem(
+          id: raw['Id']?.toString() ?? '',
+          serverId: _serverId ?? _client.baseUrl,
+          rawData: raw,
+        );
+        if (isEligibleNextEpisodeCandidate(candidate)) {
+          nextUp = candidate;
+        }
+      }
+    } catch (_) {}
+
+    _nextUp = nextUp;
+    if (previousId != _nextUp?.id) {
+      notifyListeners();
+    }
+  }
+
+  /// [fallbackRating] is the rating to judge an item by when it carries none of
+  /// its own, which is the normal case for an episode under a rated series.
+  /// Without it, blocking a rating hides the series everywhere and leaves its
+  /// episodes listed and playable underneath.
+  List<AggregatedItem> _mapItems(List items, {String? fallbackRating}) {
+    final mapped = items
+        .cast<Map<String, dynamic>>()
+        .map(
+          (raw) => AggregatedItem(
+            id: raw['Id']?.toString() ?? '',
+            serverId: _serverId ?? _client.baseUrl,
+            rawData: raw,
+          ),
+        )
+        .toList();
+    return withoutBlockedItems(mapped, fallbackRating: fallbackRating);
+  }
+
+  Future<void> _loadAlbums() async {
+    try {
+      final data = await _client.itemsApi.getItems(
+        artistIds: [itemId],
+        includeItemTypes: ['MusicAlbum'],
+        sortBy: 'ProductionYear,SortName',
+        sortOrder: 'Descending',
+        recursive: true,
+        fields: 'PrimaryImageAspectRatio,BasicSyncInfo',
+      );
+      final items = (data['Items'] as List?) ?? [];
+      _albums = _mapItems(items);
+      notifyListeners();
+    } catch (_) {}
+  }
+
+  Future<void> _loadTracks({String? artistId}) async {
+    try {
+      final data = _item?.type == 'Playlist'
+          ? await _client.itemsApi.getPlaylistItems(itemId)
+          : artistId != null
+          ? await _client.itemsApi.getItems(
+              artistIds: [artistId],
+              includeItemTypes: ['Audio'],
+              sortBy: 'Album,ParentIndexNumber,IndexNumber,SortName',
+              recursive: true,
+              fields: 'PrimaryImageAspectRatio,BasicSyncInfo',
+            )
+          : await _client.itemsApi.getItems(
+              parentId: itemId,
+              includeItemTypes: ['Audio'],
+              sortBy: 'ParentIndexNumber,IndexNumber,SortName',
+              fields: 'PrimaryImageAspectRatio,BasicSyncInfo',
+            );
+      final items = (data['Items'] as List?) ?? [];
+      _tracks = _mapItems(items);
+      notifyListeners();
+    } catch (_) {}
+  }
+
+  Future<void> _loadLyrics() async {
+    try {
+      final data = await _client.itemsApi.getLyrics(itemId);
+      _lyrics = LyricsData.fromJson(data);
+      notifyListeners();
+    } catch (_) {
+      _lyrics = LyricsData.empty;
+      notifyListeners();
+    }
+  }
+
+  String? _playlistEntryId(AggregatedItem track) =>
+      track.rawData['PlaylistItemId']?.toString();
+
+  Future<void> removeTrackFromPlaylist(AggregatedItem track) async {
+    if (_item?.type != 'Playlist') return;
+    final entryId = _playlistEntryId(track);
+    if (entryId == null) return;
+
+    final previousTracks = List<AggregatedItem>.from(_tracks);
+    _tracks = _tracks.where((t) {
+      final sameId = t.id == track.id;
+      final sameEntry = _playlistEntryId(t) == entryId;
+      return !(sameId && sameEntry);
+    }).toList();
+    notifyListeners();
+
+    try {
+      await _client.itemsApi.removeFromPlaylist(itemId, [entryId]);
+      await _loadTracks();
+      await _reload();
+    } catch (_) {
+      _tracks = previousTracks;
+      notifyListeners();
+    }
+  }
+
+  Future<void> reorderPlaylistTrack(int oldIndex, int newIndex) async {
+    if (_item?.type != 'Playlist') return;
+    if (oldIndex < 0 || oldIndex >= _tracks.length) {
+      return;
+    }
+    final targetIndex = newIndex;
+    if (targetIndex < 0 || targetIndex >= _tracks.length) {
+      return;
+    }
+
+    final moved = _tracks[oldIndex];
+    final entryId = _playlistEntryId(moved);
+    if (entryId == null) return;
+
+    final previousTracks = List<AggregatedItem>.from(_tracks);
+    final reordered = List<AggregatedItem>.from(_tracks);
+    final item = reordered.removeAt(oldIndex);
+    reordered.insert(targetIndex, item);
+    _tracks = reordered;
+    notifyListeners();
+
+    try {
+      await _client.itemsApi.movePlaylistItem(itemId, entryId, targetIndex);
+      await _loadTracks();
+    } catch (_) {
+      _tracks = previousTracks;
+      notifyListeners();
+    }
+  }
+
+  Future<void> renamePlaylist(String name) async {
+    final item = _item;
+    if (item == null || item.type != 'Playlist') return;
+    final trimmed = name.trim();
+    if (trimmed.isEmpty || trimmed == item.name) return;
+
+    final previous = item.name;
+    final patched = Map<String, dynamic>.from(item.rawData)..['Name'] = trimmed;
+    _item = AggregatedItem(
+      id: item.id,
+      serverId: item.serverId,
+      rawData: patched,
+    );
+    notifyListeners();
+
+    try {
+      await _client.itemsApi.renamePlaylist(itemId, trimmed);
+      await _reload();
+    } catch (_) {
+      final reverted = Map<String, dynamic>.from(item.rawData)
+        ..['Name'] = previous;
+      _item = AggregatedItem(
+        id: item.id,
+        serverId: item.serverId,
+        rawData: reverted,
+      );
+      notifyListeners();
+    }
+  }
+
+  /// Returns `null` when the item was deleted, otherwise why it failed.
+  Future<DeleteItemFailure?> deleteItem() async {
+    try {
+      await _client.itemsApi.deleteItem(itemId);
+      return null;
+    } catch (e) {
+      if (e is DioException) {
+        // The body can be an HTML error page or JSON holding server paths, so
+        // it gets logged instead of shown.
+        debugPrint('[ItemDetailViewModel] Delete failed: ${e.response?.data}');
+        return DeleteItemFailure(
+          statusCode: e.response?.statusCode,
+          detail: e.response?.statusMessage ?? e.message,
+        );
+      }
+      debugPrint('[ItemDetailViewModel] Delete failed: $e');
+      return const DeleteItemFailure();
+    }
+  }
+
+  /// Reorders the whole index and starts the list again from the top.
+  ///
+  /// Only a slice of the collection is loaded, so re-sorting what is on screen
+  /// would leave it holding one ordering while later pages arrive in another.
+  Future<void> setCollectionSort(CollectionSortOption option) async {
+    if (_collectionSort == option) return;
+    _collectionSort = option;
+    // A saved order arrives ready to use, so the scan is only worth paying for
+    // when the sort actually needs the keys.
+    if (option != CollectionSortOption.custom) {
+      await _ensurePlaylistIndexEntries();
+    }
+    _rebuildFlattenedIds();
+    _resetPlaylistPaging();
+    notifyListeners();
+    await loadMorePlaylistItems();
+  }
+
+  /// Points [_flattenedIds] at the active sort. Every option lands here, so the
+  /// index and the pages fetched from it can never describe different orders.
+  void _rebuildFlattenedIds() {
+    if (_collectionSort == CollectionSortOption.custom) {
+      final custom = _customOrderIds;
+      // Copied, so a later drag can't edit the saved order underneath itself.
+      if (custom != null) _flattenedIds = List<String>.from(custom);
+      return;
+    }
+    final entries = _playlistIndexEntries;
+    if (entries == null || entries.isEmpty) return;
+    switch (_collectionSort) {
+      case CollectionSortOption.alphabetical:
+        entries.sort(
+          (a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()),
+        );
+      case CollectionSortOption.releaseAscending:
+        entries.sort(_PlaylistItemIndexEntry.compareReleaseAscending);
+      case CollectionSortOption.releaseDescending:
+        entries.sort(
+          (a, b) => _PlaylistItemIndexEntry.compareReleaseAscending(b, a),
+        );
+      case CollectionSortOption.custom:
+        return;
+    }
+    _flattenedIds = entries.map((e) => e.id).toList();
+  }
+
+  /// Drops the loaded pages so the next fetch starts at the head of the index.
+  void _resetPlaylistPaging() {
+    _playlistItems = const [];
+    _playlistFetchedCount = 0;
+    _playlistHasMore = _flattenedIds?.isNotEmpty ?? false;
+  }
+
+  Future<void> reorderCollectionPlaylistItem(int oldIndex, int newIndex) async {
+    if (oldIndex < 0 || oldIndex >= _playlistItems.length) return;
+    if (newIndex < 0 || newIndex >= _playlistItems.length) return;
+
+    final reordered = List<AggregatedItem>.from(_playlistItems);
+    final item = reordered.removeAt(oldIndex);
+    reordered.insert(newIndex, item);
+    _playlistItems = reordered;
+    _collectionSort = CollectionSortOption.custom;
+
+    // The loaded items take the head of the index in their new order and the
+    // rest keep theirs. Matching on id rather than position holds up even when
+    // a page came back short because the server had dropped one of them.
+    final ids = _flattenedIds;
+    if (ids != null) {
+      final loadedIds = reordered.map((i) => i.id).toList();
+      final loaded = loadedIds.toSet();
+      final merged = [...loadedIds, ...ids.where((id) => !loaded.contains(id))];
+      _flattenedIds = merged;
+      _customOrderIds = List<String>.from(merged);
+    }
+
+    notifyListeners();
+
+    try {
+      final syncService = GetIt.instance<PluginSyncService>();
+      final order = _customOrderIds;
+      if (syncService.pluginAvailable && order != null) {
+        // The whole order goes up, otherwise the server forgets where the items
+        // that haven't been paged in yet belong.
+        await syncService.saveCustomCollectionOrder(_client, itemId, order);
+      }
+    } catch (_) {}
+  }
+
+  /// Pulls one item out of this collection and rebuilds every list that
+  /// carries it, so the grid, the playlist tab and the saved order all stop
+  /// showing it without a page reload.
+  ///
+  /// The lists are edited locally first so the card disappears on the tap
+  /// that confirmed it, then the server call runs. A failure restores the
+  /// prior lists and rethrows, so the caller can say it didn't take.
+  Future<void> removeFromCollection(AggregatedItem item) async {
+    if (_item?.type != 'BoxSet') return;
+
+    final previousCollectionItems = _collectionItems;
+    final previousPlaylistItems = _playlistItems;
+    final previousFlattenedIds = _flattenedIds;
+    final previousCustomOrderIds = _customOrderIds;
+    final previousIndexEntries = _playlistIndexEntries;
+    final previousFetchedCount = _playlistFetchedCount;
+    final previousCollectionFetched = _collectionFetchedCount;
+    final previousCollectionTotal = _collectionTotalCount;
+    final previousPlaylistHasMore = _playlistHasMore;
+
+    // Where the item sits right now decides which read cursors move below, so
+    // both positions are taken before the splices erase them.
+    final wasInLoadedGridPage = _collectionItems.any(
+      (entry) => entry.id == item.id,
+    );
+    final flattenedIndex = _flattenedIds?.indexOf(item.id) ?? -1;
+    final wasInLoadedPlaylistPage =
+        flattenedIndex >= 0 && flattenedIndex < _playlistFetchedCount;
+
+    _collectionItems = _collectionItems
+        .where((entry) => entry.id != item.id)
+        .toList();
+    _playlistItems = _playlistItems
+        .where((entry) => entry.id != item.id)
+        .toList();
+    final flattened = _flattenedIds;
+    if (flattened != null) {
+      _flattenedIds = flattened.where((id) => id != item.id).toList();
+    }
+    // The drag order is user data, so it drops the id too and the save
+    // below pushes the shorter list. Leaving it in would put the title
+    // back on the next open.
+    _customOrderIds = _customOrderIds?.where((id) => id != item.id).toList();
+    final entries = _playlistIndexEntries;
+    if (entries != null) {
+      _playlistIndexEntries = entries
+          .where((entry) => entry.id != item.id)
+          .toList();
+    }
+    // Both lists count how far into the collection they have read, and they
+    // page independently in orders of their own. A cursor only steps back when
+    // the hole opened behind it: stepping one that sits ahead of the hole would
+    // re-read an id the list already shows and repeat a card on the next page.
+    if (wasInLoadedPlaylistPage) _playlistFetchedCount -= 1;
+    if (wasInLoadedGridPage && _collectionFetchedCount > 0) {
+      _collectionFetchedCount -= 1;
+    }
+    // The membership shrank for every list, wherever the card was showing.
+    if (_collectionTotalCount > 0) _collectionTotalCount -= 1;
+    final remainingIds = _flattenedIds;
+    if (remainingIds != null) {
+      // The paged read returns at its guard once the cursor reaches the end,
+      // so it never clears this itself.
+      _playlistHasMore = _playlistFetchedCount < remainingIds.length;
+    }
+    notifyListeners();
+
+    try {
+      await _client.itemsApi.removeFromCollection(itemId, [item.id]);
+      final syncService = GetIt.instance<PluginSyncService>();
+      final order = _customOrderIds;
+      if (syncService.pluginAvailable && order != null) {
+        await syncService.saveCustomCollectionOrder(_client, itemId, order);
+      }
+    } catch (_) {
+      _collectionItems = previousCollectionItems;
+      _playlistItems = previousPlaylistItems;
+      _flattenedIds = previousFlattenedIds;
+      _customOrderIds = previousCustomOrderIds;
+      _playlistIndexEntries = previousIndexEntries;
+      _playlistFetchedCount = previousFetchedCount;
+      _collectionFetchedCount = previousCollectionFetched;
+      _collectionTotalCount = previousCollectionTotal;
+      _playlistHasMore = previousPlaylistHasMore;
+      notifyListeners();
+      rethrow;
+    }
+  }
+
+  /// Fetches the first page of grid items.
+  Future<void> _loadCollectionItems() async {
+    try {
+      await _fetchCollectionPage();
+    } catch (_) {}
+  }
+
+  /// Fetches the next page of BoxSet top-level items for the **grid**.
+  ///
+  /// Grid and playlist are now independent.  This method only updates
+  /// [_collectionItems]; playlist content is managed by [_buildPlaylistIndex]
+  /// and [_fetchPlaylistPage].
+  Future<void> _fetchCollectionPage() async {
+    // Deliberately not recursive and not filtered by type. The server returns
+    // exactly the collection's own members this way, episodes included, where
+    // a recursive read either drags in every episode of a member series or,
+    // filtered, drops episode members and leaves the grid blank.
+    final data = await _client.itemsApi.getItems(
+      parentId: itemId,
+      startIndex: _collectionFetchedCount,
+      limit: _collectionPageSize,
+      fields: 'PrimaryImageAspectRatio,BasicSyncInfo,People',
+    );
+    final newItems = _mapItems((data['Items'] as List?) ?? []);
+    final total = data['TotalRecordCount'] as int?;
+    if (total != null) _collectionTotalCount = total;
+    _collectionFetchedCount += newItems.length;
+    // A server that leaves the total out would otherwise strand the grid on its
+    // first page, so a full page is taken to mean there is more behind it.
+    _collectionHasMore = total != null
+        ? _collectionFetchedCount < _collectionTotalCount
+        : newItems.length == _collectionPageSize;
+    _collectionItems = [..._collectionItems, ...newItems];
+    notifyListeners();
+  }
+
+  bool get _showMissingCollectionItems =>
+      GetIt.instance<UserPreferences>().get(
+        UserPreferences.seerrShowMissingCollectionItems,
+      ) &&
+      GetIt.instance<PluginSyncService>().seerrAvailable;
+
+  /// Fills [missingCollectionItems] with the titles TMDB files under this box
+  /// set's collection that the library lacks. The grid is paged, so the diff
+  /// runs against the whole membership. Every title past the first page would
+  /// otherwise come back as missing.
+  Future<void> _loadBoxSetSeerrItems() async {
+    final item = _item;
+    if (item == null || item.type != 'BoxSet') return;
+    if (!_showMissingCollectionItems) return;
+    try {
+      final repo = await GetIt.instance.getAsync<SeerrRepository>();
+      await repo.ensureInitialized();
+      final data = await _client.itemsApi.getItems(
+        parentId: itemId,
+        fields: 'ProviderIds',
+      );
+      final members = _mapItems((data['Items'] as List?) ?? []);
+      final collectionId = await _resolveSeerrCollectionId(
+        repo,
+        boxSetTmdbId: item.tmdbId,
+        members: members,
+      );
+      if (collectionId == null) return;
+      final missing = await _fetchMissingCollectionItems(
+        repo,
+        collectionId,
+        members,
+      );
+      if (_isDisposed || _item?.id != item.id) return;
+      _missingCollectionItems = missing;
+      notifyListeners();
+    } catch (_) {}
+  }
+
+  /// Seerr's missing-title pass for the parent collections, run after they
+  /// are on screen so a slow Seerr server never holds the library rows back.
+  /// [load] is the publication this pass belongs to, and a reload in the
+  /// meantime makes the result stale, so it's dropped.
+  Future<void> _loadMissingParentCollectionItems(
+    List<ParentCollection> collections,
+    int load,
+  ) async {
+    if (collections.isEmpty || !_showMissingCollectionItems) return;
+    try {
+      final repo = await GetIt.instance.getAsync<SeerrRepository>();
+      await repo.ensureInitialized();
+      for (final collection in collections) {
+        final collectionId = await _resolveSeerrCollectionId(
+          repo,
+          boxSetTmdbId: collection.boxSetItem.tmdbId,
+          members: collection.items,
+        );
+        if (collectionId == null) continue;
+        final missing = await _fetchMissingCollectionItems(
+          repo,
+          collectionId,
+          collection.items,
+        );
+        if (missing.isEmpty) continue;
+        if (_isDisposed || load != _parentCollectionsLoad) return;
+        _parentCollections = [
+          for (final current in _parentCollections)
+            current.id == collection.id
+                ? current.withMissingItems(missing)
+                : current,
+        ];
+        notifyListeners();
+      }
+    } catch (_) {}
+  }
+
+  /// TMDB's collection id for a set of library members: the box set's own
+  /// TMDB id when the server scraped one, else the first movie member TMDB
+  /// files under a collection. Movie and TV ids share no namespace on TMDB,
+  /// so only movies are probed. A series id would resolve to a stranger.
+  Future<int?> _resolveSeerrCollectionId(
+    SeerrRepository repo, {
+    required String? boxSetTmdbId,
+    required List<AggregatedItem> members,
+  }) async {
+    final own = int.tryParse(boxSetTmdbId ?? '');
+    if (own != null && own > 0) return own;
+    // Movies only, because a series id would resolve to an unrelated film.
+    // Capped, because a large hand-made set carries no shared collection and
+    // would otherwise cost one request per member every time it's opened.
+    const maxProbes = 8;
+    final candidates = <int>[
+      for (final member in members)
+        if (member.type == 'Movie')
+          if (int.tryParse(member.tmdbId ?? '') case final id? when id > 0)
+            id,
+    ].take(maxProbes).toList();
+    const maxConcurrent = 4;
+    for (var i = 0; i < candidates.length; i += maxConcurrent) {
+      final batch = candidates.skip(i).take(maxConcurrent);
+      final found = await Future.wait(
+        batch.map((id) async {
+          try {
+            return (await repo.getMovieDetails(id)).collection?.id;
+          } catch (_) {
+            return null;
+          }
+        }),
+      );
+      for (final id in found) {
+        if (id != null) return id;
+      }
+    }
+    return null;
+  }
+
+  /// The collection's parts the library lacks, or nothing when the collection
+  /// doesn't actually describe these members. A hand-made box set of
+  /// unrelated films would otherwise adopt whichever franchise its first
+  /// member happens to belong to.
+  Future<List<AggregatedItem>> _fetchMissingCollectionItems(
+    SeerrRepository repo,
+    int collectionId,
+    List<AggregatedItem> members,
+  ) async {
+    final collection = await repo.getCollectionDetails(collectionId);
+    final memberTmdbIds = <String>{
+      for (final member in members)
+        if (member.tmdbId case final id?) id,
+    };
+    final movieCount = members.where((m) => m.type == 'Movie').length;
+    final overlap = collection.parts
+        .where((part) => memberTmdbIds.contains(part.id.toString()))
+        .length;
+    // One match is enough for a single-film set, two otherwise. Nothing
+    // matching means this collection describes something else entirely.
+    if (overlap == 0) return const [];
+    if (movieCount > 1 && overlap < 2) return const [];
+    return seerrMissingCollectionItems(
+      parts: collection.parts,
+      libraryTmdbIds: memberTmdbIds,
+      blockNsfw: GetIt.instance<SeerrPreferences>().blockNsfw,
+    );
+  }
+
+  /// Puts [_flattenedIds] in place, either from a saved order or by scanning
+  /// the collection, then starts the first page.
+  Future<void> _buildPlaylistIndex() async {
+    _playlistIndexBuilding = true;
+    notifyListeners();
+
+    try {
+      // A saved order already lists movie and episode ids in story order, so it
+      // can stand in for the index and skip enumerating the collection. The
+      // entries only get built if the user later picks a different sort.
+      final syncService = GetIt.instance<PluginSyncService>();
+      if (syncService.pluginAvailable) {
+        try {
+          final customOrder = await syncService.fetchCustomCollectionOrder(
+            _client,
+            itemId,
+          );
+          if (customOrder != null && customOrder.isNotEmpty) {
+            _customOrderIds = customOrder;
+            _flattenedIds = List<String>.from(customOrder);
+            _collectionSort = CollectionSortOption.custom;
+          }
+        } catch (_) {}
+      }
+
+      if (_flattenedIds == null) {
+        await _ensurePlaylistIndexEntries();
+        _collectionSort = CollectionSortOption.releaseAscending;
+        _rebuildFlattenedIds();
+      }
+
+      _resetPlaylistPaging();
+    } catch (_) {}
+
+    _playlistIndexBuilding = false;
+    notifyListeners();
+
+    await loadMorePlaylistItems();
+  }
+
+  /// Walks the collection once to build [_playlistIndexEntries], the id and
+  /// sort key of every playable item in it. Does nothing if they already exist.
+  ///
+  /// Only the keys are kept. The items themselves are read a page at a time by
+  /// [_fetchPlaylistPage], so a collection of any size settles at a few KB.
+  Future<void> _ensurePlaylistIndexEntries() async {
+    if (_playlistIndexEntries != null) return;
+    try {
+      // Deliberately not recursive. The scan reads the collection's own members
+      // and then asks each series for its episodes below, so walking the tree
+      // here would spend the limit on episodes that arrive twice.
+      final allData = await _client.itemsApi.getItems(
+        parentId: itemId,
+        limit: _indexScanLimit,
+        fields: 'BasicSyncInfo',
+      );
+      final allTopLevel = _mapItems((allData['Items'] as List?) ?? []);
+
+      final seriesItems = allTopLevel.where((i) => i.type == 'Series').toList();
+      final flat = allTopLevel
+          .where(
+            (i) =>
+                i.type == 'Movie' ||
+                i.type == 'Audio' ||
+                i.type == 'Video' ||
+                i.type == 'MusicVideo',
+          )
+          .toList();
+
+      // A batch at a time. One request per series all at once would open as
+      // many sockets as the collection has shows.
+      for (var i = 0; i < seriesItems.length; i += _indexScanBatchSize) {
+        final end = i + _indexScanBatchSize;
+        final batch = seriesItems.sublist(
+          i,
+          end < seriesItems.length ? end : seriesItems.length,
+        );
+        final episodeLists = await Future.wait(
+          batch.map((series) async {
+            try {
+              final epData = await _client.itemsApi.getEpisodes(series.id);
+              return _mapItems(
+                (epData['Items'] as List?) ?? [],
+                fallbackRating: _item?.officialRating,
+              );
+            } catch (_) {
+              return const <AggregatedItem>[];
+            }
+          }),
+        );
+        for (final episodes in episodeLists) {
+          flat.addAll(episodes);
+        }
+      }
+
+      _playlistIndexEntries = flat
+          .map(
+            (i) => _PlaylistItemIndexEntry(
+              id: i.id,
+              name: i.name,
+              premiereDate: i.premiereDate,
+              productionYear: i.productionYear,
+            ),
+          )
+          .toList();
+    } catch (_) {}
+  }
+
+  /// Reads the next run of ids into [_playlistItems].
+  ///
+  /// Progress is counted in index positions rather than items returned, so an
+  /// id the server no longer knows about can't stall the list.
+  Future<void> _fetchPlaylistPage() async {
+    final ids = _flattenedIds;
+    if (ids == null || _playlistFetchedCount >= ids.length) return;
+
+    final end = (_playlistFetchedCount + _playlistPageSize).clamp(
+      0,
+      ids.length,
+    );
+    final batch = ids.sublist(_playlistFetchedCount, end);
+
+    final data = await _client.itemsApi.getItems(
+      ids: batch,
+      fields: 'PrimaryImageAspectRatio,BasicSyncInfo,People,Overview',
+    );
+    final items = _mapItems((data['Items'] as List?) ?? []);
+
+    // The by-id endpoint answers in whatever order it likes.
+    final orderMap = {for (var i = 0; i < batch.length; i++) batch[i]: i};
+    items.sort(
+      (a, b) => (orderMap[a.id] ?? batch.length)
+          .compareTo(orderMap[b.id] ?? batch.length),
+    );
+
+    _playlistFetchedCount += batch.length;
+    _playlistHasMore = _playlistFetchedCount < ids.length;
+
+    _playlistItems = [..._playlistItems, ...items];
+
+    _resolveNextUp();
+    notifyListeners();
+  }
+
+  /// Picks the first unwatched item, or the first item once the whole
+  /// collection has been watched.
+  ///
+  /// Only the loaded head is visible here, so a watched head with pages still
+  /// to come is left alone. Wrapping to the start then would point at item one
+  /// while the next unseen one is further down.
+  void _resolveNextUp() {
+    if (_playlistItems.isEmpty) {
+      _nextUp = null;
+      return;
+    }
+    final unwatched = _playlistItems
+        .where((item) => item.rawData['UserData']?['Played'] != true)
+        .firstOrNull;
+    if (unwatched != null) {
+      _nextUp = unwatched;
+    } else if (!_playlistHasMore) {
+      _nextUp = _playlistItems.first;
+    }
+  }
+
+  /// Called by the UI scroll listener to load the next grid page.
+  Future<void> loadMoreCollectionItems() async {
+    if (_collectionLoadingMore || !_collectionHasMore) return;
+    _collectionLoadingMore = true;
+    notifyListeners();
+    try {
+      await _fetchCollectionPage();
+    } catch (_) {}
+    _collectionLoadingMore = false;
+    notifyListeners();
+  }
+
+  /// Called by the UI scroll listener to load the next playlist page.
+  Future<void> loadMorePlaylistItems() async {
+    if (_playlistLoadingMore || !_playlistHasMore || _playlistIndexBuilding) {
+      return;
+    }
+    _playlistLoadingMore = true;
+    notifyListeners();
+    try {
+      await _fetchPlaylistPage();
+    } catch (_) {}
+    _playlistLoadingMore = false;
+    notifyListeners();
+  }
+
+  /// Refreshes the already loaded BoxSet collection cards without resetting
+  /// pagination, scroll position, focus or the detail screen state.
+  ///
+  /// Used after an item mutation (watched/favorite/etc.). Only the items that
+  /// are currently loaded are hydrated again from the server.
+  Future<void> refreshCollectionItems() async {
+    if (_collectionItems.isEmpty) {
+      return;
+    }
+
+    final ids = _collectionItems
+        .map((item) => item.id)
+        .where((id) => id.isNotEmpty)
+        .toList(growable: false);
+
+    if (ids.isEmpty) {
+      return;
+    }
+
+    try {
+      final refreshedById = await _refetchItemsById(ids, _collectionPageSize);
+
+      if (refreshedById.isEmpty) {
+        return;
+      }
+
+      _collectionItems = _collectionItems
+          .map((item) => refreshedById[item.id] ?? item)
+          .toList(growable: false);
+
+      notifyListeners();
+    } catch (_) {}
+  }
+
+  /// Re-reads [ids] a page at a time. One request carrying every loaded id
+  /// builds a query string long enough for the server to reject.
+  Future<Map<String, AggregatedItem>> _refetchItemsById(
+    List<String> ids,
+    int pageSize,
+  ) async {
+    final refreshedById = <String, AggregatedItem>{};
+
+    for (var start = 0; start < ids.length; start += pageSize) {
+      final end = start + pageSize;
+      final data = await _client.itemsApi.getItems(
+        ids: ids.sublist(start, end > ids.length ? ids.length : end),
+        fields: 'PrimaryImageAspectRatio,BasicSyncInfo,People,Overview',
+      );
+
+      for (final item in _mapItems((data['Items'] as List?) ?? const [])) {
+        refreshedById[item.id] = item;
+      }
+    }
+
+    return refreshedById;
+  }
+
+  /// Refreshes the already loaded BoxSet playlist cards without rebuilding the
+  /// playlist index or resetting pagination.
+  ///
+  /// This keeps the active sort, loaded page count, focus and horizontal scroll
+  /// completely intact while updating UserData such as watched/progress state.
+  Future<void> refreshPlaylistItems() async {
+    if (_playlistItems.isEmpty) {
+      return;
+    }
+
+    final ids = _playlistItems
+        .map((item) => item.id)
+        .where((id) => id.isNotEmpty)
+        .toList(growable: false);
+
+    if (ids.isEmpty) {
+      return;
+    }
+
+    try {
+      final refreshedById = await _refetchItemsById(ids, _playlistPageSize);
+
+      if (refreshedById.isEmpty) {
+        return;
+      }
+
+      _playlistItems = _playlistItems
+          .map((item) => refreshedById[item.id] ?? item)
+          .toList(growable: false);
+
+      _resolveNextUp();
+
+      notifyListeners();
+    } catch (_) {}
+  }
+
+  Future<void> _loadParentCollection() async {
+    final item = _item;
+    if (item == null) {
+      _parentCollections = const [];
+      notifyListeners();
+      return;
+    }
+
+    try {
+      final Map<String, ({String name, Map<String, dynamic> rawData})> boxSetInfo = {};
+      final ancestors = await _client.itemsApi.getAncestors(item.id);
+      for (final ancestor in ancestors) {
+        if (ancestor['Type'] == 'BoxSet') {
+          final boxSetId = ancestor['Id']?.toString();
+          final name = ancestor['Name']?.toString();
+          if (boxSetId != null && boxSetId.isNotEmpty && name != null) {
+            final isMember = await _boxSetContainsItem(boxSetId, item.id);
+            if (isMember && !boxSetInfo.containsKey(boxSetId)) {
+              boxSetInfo[boxSetId] = (
+                name: name,
+                rawData: Map<String, dynamic>.from(ancestor),
+              );
+            }
+          }
+        }
+      }
+
+      final scannedCollections = await _findParentCollectionsByScanningBoxSets(item.id);
+      boxSetInfo.addAll(scannedCollections);
+
+      if (boxSetInfo.isEmpty) {
+        _parentCollections = const [];
+        notifyListeners();
+        return;
+      }
+
+      // Keep collections in a stable order so the rows don't shuffle around
+      // between opens.
+      final entries = boxSetInfo.entries.toList();
+      final ordered = List<ParentCollection?>.filled(entries.length, null);
+      final fetchFutures = <Future<void>>[];
+
+      for (var i = 0; i < entries.length; i++) {
+        final index = i;
+        final boxSetId = entries[i].key;
+        final info = entries[i].value;
+
+        fetchFutures.add(() async {
+          // Not recursive and not filtered, same as the collection grid, so a
+          // collection made of episodes still shows its members here.
+          final data = await _client.itemsApi.getItems(
+            parentId: boxSetId,
+            sortBy: 'PremiereDate,SortName',
+            sortOrder: 'Ascending',
+            fields: 'PrimaryImageAspectRatio,BasicSyncInfo,ProviderIds',
+          );
+
+          final items = (data['Items'] as List?) ?? [];
+          ordered[index] = ParentCollection(
+            id: boxSetId,
+            name: info.name,
+            boxSetItem: AggregatedItem(
+              id: boxSetId,
+              serverId: item.serverId,
+              rawData: info.rawData,
+            ),
+            items: _sortCollectionByReleaseOrder(_mapItems(items)),
+          );
+        }());
+      }
+      await Future.wait(fetchFutures);
+
+      final collections = ordered.whereType<ParentCollection>().toList();
+
+      _parentCollections = collections;
+
+      notifyListeners();
+      final load = ++_parentCollectionsLoad;
+      unawaited(_loadMissingParentCollectionItems(collections, load));
+    } catch (_) {}
+  }
+
+  Future<bool> _boxSetContainsItem(String boxSetId, String itemId) async {
+    try {
+      // Membership is a direct-children question. Walking the tree would report
+      // an episode as belonging to whatever collection holds its series, and
+      // hand back every episode in the collection to answer it.
+      final membership = await _client.itemsApi.getItems(
+        parentId: boxSetId,
+        fields: 'BasicSyncInfo',
+      );
+      final members = (membership['Items'] as List?) ?? const [];
+      return members.whereType<Map>().any((entry) {
+        final map = entry.cast<String, dynamic>();
+        return map['Id'] == itemId;
+      });
+    } catch (_) {
+      return false;
+    }
+  }
+
+  Future<Map<String, ({String name, Map<String, dynamic> rawData})>> _findParentCollectionsByScanningBoxSets(String itemId) async {
+    final Map<String, ({String name, Map<String, dynamic> rawData})> result = {};
+    try {
+      const pageSize = 200;
+      var startIndex = 0;
+
+      while (true) {
+        final data = await _client.itemsApi.getItems(
+          includeItemTypes: ['BoxSet'],
+          recursive: true,
+          sortBy: 'SortName',
+          fields: 'BasicSyncInfo,PrimaryImageAspectRatio,ImageTags,ProviderIds',
+          startIndex: startIndex,
+          limit: pageSize,
+          enableTotalRecordCount: true,
+        );
+        final boxSets = (data['Items'] as List?) ?? const [];
+        if (boxSets.isEmpty) {
+          break;
+        }
+
+        final candidates = <({String id, String name, Map<String, dynamic> rawData})>[];
+        for (final raw in boxSets.whereType<Map>()) {
+          final boxSet = raw.cast<String, dynamic>();
+          final boxSetId = boxSet['Id']?.toString();
+          final boxSetName = boxSet['Name']?.toString();
+          if (boxSetId == null || boxSetId.isEmpty || boxSetName == null) {
+            continue;
+          }
+          candidates.add((id: boxSetId, name: boxSetName, rawData: boxSet));
+        }
+
+        // Cap how many membership lookups run at once so a large library
+        // doesn't fire a whole page of requests in one burst.
+        const maxConcurrent = 12;
+        for (var i = 0; i < candidates.length; i += maxConcurrent) {
+          final batch = candidates.skip(i).take(maxConcurrent);
+          await Future.wait(batch.map((candidate) async {
+            final membership = await _client.itemsApi.getItems(
+              parentId: candidate.id,
+              fields: 'BasicSyncInfo',
+            );
+            final members = (membership['Items'] as List?) ?? const [];
+            final hasItem = members.whereType<Map>().any((entry) {
+              final map = entry.cast<String, dynamic>();
+              return map['Id'] == itemId;
+            });
+            if (hasItem) {
+              result[candidate.id] = (
+                name: candidate.name,
+                rawData: candidate.rawData,
+              );
+            }
+          }));
+        }
+
+        if (boxSets.length < pageSize) {
+          break;
+        }
+        startIndex += boxSets.length;
+      }
+    } catch (_) {}
+
+    return result;
+  }
+
+  List<AggregatedItem> _sortCollectionByReleaseOrder(
+    List<AggregatedItem> items,
+  ) {
+    final sorted = List<AggregatedItem>.from(items);
+    sorted.sort((a, b) {
+      final aDate = a.premiereDate;
+      final bDate = b.premiereDate;
+      if (aDate != null && bDate != null) {
+        final byDate = aDate.compareTo(bDate);
+        if (byDate != 0) {
+          return byDate;
+        }
+      } else if (aDate != null) {
+        return -1;
+      } else if (bDate != null) {
+        return 1;
+      }
+
+      final aYear = a.productionYear;
+      final bYear = b.productionYear;
+      if (aYear != null && bYear != null) {
+        final byYear = aYear.compareTo(bYear);
+        if (byYear != 0) {
+          return byYear;
+        }
+      } else if (aYear != null) {
+        return -1;
+      } else if (bYear != null) {
+        return 1;
+      }
+
+      return a.name.toLowerCase().compareTo(b.name.toLowerCase());
+    });
+    return sorted;
+  }
+
+  Future<void> _loadFeatures() async {
+    final parts = _loadAdditionalParts();
+    try {
+      final items = await _client.itemsApi.getSpecialFeatures(itemId);
+      _features = [
+        ...await parts,
+        ..._mapItems(items).where((item) => item.id != itemId),
+      ];
+      notifyListeners();
+    } catch (_) {
+      _features = await parts;
+      notifyListeners();
+    }
+  }
+
+  // A movie split across files, like DVD1 and DVD2, lists the other files as
+  // its parts. They're tagged so the extras rows give them their own heading.
+  Future<List<AggregatedItem>> _loadAdditionalParts() async {
+    if ((_item?.partCount ?? 1) < 2) return const [];
+    try {
+      final parts = await _client.itemsApi.getAdditionalParts(itemId);
+      return _mapItems([
+        for (final part in parts) {...part, '__moonfinAdditionalPart': true},
+      ]);
+    } catch (_) {
+      return const [];
+    }
+  }
+
+  Future<void> _loadFilmography() async {
+    try {
+      final localId = _localPersonId ?? (itemId.startsWith('tmdb:') ? null : itemId);
+      if (localId == null) {
+        _filmography = const [];
+        notifyListeners();
+        return;
+      }
+      final data = await _client.itemsApi.getItems(
+        personIds: [localId],
+        includeItemTypes: ['Movie', 'Series', 'MusicVideo', 'Episode'],
+        sortBy: 'PremiereDate',
+        sortOrder: 'Descending',
+        recursive: true,
+        limit: 100,
+        fields: 'PrimaryImageAspectRatio,BasicSyncInfo,People',
+      );
+      final items = (data['Items'] as List?) ?? [];
+      // The cards don't know whose page they're on, so each title carries
+      // the role for its subtitle and lets go of the rest of the cast.
+      _filmography = [
+        for (final item in _mapItems(items))
+          AggregatedItem(
+            id: item.id,
+            serverId: item.serverId,
+            rawData: {
+              ...item.rawData,
+              '__moonfinPersonRole': item.roleOf(localId),
+            }..remove('People'),
+          ),
+      ];
+      notifyListeners();
+    } catch (_) {}
+  }
+
+  Future<void> _loadSimilar() async {
+    try {
+      final item = _item;
+      if (item != null && (item.type == 'Movie' || item.type == 'Series')) {
+        try {
+          final prefs = GetIt.instance<UserPreferences>();
+          final sourceSetting = prefs.effectiveRecommendationSystemSource;
+
+          if (sourceSetting == RecommendationSystemSource.server) {
+            final data = await _client.itemsApi.getSimilarItems(
+              itemId,
+              limit: _similarLimit,
+              bypass: 'moonfin',
+            );
+            final items = (data['Items'] as List?) ?? [];
+            _similar = _mapItems(items);
+            _similarSource = SimilarSource.jellyfin;
+            return;
+          }
+
+          final isLocal = sourceSetting == RecommendationSystemSource.local;
+
+          // Auto-detect server recommendations via Moonbase if "Moonfin Recommends" is selected
+          // and Moonbase announces recommendationsSupported.
+          if (isLocal && GetIt.instance.isRegistered<PluginSyncService>()) {
+            final pluginSync = GetIt.instance<PluginSyncService>();
+            if (pluginSync.recommendationsSupported) {
+              try {
+                final data = await pluginSync.fetchSimilarItems(
+                  _client,
+                  itemId,
+                  limit: _similarLimit,
+                );
+                final items = (data?['Items'] as List?) ?? [];
+                if (items.isNotEmpty) {
+                  _similar = _mapItems(items);
+                  _similarSource = SimilarSource.moonfin;
+                  return;
+                }
+              } catch (e) {
+                debugPrint('[ItemDetailViewModel] Moonbase server recommendation failed, falling back to local: $e');
+              }
+            }
+          }
+
+          final serverId = _serverId ?? _client.baseUrl;
+          final dataSource = GetIt.instance<RowDataSource>();
+
+          final recommended = await dataSource.getRecommendations(
+            serverId: serverId,
+            baseItem: item,
+            isLocal: isLocal,
+            limit: _similarLimit,
+            includeWatched: true,
+          );
+          // Only short-circuit when we actually have results. An empty list (e.g.
+          // the online source without Seerr configured, or no local matches)
+          // falls through to Jellyfin's similar-items below.
+          if (recommended.isNotEmpty) {
+            _similar = recommended;
+            _similarSource = isLocal ? SimilarSource.moonfin : SimilarSource.tmdb;
+            return;
+          }
+        } catch (e) {
+          debugPrint('[ItemDetailViewModel] Custom recommendation system failed: $e');
+        }
+      }
+
+      try {
+        final data = await _client.itemsApi.getSimilarItems(itemId, limit: _similarLimit);
+        final items = (data['Items'] as List?) ?? [];
+        _similar = _mapItems(items);
+        _similarSource = SimilarSource.jellyfin;
+      } catch (_) {}
+    } finally {
+      _similarInitialLoadComplete = true;
+      notifyListeners();
+    }
+  }
+
+  Future<void> _loadRatings() async {
+    final item = _item;
+    if (item == null) return;
+
+    if (item.type == 'Episode') {
+      if (!GetIt.instance<UserPreferences>().canFetchEpisodeRatings) return;
+
+      final seriesId = item.seriesId;
+      final season = item.parentIndexNumber;
+      final episode = item.indexNumber;
+
+      if (seriesId != null && season != null && episode != null) {
+        try {
+          final seriesData = await _client.itemsApi.getItem(seriesId);
+          final seriesTmdbId = (seriesData['ProviderIds'] as Map?)?['Tmdb']?.toString();
+          if (seriesTmdbId != null && seriesTmdbId.isNotEmpty) {
+            final rating = await _tmdbRepository.getEpisodeRating(
+              tmdbId: seriesTmdbId,
+              season: season,
+              episode: episode,
+            );
+            if (rating != null && rating > 0) {
+              _ratings = {'tmdb_episode': rating};
+              notifyListeners();
+            }
+          }
+        } catch (_) {}
+      }
+      return;
+    }
+
+    if (!GetIt.instance<UserPreferences>()
+        .get(UserPreferences.enableAdditionalRatings)) {
+      return;
+    }
+
+    final tmdbId = item.tmdbId;
+    if (tmdbId == null) return;
+    final mediaType = item.type ?? 'Movie';
+
+    try {
+      final result = await _mdbListRepository.getRatings(
+        tmdbId: tmdbId,
+        mediaType: mediaType,
+      );
+      if (result != null && result.isNotEmpty) {
+        _ratings = result;
+        notifyListeners();
+      }
+    } catch (_) {}
+  }
+
+  Future<void> _loadUpcomingEpisode() async {
+    final item = _item;
+    if (item == null || item.type != 'Series') return;
+    try {
+      if (!GetIt.instance.isRegistered<UpcomingEpisodeService>()) return;
+      final service = GetIt.instance<UpcomingEpisodeService>();
+      final cached = service.getCached(item.id);
+      if (cached != null) {
+        _upcomingEpisode = cached;
+        notifyListeners();
+        return;
+      }
+      final episode = await service.resolveUpcomingEpisode(
+        seriesId: item.id,
+        providerIds: item.providerIds,
+      );
+      if (_isDisposed) return;
+      if (episode != null && !episode.hasAired) {
+        _upcomingEpisode = episode;
+        notifyListeners();
+      }
+    } catch (e) {
+      debugPrint('[ItemDetailViewModel] Upcoming episode resolution failed: $e');
+    }
+  }
+
+  Future<void> toggleFavorite() async {
+    final item = _item;
+    if (item == null) return;
+    final newState = !item.isFavorite;
+    _applyOptimisticUpdate({'IsFavorite': newState});
+    try {
+      await _mutations.setFavorite(itemId, isFavorite: newState);
+      await _reload();
+    } catch (_) {
+      _applyOptimisticUpdate({'IsFavorite': !newState});
+    }
+  }
+
+  Future<void> togglePlayed() async {
+    final item = _item;
+    if (item == null) return;
+    final newState = !item.isPlayed;
+    _applyOptimisticUpdate({'Played': newState});
+    try {
+      await _mutations.setPlayed(itemId, isPlayed: newState);
+      await _reload();
+    } catch (_) {
+      _applyOptimisticUpdate({'Played': !newState});
+    }
+  }
+
+  Future<void> setThumbRating(bool likes) async {
+    return _mutateRating(
+      {'Likes': likes},
+      () => _mutations.setRating(itemId, likes: likes),
+    );
+  }
+
+  Future<void> setNumericRating(double rating) async {
+    if (!rating.isFinite || rating < 0 || rating > 10) {
+      throw ArgumentError.value(rating, 'rating', 'must be between 0 and 10');
+    }
+    return _mutateRating(
+      {
+        'Rating': rating,
+        'Likes': rating >= AggregatedItem.likedRatingThreshold,
+      },
+      () => _mutations.setNumericRating(itemId, rating: rating),
+    );
+  }
+
+  Future<void> clearRating() async {
+    return _mutateRating(
+      {'Rating': null, 'Likes': null},
+      () => _mutations.clearRating(itemId),
+    );
+  }
+
+  Future<void> _mutateRating(
+    Map<String, dynamic> userDataPatch,
+    Future<void> Function() mutation,
+  ) async {
+    if (_isRatingMutationInProgress) return;
+    final previousUserData = _copyUserData();
+    _isRatingMutationInProgress = true;
+    try {
+      _applyOptimisticUpdate(userDataPatch);
+      await mutation();
+      await _reload();
+    } catch (_) {
+      _restoreUserData(previousUserData);
+      rethrow;
+    } finally {
+      _isRatingMutationInProgress = false;
+      notifyListeners();
+    }
+  }
+
+  Map<String, dynamic>? _copyUserData() {
+    final userData = _item?.rawData['UserData'];
+    return userData is Map ? Map<String, dynamic>.from(userData) : null;
+  }
+
+  void _restoreUserData(Map<String, dynamic>? userData) {
+    final item = _item;
+    if (item == null) return;
+    final updatedRaw = Map<String, dynamic>.from(item.rawData);
+    if (userData == null) {
+      updatedRaw.remove('UserData');
+    } else {
+      updatedRaw['UserData'] = userData;
+    }
+    _item = AggregatedItem(
+      id: item.id,
+      serverId: item.serverId,
+      rawData: updatedRaw,
+    );
+    notifyListeners();
+  }
+
+  void _applyOptimisticUpdate(Map<String, dynamic> userDataPatch) {
+    final item = _item;
+    if (item == null) return;
+    final updatedRaw = Map<String, dynamic>.from(item.rawData);
+    final userData = Map<String, dynamic>.from(
+      (updatedRaw['UserData'] as Map?) ?? {},
+    );
+    userData.addAll(userDataPatch);
+    updatedRaw['UserData'] = userData;
+    _item = AggregatedItem(
+      id: item.id,
+      serverId: item.serverId,
+      rawData: updatedRaw,
+    );
+    notifyListeners();
+  }
+
+  Future<void> _reload() async {
+    try {
+      final data = await _client.itemsApi.getItem(itemId);
+      _item = AggregatedItem(
+        id: itemId,
+        serverId: _serverId ?? _client.baseUrl,
+        rawData: data,
+      );
+      notifyListeners();
+    } catch (_) {}
+  }
+
+  List<Map<String, dynamic>> get directors {
+    if (_item?.type == 'BoxSet') {
+      _ensureBoxSetPeople();
+      return _boxSetDirectors;
+    }
+    return _item?.people.where((p) => p['Type'] == 'Director').toList() ?? const [];
+  }
+
+  List<Map<String, dynamic>> get writers {
+    if (_item?.type == 'BoxSet') {
+      _ensureBoxSetPeople();
+      return _boxSetWriters;
+    }
+    return _item?.people.where((p) => p['Type'] == 'Writer').toList() ?? const [];
+  }
+
+  List<Map<String, dynamic>> get actors {
+    if (_item?.type == 'BoxSet') {
+      _ensureBoxSetPeople();
+      return _boxSetActors;
+    }
+    final list = _item?.people ?? const [];
+    final dirNames = directors.map((d) => d['Name'] as String?).toSet();
+    final writNames = writers.map((w) => w['Name'] as String?).toSet();
+    return list.where((p) {
+      final type = p['Type'] as String?;
+      if (type != 'Actor' && type != 'GuestStar') return false;
+      final name = p['Name'] as String?;
+      if (dirNames.contains(name) || writNames.contains(name)) return false;
+      return true;
+    }).toList();
+  }
+
+  List<AggregatedItem> get filmographyMovies =>
+      _filmography.where((i) => i.type == 'Movie').toList();
+
+  List<AggregatedItem> get filmographySeries =>
+      _filmography.where((i) => i.type == 'Series').toList();
+
+  List<AggregatedItem> get filmographyMusicVideos =>
+      _filmography.where((i) => i.type == 'MusicVideo').toList();
+
+  List<AggregatedItem> get filmographyEpisodes =>
+      _filmography.where((i) => i.type == 'Episode').toList();
+
+  @override
+  void notifyListeners() {
+    if (_isDisposed) return;
+    super.notifyListeners();
+  }
+
+  @override
+  void dispose() {
+    _isDisposed = true;
+    userDataSync.removeListener(_onUserDataChanged);
+    // The child owns a download poll timer, so this is what stops it.
+    _seerr?.removeListener(_onSeerrChanged);
+    _seerr?.dispose();
+    _seerr = null;
+    super.dispose();
+  }
+}

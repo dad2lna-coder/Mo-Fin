@@ -1,0 +1,576 @@
+import 'dart:async';
+
+import 'package:flutter/foundation.dart';
+
+import '../../preference/preference_constants.dart';
+import '../../preference/seerr_preferences.dart';
+import '../repositories/seerr_repository.dart';
+import '../services/seerr/seerr_api_models.dart';
+import '../services/seerr/seerr_discover_sliders.dart';
+import '../utils/bounded_concurrency.dart';
+
+class SeerrDiscoverRow {
+  /// Null for a row showing an admin slider from Seerr's discover page.
+  final SeerrRowType? type;
+  final SeerrDiscoverSlider? slider;
+  final List<SeerrDiscoverItem> items;
+  final List<SeerrGenre> genres;
+  final List<SeerrNetwork> networks;
+  final List<SeerrStudio> studios;
+  final bool isLoading;
+  final int page;
+  final int totalPages;
+
+  const SeerrDiscoverRow({
+    required SeerrRowType this.type,
+    this.items = const [],
+    this.genres = const [],
+    this.networks = const [],
+    this.studios = const [],
+    this.isLoading = false,
+    this.page = 1,
+    this.totalPages = 1,
+  }) : slider = null;
+
+  const SeerrDiscoverRow.slider(
+    SeerrDiscoverSlider this.slider, {
+    this.items = const [],
+    this.isLoading = false,
+    this.page = 1,
+    this.totalPages = 1,
+  }) : type = null,
+       genres = const [],
+       networks = const [],
+       studios = const [];
+
+  const SeerrDiscoverRow._({
+    required this.type,
+    required this.slider,
+    required this.items,
+    required this.genres,
+    required this.networks,
+    required this.studios,
+    required this.isLoading,
+    required this.page,
+    required this.totalPages,
+  });
+
+  SeerrDiscoverRow copyWith({
+    List<SeerrDiscoverItem>? items,
+    List<SeerrGenre>? genres,
+    List<SeerrNetwork>? networks,
+    List<SeerrStudio>? studios,
+    bool? isLoading,
+    int? page,
+    int? totalPages,
+  }) =>
+      SeerrDiscoverRow._(
+        type: type,
+        slider: slider,
+        items: items ?? this.items,
+        genres: genres ?? this.genres,
+        networks: networks ?? this.networks,
+        studios: studios ?? this.studios,
+        isLoading: isLoading ?? this.isLoading,
+        page: page ?? this.page,
+        totalPages: totalPages ?? this.totalPages,
+      );
+
+  bool get hasMore => page < totalPages;
+
+  /// Tells rows apart for focus memory. A slider goes by its id, so sliders
+  /// coming and going don't hand one row another's position.
+  String get key => type?.name ?? 'slider_${slider?.id}';
+  bool get isGenreRow => type == SeerrRowType.movieGenres || type == SeerrRowType.seriesGenres;
+  bool get isNetworkRow => type == SeerrRowType.networks;
+  bool get isStudioRow => type == SeerrRowType.studios;
+  bool get isShortcutsRow => type == SeerrRowType.shortcuts;
+  bool get isMediaRow =>
+      !isGenreRow && !isNetworkRow && !isStudioRow && !isShortcutsRow;
+}
+
+class SeerrDiscoverViewModel extends ChangeNotifier {
+  final SeerrRepository _repo;
+  final SeerrPreferences _prefs;
+
+  List<SeerrDiscoverRow> _rows = [];
+  List<SeerrDiscoverRow> get rows => _rows;
+
+  bool _canViewRecentlyAdded = true;
+
+  bool _isLoading = false;
+  bool get isLoading => _isLoading;
+
+  Object? _error;
+  Object? get error => _error;
+
+  static const _localRowsFetchLimit = 15;
+
+  SeerrDiscoverViewModel(this._repo, this._prefs);
+
+  static const _nsfwKeywords = [
+    r'\bsex\b', 'sexual', r'\bporn\b', 'erotic', r'\bnude\b', 'nudity',
+    r'\bxxx\b', 'adult film', 'prostitute', 'stripper', r'\bescort\b',
+    'seduction', r'\baffair\b', 'threesome', r'\borgy\b', 'kinky',
+    'fetish', r'\bbdsm\b', 'dominatrix',
+  ];
+
+  static final nsfwPatterns =
+      _nsfwKeywords.map((k) => RegExp(k, caseSensitive: false)).toList();
+
+  static const popularNetworks = [
+    SeerrNetwork(id: 213, name: 'Netflix', logoPath: 'https://image.tmdb.org/t/p/w780_filter(duotone,ffffff,bababa)/wwemzKWzjKYJFfCeiB57q3r4Bcm.png'),
+    SeerrNetwork(id: 2739, name: 'Disney+', logoPath: 'https://image.tmdb.org/t/p/w780_filter(duotone,ffffff,bababa)/gJ8VX6JSu3ciXHuC2dDGAo2lvwM.png'),
+    SeerrNetwork(id: 1024, name: 'Prime Video', logoPath: 'https://image.tmdb.org/t/p/w780_filter(duotone,ffffff,bababa)/ifhbNuuVnlwYy5oXA5VIb2YR8AZ.png'),
+    SeerrNetwork(id: 2552, name: 'Apple TV+', logoPath: 'https://image.tmdb.org/t/p/w780_filter(duotone,ffffff,bababa)/4KAy34EHvRM25Ih8wb82AuGU7zJ.png'),
+    SeerrNetwork(id: 453, name: 'Hulu', logoPath: 'https://image.tmdb.org/t/p/w780_filter(duotone,ffffff,bababa)/pqUTCleNUiTLAVlelGxUgWn1ELh.png'),
+    SeerrNetwork(id: 49, name: 'HBO', logoPath: 'https://image.tmdb.org/t/p/w780_filter(duotone,ffffff,bababa)/tuomPhY2UtuPTqqFnKMVHvSb724.png'),
+    SeerrNetwork(id: 4353, name: 'Discovery+', logoPath: 'https://image.tmdb.org/t/p/w780_filter(duotone,ffffff,bababa)/1D1bS3Dyw4ScYnFWTlBOvJXC3nb.png'),
+    SeerrNetwork(id: 2, name: 'ABC', logoPath: 'https://image.tmdb.org/t/p/w780_filter(duotone,ffffff,bababa)/ndAvF4JLsliGreX87jAc9GdjmJY.png'),
+    SeerrNetwork(id: 19, name: 'FOX', logoPath: 'https://image.tmdb.org/t/p/w780_filter(duotone,ffffff,bababa)/1DSpHrWyOORkL9N2QHX7Adt31mQ.png'),
+    SeerrNetwork(id: 359, name: 'Cinemax', logoPath: 'https://image.tmdb.org/t/p/w780_filter(duotone,ffffff,bababa)/6mSHSquNpfLgDdv6VnOOvC5Uz2h.png'),
+    SeerrNetwork(id: 174, name: 'AMC', logoPath: 'https://image.tmdb.org/t/p/w780_filter(duotone,ffffff,bababa)/pmvRmATOCaDykE6JrVoeYxlFHw3.png'),
+    SeerrNetwork(id: 67, name: 'Showtime', logoPath: 'https://image.tmdb.org/t/p/w780_filter(duotone,ffffff,bababa)/Allse9kbjiP6ExaQrnSpIhkurEi.png'),
+    SeerrNetwork(id: 318, name: 'Starz', logoPath: 'https://image.tmdb.org/t/p/w780_filter(duotone,ffffff,bababa)/8GJjw3HHsAJYwIWKIPBPfqMxlEa.png'),
+    SeerrNetwork(id: 71, name: 'The CW', logoPath: 'https://image.tmdb.org/t/p/w780_filter(duotone,ffffff,bababa)/ge9hzeaU7nMtQ4PjkFlc68dGAJ9.png'),
+    SeerrNetwork(id: 6, name: 'NBC', logoPath: 'https://image.tmdb.org/t/p/w780_filter(duotone,ffffff,bababa)/o3OedEP0f9mfZr33jz2BfXOUK5.png'),
+    SeerrNetwork(id: 16, name: 'CBS', logoPath: 'https://image.tmdb.org/t/p/w780_filter(duotone,ffffff,bababa)/nm8d7P7MJNiBLdgIzUK0gkuEA4r.png'),
+    SeerrNetwork(id: 4330, name: 'Paramount+', logoPath: 'https://image.tmdb.org/t/p/w780_filter(duotone,ffffff,bababa)/fi83B1oztoS47xxcemFdPMhIzK.png'),
+    SeerrNetwork(id: 4, name: 'BBC One', logoPath: 'https://image.tmdb.org/t/p/w780_filter(duotone,ffffff,bababa)/mVn7xESaTNmjBUyUtGNvDQd3CT1.png'),
+    SeerrNetwork(id: 56, name: 'Cartoon Network', logoPath: 'https://image.tmdb.org/t/p/w780_filter(duotone,ffffff,bababa)/c5OC6oVCg6QP4eqzW6XIq17CQjI.png'),
+    SeerrNetwork(id: 80, name: 'Adult Swim', logoPath: 'https://image.tmdb.org/t/p/w780_filter(duotone,ffffff,bababa)/9AKyspxVzywuaMuZ1Bvilu8sXly.png'),
+    SeerrNetwork(id: 13, name: 'Nickelodeon', logoPath: 'https://image.tmdb.org/t/p/w780_filter(duotone,ffffff,bababa)/ikZXxg6GnwpzqiZbRPhJGaZapqB.png'),
+    SeerrNetwork(id: 3353, name: 'Peacock', logoPath: 'https://image.tmdb.org/t/p/w780_filter(duotone,ffffff,bababa)/gIAcGTjKKr0KOHL5s4O36roJ8p7.png'),
+  ];
+
+  static const popularStudios = [
+    SeerrStudio(id: 2, name: 'Disney', logoPath: 'https://image.tmdb.org/t/p/w780_filter(duotone,ffffff,bababa)/wdrCwmRnLFJhEoH8GSfymY85KHT.png'),
+    SeerrStudio(id: 127928, name: '20th Century Studios', logoPath: 'https://image.tmdb.org/t/p/w780_filter(duotone,ffffff,bababa)/h0rjX5vjW5r8yEnUBStFarjcLT4.png'),
+    SeerrStudio(id: 34, name: 'Sony Pictures', logoPath: 'https://image.tmdb.org/t/p/w780_filter(duotone,ffffff,bababa)/GagSvqWlyPdkFHMfQ3pNq6ix9P.png'),
+    SeerrStudio(id: 174, name: 'Warner Bros. Pictures', logoPath: 'https://image.tmdb.org/t/p/w780_filter(duotone,ffffff,bababa)/ky0xOc5OrhzkZ1N6KyUxacfQsCk.png'),
+    SeerrStudio(id: 33, name: 'Universal', logoPath: 'https://image.tmdb.org/t/p/w780_filter(duotone,ffffff,bababa)/8lvHyhjr8oUKOOy2dKXoALWKdp0.png'),
+    SeerrStudio(id: 4, name: 'Paramount', logoPath: 'https://image.tmdb.org/t/p/w780_filter(duotone,ffffff,bababa)/fycMZt242LVjagMByZOLUGbCvv3.png'),
+    SeerrStudio(id: 3, name: 'Pixar', logoPath: 'https://image.tmdb.org/t/p/w780_filter(duotone,ffffff,bababa)/1TjvGVDMYsj6JBxOAkUHpPEwLf7.png'),
+    SeerrStudio(id: 521, name: 'DreamWorks', logoPath: 'https://image.tmdb.org/t/p/w780_filter(duotone,ffffff,bababa)/kP7t6RwGz2AvvTkvnI1uteEwHet.png'),
+    SeerrStudio(id: 420, name: 'Marvel Studios', logoPath: 'https://image.tmdb.org/t/p/w780_filter(duotone,ffffff,bababa)/hUzeosd33nzE5MCNsZxCGEKTXaQ.png'),
+    SeerrStudio(id: 9993, name: 'DC', logoPath: 'https://image.tmdb.org/t/p/w780_filter(duotone,ffffff,bababa)/2Tc1P3Ac8M479naPp1kYT3izLS5.png'),
+    SeerrStudio(id: 41077, name: 'A24', logoPath: 'https://image.tmdb.org/t/p/w780_filter(duotone,ffffff,bababa)/1ZXsGaFPgrgS6ZZGS37AqD5uU12.png'),
+  ];
+
+  Future<void> load() async {
+    if (_isLoading) return;
+    _isLoading = true;
+    _error = null;
+    notifyListeners();
+
+    try {
+      await _repo.ensureInitialized(force: true);
+      if (!_repo.isAvailable) {
+        _isLoading = false;
+        _error = _repo.serverReportsEnabled
+            ? 'Sign in to Seerr to see recommendations'
+            : 'Seerr is not configured or unavailable';
+        notifyListeners();
+        return;
+      }
+
+      final activeRows = _prefs.activeRows;
+      final slidersFuture = _loadSliders();
+      await _refreshRecentlyAddedGate(activeRows);
+      final sliders = await slidersFuture;
+      _rows = [
+        ..._visibleRows(activeRows).map((type) => SeerrDiscoverRow(
+          type: type,
+          isLoading: true,
+        )),
+        for (final slider in sliders)
+          SeerrDiscoverRow.slider(slider, isLoading: true),
+      ];
+      notifyListeners();
+
+      await _loadAllRows();
+    } catch (e) {
+      _error = e;
+      debugPrint('[SeerrDiscover] Failed to load: $e');
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
+  Future<void> refresh() async {
+    _rows = [];
+    notifyListeners();
+    await load();
+  }
+
+  // Seerr does not enforce the "View Recently Added" (RECENT_VIEW) permission
+  // at the API layer; its own frontend hides the section. We are that frontend
+  // here, so replicate the gate and drop the Recently Added row for users who
+  // lack the permission. Owners and admins bypass via hasPermission.
+  Future<void> _refreshRecentlyAddedGate(List<SeerrRowType> requested) async {
+    if (!requested.contains(SeerrRowType.recentlyAdded)) {
+      _canViewRecentlyAdded = true;
+      return;
+    }
+    try {
+      final user = await _repo.getCurrentUser();
+      _canViewRecentlyAdded = user.hasPermission(SeerrPermission.recentView);
+    } catch (e) {
+      debugPrint('[SeerrDiscover] Recently Added permission check failed: $e');
+      _canViewRecentlyAdded = true;
+    }
+  }
+
+  /// The admin sliders set up on Seerr's discover page, after Moonfin's own
+  /// rows. Failing to read them leaves just the built-in rows.
+  Future<List<SeerrDiscoverSlider>> _loadSliders() async {
+    try {
+      final sliders = await _repo.getDiscoverSliders(force: true);
+      return sliders.where((s) => s.isSupported).toList();
+    } catch (e) {
+      debugPrint('[SeerrDiscover] Failed to load discover sliders: $e');
+      return const [];
+    }
+  }
+
+  List<SeerrRowType> _visibleRows(List<SeerrRowType> rows) =>
+      _canViewRecentlyAdded
+          ? rows
+          : rows.where((t) => t != SeerrRowType.recentlyAdded).toList();
+
+  Future<void> applyRowConfig() async {
+    if (_rows.isEmpty) return;
+    final activeTypes = _visibleRows(_prefs.activeRows);
+    final rowMap = {for (final r in _rows) ?r.type: r};
+    final newRows = <SeerrDiscoverRow>[];
+    for (final type in activeTypes) {
+      final existing = rowMap[type];
+      if (existing != null) {
+        newRows.add(existing);
+      } else {
+        await refresh();
+        return;
+      }
+    }
+    _rows = [...newRows, ..._rows.where((r) => r.slider != null)];
+    notifyListeners();
+  }
+
+  Future<void> loadMore(int rowIndex) async {
+    if (rowIndex < 0 || rowIndex >= _rows.length) return;
+    final row = _rows[rowIndex];
+    if (!row.hasMore || row.isLoading || !row.isMediaRow) return;
+
+    _rows = List.of(_rows);
+    _rows[rowIndex] = row.copyWith(isLoading: true);
+    notifyListeners();
+
+    try {
+      final page = await _loadPage(row, row.page + 1);
+      if (page != null) {
+        List<SeerrDiscoverItem> newItems;
+        if (row.type == SeerrRowType.yourWatchlist) {
+          newItems = await Future.wait(page.results.map(_enrichRequestItem));
+        } else {
+          newItems = _filterItems(page.results);
+        }
+        _rows = List.of(_rows);
+        _rows[rowIndex] = row.copyWith(
+          items: [...row.items, ...newItems],
+          page: page.page,
+          totalPages: page.totalPages,
+          isLoading: false,
+        );
+      } else {
+        _rows = List.of(_rows);
+        _rows[rowIndex] = row.copyWith(isLoading: false);
+      }
+    } catch (e) {
+      debugPrint('[SeerrDiscover] Failed to load more for ${row.type}: $e');
+      _rows = List.of(_rows);
+      _rows[rowIndex] = row.copyWith(isLoading: false);
+    }
+    notifyListeners();
+  }
+
+  Future<void> _loadAllRows() async {
+    final indices = List.generate(_rows.length, (i) => i);
+    await mapBounded<int, void>(indices, 2, (index) => _loadRow(index));
+  }
+
+  Future<void> _loadRow(int index) async {
+    final row = _rows[index];
+    try {
+      switch (row.type) {
+        case SeerrRowType.shortcuts:
+          await _loadShortcutArtwork(index);
+        case SeerrRowType.recentRequests:
+          await _loadRecentRequests(index);
+        case SeerrRowType.yourWatchlist:
+          await _loadWatchlist(index);
+        case SeerrRowType.recentlyAdded:
+          await _loadRecentlyAdded(index);
+        case SeerrRowType.movieGenres:
+          await _loadGenres(index, isMovie: true);
+        case SeerrRowType.seriesGenres:
+          await _loadGenres(index, isMovie: false);
+        case SeerrRowType.networks:
+          _updateRow(index, row.copyWith(
+            networks: popularNetworks,
+            isLoading: false,
+          ));
+        case SeerrRowType.studios:
+          _updateRow(index, row.copyWith(
+            studios: popularStudios,
+            isLoading: false,
+          ));
+        default:
+          final page = await _loadPage(row, 1);
+          if (page != null) {
+            final filtered = _filterItems(page.results);
+            _updateRow(index, row.copyWith(
+              items: filtered,
+              page: page.page,
+              totalPages: page.totalPages,
+              isLoading: false,
+            ));
+          } else {
+            _updateRow(index, row.copyWith(isLoading: false));
+          }
+      }
+    } catch (e) {
+      debugPrint('[SeerrDiscover] Failed to load row ${row.type}: $e');
+      _updateRow(index, row.copyWith(isLoading: false));
+    }
+  }
+
+  /// Artwork for the shortcut tiles. One trending read covers every tile, and
+  /// a failure just leaves them on their plain background.
+  Future<void> _loadShortcutArtwork(int index) async {
+    final row = _rows[index];
+    try {
+      final page = await _repo.getTrending(limit: _localRowsFetchLimit);
+      // Shuffled here rather than at render time, so the tiles keep the same
+      // stills until the next load instead of changing on every rebuild.
+      final items = _filterItems(page.results)..shuffle();
+      _updateRow(index, row.copyWith(items: items, isLoading: false));
+    } catch (_) {
+      _updateRow(index, row.copyWith(isLoading: false));
+    }
+  }
+
+  Future<void> _loadWatchlist(int index) async {
+    final row = _rows[index];
+    try {
+      final page = await _repo.getWatchlist(page: 1);
+      final items = await Future.wait(page.results.map(_enrichRequestItem));
+      _updateRow(index, row.copyWith(
+        items: items,
+        page: page.page,
+        totalPages: page.totalPages,
+        isLoading: false,
+      ));
+    } catch (_) {
+      _updateRow(index, row.copyWith(isLoading: false));
+    }
+  }
+
+  Future<void> _loadRecentlyAdded(int index) async {
+    final row = _rows[index];
+    try {
+      final media = await _repo.getRecentlyAdded(limit: _localRowsFetchLimit);
+      final items = await Future.wait(media.map(_mediaToDiscoverItem));
+      _updateRow(index, row.copyWith(items: items, isLoading: false));
+    } catch (_) {
+      _updateRow(index, row.copyWith(isLoading: false));
+    }
+  }
+
+  Future<SeerrDiscoverItem> _mediaToDiscoverItem(SeerrMedia media) =>
+      _enrichRequestItem(SeerrDiscoverItem(
+        id: media.tmdbId ?? media.id,
+        title: media.title,
+        name: media.name,
+        overview: media.overview,
+        releaseDate: media.releaseDate,
+        firstAirDate: media.firstAirDate,
+        mediaType: media.mediaType,
+        posterPath: media.posterPath,
+        backdropPath: media.backdropPath,
+        mediaInfo: SeerrMediaInfo(
+          id: media.id,
+          tmdbId: media.tmdbId,
+          status: media.status,
+        ),
+      ));
+
+  Future<void> _loadRecentRequests(int index) async {
+    final row = _rows[index];
+    try {
+      final user = await _repo.getCurrentUser();
+      final response = await _repo.getRequests(
+        requestedBy: user.canViewAllRequests ? null : user.id,
+        limit: _localRowsFetchLimit,
+      );
+
+      final rawItems = response.results
+          .where((r) => r.media != null)
+          .map((r) {
+            final media = r.media!;
+            return SeerrDiscoverItem(
+              id: media.tmdbId ?? media.id,
+              title: media.title ?? media.name,
+              name: media.name ?? media.title,
+              overview: media.overview,
+              releaseDate: media.releaseDate,
+              firstAirDate: media.firstAirDate,
+              mediaType: r.type,
+              posterPath: media.posterPath,
+              backdropPath: media.backdropPath,
+              mediaInfo: SeerrMediaInfo(
+                id: media.id,
+                tmdbId: media.tmdbId,
+                status: media.status,
+              ),
+            );
+          })
+          .toList();
+
+      final items = await Future.wait(rawItems.map(_enrichRequestItem));
+
+      _updateRow(index, row.copyWith(items: items, isLoading: false));
+    } catch (e) {
+      debugPrint('[SeerrDiscover] Failed to load requests: $e');
+      _updateRow(index, row.copyWith(isLoading: false));
+    }
+  }
+
+  Future<SeerrDiscoverItem> _enrichRequestItem(SeerrDiscoverItem item) async {
+    if (item.backdropPath != null && item.voteAverage != null) {
+      return item;
+    }
+
+    final tmdbId = item.mediaInfo?.tmdbId ?? item.id;
+    if (tmdbId <= 0) return item;
+
+    try {
+      if (item.mediaType == 'tv') {
+        final details = await _repo.getTvDetails(tmdbId);
+        return SeerrDiscoverItem(
+          id: item.id,
+          mediaType: item.mediaType,
+          title: item.title?.isNotEmpty == true ? item.title : details.title,
+          name: item.name?.isNotEmpty == true ? item.name : details.name,
+          originalTitle: item.originalTitle,
+          originalName: item.originalName,
+          posterPath: details.posterPath ?? item.posterPath,
+          backdropPath: details.backdropPath ?? item.backdropPath,
+          overview: details.overview ?? item.overview,
+          releaseDate: item.releaseDate,
+          firstAirDate: item.firstAirDate,
+          originalLanguage: item.originalLanguage,
+          genreIds: item.genreIds,
+          voteAverage: details.voteAverage ?? item.voteAverage,
+          voteCount: item.voteCount,
+          popularity: item.popularity,
+          adult: item.adult,
+          mediaInfo: item.mediaInfo,
+          character: item.character,
+          job: item.job,
+          department: item.department,
+        );
+      }
+
+      final details = await _repo.getMovieDetails(tmdbId);
+      return SeerrDiscoverItem(
+        id: item.id,
+        mediaType: item.mediaType,
+        title: item.title?.isNotEmpty == true ? item.title : details.title,
+        name: item.name,
+        originalTitle: item.originalTitle,
+        originalName: item.originalName,
+        posterPath: details.posterPath ?? item.posterPath,
+        backdropPath: details.backdropPath ?? item.backdropPath,
+        overview: details.overview ?? item.overview,
+        releaseDate: item.releaseDate,
+        firstAirDate: item.firstAirDate,
+        originalLanguage: item.originalLanguage,
+        genreIds: item.genreIds,
+        voteAverage: details.voteAverage ?? item.voteAverage,
+        voteCount: item.voteCount,
+        popularity: item.popularity,
+        adult: item.adult,
+        mediaInfo: item.mediaInfo,
+        character: item.character,
+        job: item.job,
+        department: item.department,
+      );
+    } catch (_) {
+      return item;
+    }
+  }
+
+  Future<void> _loadGenres(int index, {required bool isMovie}) async {
+    final row = _rows[index];
+    try {
+      final genres = isMovie
+          ? await _repo.getGenreSliderMovies()
+          : await _repo.getGenreSliderTv();
+      _updateRow(index, row.copyWith(genres: genres, isLoading: false));
+    } catch (e) {
+      debugPrint('[SeerrDiscover] Failed to load genres: $e');
+      _updateRow(index, row.copyWith(isLoading: false));
+    }
+  }
+
+  Future<SeerrDiscoverPage?> _loadPage(SeerrDiscoverRow row, int page) async {
+    final slider = row.slider;
+    if (slider != null) return _repo.getSliderPage(slider, page: page);
+    final limit = _prefs.fetchLimit.limit;
+    final offset = (page - 1) * limit;
+    switch (row.type) {
+      case SeerrRowType.trending:
+        return _repo.getTrending(limit: limit, offset: offset);
+      case SeerrRowType.popularMovies:
+        return _repo.getTrendingMovies(limit: limit, offset: offset);
+      case SeerrRowType.popularSeries:
+        return _repo.getTrendingTv(limit: limit, offset: offset);
+      case SeerrRowType.upcomingMovies:
+        return _repo.getUpcomingMovies(page: page);
+      case SeerrRowType.upcomingSeries:
+        return _repo.getUpcomingTv(page: page);
+      case SeerrRowType.yourWatchlist:
+        return _repo.getWatchlist(page: page);
+      default:
+        return null;
+    }
+  }
+
+  List<SeerrDiscoverItem> _filterItems(List<SeerrDiscoverItem> items) {
+    final blockNsfw = _prefs.blockNsfw;
+    return items.where((item) {
+      if (item.isAvailable || item.isBlacklisted) return false;
+      if (blockNsfw && _isNsfw(item)) return false;
+      return true;
+    }).toList();
+  }
+
+  bool _isNsfw(SeerrDiscoverItem item) => isNsfw(item);
+
+  /// Whether [item] is adult content, by TMDB's flag or by a title or
+  /// overview that trips the keyword list. Shared with the other Seerr
+  /// ingestion paths so "hide adult content" means one thing everywhere.
+  static bool isNsfw(SeerrDiscoverItem item) {
+    if (item.adult) return true;
+    final text = '${item.displayTitle} ${item.overview ?? ''}';
+    return nsfwPatterns.any((p) => p.hasMatch(text));
+  }
+
+  void _updateRow(int index, SeerrDiscoverRow row) {
+    _rows = List.of(_rows);
+    _rows[index] = row;
+    notifyListeners();
+  }
+
+}
