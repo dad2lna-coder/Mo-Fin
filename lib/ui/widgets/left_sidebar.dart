@@ -1075,12 +1075,12 @@ class _LeftSidebarState extends State<LeftSidebar> with RouteAware {
                     showLabel: _showLabels,
                     onPressed: () {
                       _onNavigate();
-                      if (_isActive(Destinations.liveTvGuide)) {
+                      if (_isActive(Destinations.directIptv)) {
                         _exitSidebarToContent();
                         return;
                       }
                       _markNavigationAwayFromSidebar();
-                      context.navigateTopLevel(Destinations.liveTvGuide);
+                      context.navigateTopLevel(Destinations.directIptv);
                     },
                   ),
                 if (showFolders)

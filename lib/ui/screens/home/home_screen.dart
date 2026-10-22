@@ -4609,7 +4609,7 @@ class _ContentRowsState extends State<_ContentRows>
     final squarePosterSide = _squarePosterSide(posterSize);
     final rowHeight = squarePosterSide + (56 * metadataScale);
     final actions = <_LiveTvAction>[
-      _LiveTvAction(Icons.tv_rounded, l10n.guide, Destinations.liveTvGuide),
+      _LiveTvAction(Icons.tv_rounded, l10n.guide, Destinations.directIptv),
       _LiveTvAction(
         Icons.fiber_manual_record_rounded,
         l10n.recordings,

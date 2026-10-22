@@ -149,7 +149,7 @@ void openBottomNavTab(BuildContext context, BottomNavTab tab) {
     BottomNavTab.search => Destinations.search,
     BottomNavTab.favorites => Destinations.allFavorites,
     BottomNavTab.genres => Destinations.allGenres,
-    BottomNavTab.liveTv => Destinations.liveTvGuide,
+    BottomNavTab.liveTv => Destinations.directIptv,
     BottomNavTab.discover => Destinations.seerrDiscover,
     BottomNavTab.folders => Destinations.folderView,
     BottomNavTab.libraries => null,

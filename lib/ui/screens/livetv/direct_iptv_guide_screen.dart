@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:get_it/get_it.dart';
 import 'package:go_router/go_router.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../direct_iptv/direct_guide.dart';
 import '../../../direct_iptv/direct_iptv_catalog.dart';
@@ -15,6 +16,7 @@ import '../../../util/focus/dpad_keys.dart';
 import '../../../util/focus/key_event_utils.dart';
 import '../../navigation/destinations.dart';
 import 'direct_guide_layout.dart';
+import 'direct_guide_source.dart';
 import 'direct_iptv_preview.dart';
 import 'direct_iptv_recordings_screen.dart';
 import 'direct_iptv_settings_screen.dart';
@@ -65,6 +67,8 @@ class _DirectIptvGuideScreenState extends State<DirectIptvGuideScreen> {
   Map<String, List<DirectProgram>> _programIndex = const {};
   List<DirectRecording> _recordings = const [];
   String? _recordingsSourceId;
+  String? _savedSourceId;
+  bool _lastSourceLoaded = false;
 
   @override
   void initState() {
@@ -72,6 +76,7 @@ class _DirectIptvGuideScreenState extends State<DirectIptvGuideScreen> {
     _catalog = GetIt.instance<DirectIptvCatalog>();
     _catalog.addListener(_onCatalog);
     if (_catalog.loaded) _selectDefaultSource();
+    unawaited(_loadLastSource());
     _clock = Timer.periodic(const Duration(seconds: 30), (_) {
       if (!mounted) return;
       setState(() => _now = DateTime.now());
@@ -118,10 +123,30 @@ class _DirectIptvGuideScreenState extends State<DirectIptvGuideScreen> {
     if (_sourceId != null && enabled.any((source) => source.id == _sourceId)) {
       return;
     }
-    _sourceId = enabled.isEmpty ? null : enabled.first.id;
+    if (!_lastSourceLoaded) return;
+    final next = chooseDefaultDirectSource(
+      sources: _catalog.sources,
+      savedId: _savedSourceId,
+    );
+    if (next == _sourceId) return;
+    _sourceId = next;
     _group = null;
     _cursor = const DirectGuideCursor(row: 0);
     _indexedFrom = null;
+  }
+
+  Future<void> _loadLastSource() async {
+    final prefs = await SharedPreferences.getInstance();
+    if (!mounted) return;
+    _savedSourceId = prefs.getString(directIptvLastSourceKey);
+    _lastSourceLoaded = true;
+    setState(_selectDefaultSource);
+  }
+
+  Future<void> _rememberLastSource(String id) async {
+    _savedSourceId = id;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(directIptvLastSourceKey, id);
   }
 
   DirectIptvSource? get _source {
@@ -420,6 +445,7 @@ class _DirectIptvGuideScreenState extends State<DirectIptvGuideScreen> {
       _cursor = const DirectGuideCursor(row: 0);
       _indexedFrom = null;
     });
+    unawaited(_rememberLastSource(id));
     _watchRecordings();
     _schedulePreview();
   }
