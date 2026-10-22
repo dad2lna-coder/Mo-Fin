@@ -1,0 +1,60 @@
+name: Mo-Fin Fire TV
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: mofin-tv
+  cancel-in-progress: true
+
+env:
+  FLUTTER_VERSION: '3.47.2'
+
+jobs:
+  apk:
+    name: Build Mo-Fin APK
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+
+      - name: Build Android TV release APK
+        run: MOONFIN_TEST_ID_SUFFIX=.captions flutter build apk --flavor androidTv --release --target-platform android-arm,android-arm64
+
+      - name: Rename APK
+        run: mv build/app/outputs/flutter-apk/app-androidtv-release.apk Mo-Fin.apk
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Mo-Fin
+          path: Mo-Fin.apk
+          if-no-files-found: error
+
+      - name: Publish Mo-Fin.apk to the latest release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: latest
+          name: Mo-Fin
+          files: Mo-Fin.apk
+          overwrite_files: true
+          fail_on_unmatched_files: true
+          make_latest: 'true'
+          body: |
+            Fire TV APK, debug-signed. Package `org.moonfin.androidtv.captions`.
+
+            Built from ${{ github.sha }}.
