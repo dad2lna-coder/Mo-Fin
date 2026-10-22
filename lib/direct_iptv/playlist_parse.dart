@@ -206,44 +206,56 @@ class XmltvScan {
     _skip.clear();
   }
 
+  static final _elementOpen = RegExp(
+    '<(?:channel|programme)',
+    caseSensitive: false,
+  );
+  static final _channelClose = RegExp('</channel>', caseSensitive: false);
+  static final _programmeClose = RegExp('</programme>', caseSensitive: false);
+
+  /// Walks the buffer by offset. Lowercasing or copying the rest of the
+  /// buffer for every element made a large chunk quadratic, which froze the
+  /// web UI when the browser handed over the guide in a few big pieces.
   void _drain() {
-    var text = _pending.toString();
+    final text = _pending.toString();
+    var pos = 0;
     while (true) {
-      final lower = text.toLowerCase();
-      final channelAt = lower.indexOf('<channel');
-      final programmeAt = lower.indexOf('<programme');
-      if (channelAt < 0 && programmeAt < 0) {
-        if (text.length > 64) text = text.substring(text.length - 64);
+      final open = _firstMatchFrom(_elementOpen, text, pos);
+      if (open == null) {
+        if (text.length - pos > 64) pos = text.length - 64;
         break;
       }
-      final start = channelAt < 0
-          ? programmeAt
-          : programmeAt < 0
-          ? channelAt
-          : (channelAt < programmeAt ? channelAt : programmeAt);
-      if (start > 0) text = text.substring(start);
-      final isChannel = text.toLowerCase().startsWith('<channel');
-      final close = isChannel ? '</channel>' : '</programme>';
-      final end = text.toLowerCase().indexOf(close);
-      if (end < 0) {
-        if (text.length > maxElementBytes) {
+      final start = open.start;
+      pos = start;
+      final isChannel = open.group(0)!.length == '<channel'.length;
+      final close = _firstMatchFrom(
+        isChannel ? _channelClose : _programmeClose,
+        text,
+        start,
+      );
+      if (close == null) {
+        if (text.length - start > maxElementBytes) {
           _skipping = true;
-          _skipClose = close;
-          final tail = close.length - 1;
+          _skipClose = isChannel ? '</channel>' : '</programme>';
+          final tail = _skipClose.length - 1;
           _skip
             ..clear()
             ..write(text.substring(text.length - tail));
-          text = '';
+          pos = text.length;
         }
         break;
       }
-      final element = text.substring(0, end + close.length);
-      _consume(element, isChannel);
-      text = text.substring(end + close.length);
+      _consume(text.substring(start, close.end), isChannel);
+      pos = close.end;
     }
     _pending
       ..clear()
-      ..write(text);
+      ..write(pos == 0 ? text : text.substring(pos));
+  }
+
+  static Match? _firstMatchFrom(RegExp pattern, String text, int start) {
+    final matches = pattern.allMatches(text, start).iterator;
+    return matches.moveNext() ? matches.current : null;
   }
 
   void _consume(String element, bool isChannel) {
