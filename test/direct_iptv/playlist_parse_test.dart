@@ -132,6 +132,17 @@ index.m3u8
     expect(scan.programmes.single.title, 'Now');
     expect(plutoStreamUrl('plu-news'), 'https://jmp2.uk/plu-news.m3u8');
     expect(plutoStreamUrl('news'), 'https://jmp2.uk/plu-news.m3u8');
+    expect(
+      plutoWebProxyUrl(
+        'news',
+        page: Uri.parse('https://dad2lna.duckdns.org:8443/mofin/#/live'),
+      ),
+      'https://dad2lna.duckdns.org:8443/mofin/pluto/plu-news.m3u8',
+    );
+    expect(
+      plutoWebProxyUrl('news', page: Uri.parse('https://example.test/mofin/')),
+      'https://example.test/mofin/pluto/plu-news.m3u8',
+    );
 
     final source = DirectIptvSource(
       id: 'src',
