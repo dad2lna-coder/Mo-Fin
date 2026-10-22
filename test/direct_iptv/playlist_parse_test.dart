@@ -224,4 +224,43 @@ index.m3u8
       isEmpty,
     );
   });
+
+  test('a large guide in one chunk parses the same as in small chunks', () {
+    final now = DateTime.utc(2026, 10, 22, 12);
+    String stamp(DateTime t) =>
+        '${t.year}${t.month.toString().padLeft(2, '0')}'
+        '${t.day.toString().padLeft(2, '0')}'
+        '${t.hour.toString().padLeft(2, '0')}'
+        '${t.minute.toString().padLeft(2, '0')}00 +0000';
+    final buffer = StringBuffer('<tv>');
+    for (var c = 0; c < 50; c++) {
+      buffer.write(
+        '<CHANNEL id="c$c"><display-name>C$c</display-name></CHANNEL>',
+      );
+    }
+    for (var c = 0; c < 50; c++) {
+      for (var h = -8; h < 16; h++) {
+        final start = now.add(Duration(hours: h));
+        buffer.write(
+          '<programme channel="c$c" start="${stamp(start)}" '
+          'stop="${stamp(start.add(const Duration(hours: 1)))}">'
+          '<title>T$c/$h</title><category>Series</category></Programme>',
+        );
+      }
+    }
+    buffer.write('</tv>');
+    final xml = buffer.toString();
+    final whole = XmltvScan(now: now)..add(xml);
+    final pieces = XmltvScan(now: now);
+    for (var i = 0; i < xml.length; i += 5) {
+      pieces.add(xml.substring(i, i + 5 < xml.length ? i + 5 : xml.length));
+    }
+    expect(whole.channels.length, 50);
+    expect(whole.programmes.length, 50 * 18);
+    expect(pieces.channels.length, 50);
+    expect(
+      pieces.programmes.map((p) => p.title).toList(),
+      whole.programmes.map((p) => p.title).toList(),
+    );
+  });
 }
