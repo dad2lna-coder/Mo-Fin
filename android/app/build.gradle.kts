@@ -117,7 +117,7 @@ android {
             versionName = androidTvVersionName
             ndk { abiFilters += tvAbis }
             manifestPlaceholders["appName"] =
-                if (testIdSuffix.isEmpty()) baseAppName else "$baseAppName Test"
+                if (testIdSuffix.isEmpty()) baseAppName else "Mo-Fin"
             // Impeller off by default on TV: the GLES fallback stutters on
             // TV-box GPUs. MoonfinApplication turns it on for boxes where it
             // runs on Vulkan.
