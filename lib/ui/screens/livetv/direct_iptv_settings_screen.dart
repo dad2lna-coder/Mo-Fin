@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:get_it/get_it.dart';
 
 import '../../../direct_iptv/direct_iptv_catalog.dart';
@@ -83,7 +84,9 @@ class _DirectIptvSettingsScreenState extends State<DirectIptvSettingsScreen> {
       body: !_catalog.loaded
           ? const Center(child: CircularProgressIndicator())
           : sources.isEmpty
-          ? const Center(child: Text('No Dispatcharr, Pluto, or M3U sources yet'))
+          ? const Center(
+              child: Text('No Dispatcharr, Pluto, or M3U sources yet'),
+            )
           : ListView.builder(
               itemCount: sources.length,
               itemBuilder: (context, index) {
@@ -202,7 +205,8 @@ class _DirectIptvEditorState extends State<_DirectIptvEditor> {
     }
     final minutes = int.tryParse(_refreshMinutes.text.trim()) ?? 30;
     final source = DirectIptvSource(
-      id: widget.existing?.id ??
+      id:
+          widget.existing?.id ??
           'src${DateTime.now().microsecondsSinceEpoch.toRadixString(16)}',
       name: _name.text.trim().isEmpty ? 'Direct IPTV' : _name.text.trim(),
       kind: _kind,
@@ -253,155 +257,179 @@ class _DirectIptvEditorState extends State<_DirectIptvEditor> {
       appBar: AppBar(
         title: Text(widget.existing == null ? 'Add source' : 'Edit source'),
       ),
-      body: ListView(
-        padding: const EdgeInsets.fromLTRB(16, 12, 16, 32),
-        children: [
-          TextField(
-            controller: _name,
-            decoration: const InputDecoration(labelText: 'Name'),
+      // Text fields keep the remote's up/down keys for cursor moves, which
+      // traps D-pad focus on the first field. Map them to focus moves.
+      body: Shortcuts(
+        shortcuts: const <ShortcutActivator, Intent>{
+          SingleActivator(LogicalKeyboardKey.arrowDown): DirectionalFocusIntent(
+            TraversalDirection.down,
           ),
-          const SizedBox(height: 12),
-          DropdownButtonFormField<DirectIptvKind>(
-            initialValue: _kind,
-            decoration: const InputDecoration(labelText: 'Type'),
-            items: const [
-              DropdownMenuItem(
-                value: DirectIptvKind.dispatcharr,
-                child: Text('Dispatcharr'),
-              ),
-              DropdownMenuItem(
-                value: DirectIptvKind.m3u,
-                child: Text('M3U playlist'),
-              ),
-              DropdownMenuItem(
-                value: DirectIptvKind.pluto,
-                child: Text('Pluto TV'),
-              ),
-            ],
-            onChanged: (kind) {
-              if (kind != null) setState(() => _kind = kind);
-            },
+          SingleActivator(LogicalKeyboardKey.arrowUp): DirectionalFocusIntent(
+            TraversalDirection.up,
           ),
-          const SizedBox(height: 12),
-          TextField(
-            controller: _baseUrl,
-            keyboardType: TextInputType.url,
-            decoration: InputDecoration(
-              labelText: _kind == DirectIptvKind.dispatcharr
-                  ? 'Dispatcharr address'
-                  : _kind == DirectIptvKind.pluto
-                  ? 'Guide address'
-                  : 'Playlist address',
-              hintText: _kind == DirectIptvKind.pluto
-                  ? 'https://i.mjh.nz/PlutoTV/us.xml'
-                  : 'http://host:9191',
+        },
+        child: FocusTraversalGroup(
+          policy: ReadingOrderTraversalPolicy(),
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 32),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                TextField(
+                  controller: _name,
+                  decoration: const InputDecoration(labelText: 'Name'),
+                ),
+                const SizedBox(height: 12),
+                DropdownButtonFormField<DirectIptvKind>(
+                  initialValue: _kind,
+                  decoration: const InputDecoration(labelText: 'Type'),
+                  items: const [
+                    DropdownMenuItem(
+                      value: DirectIptvKind.dispatcharr,
+                      child: Text('Dispatcharr'),
+                    ),
+                    DropdownMenuItem(
+                      value: DirectIptvKind.m3u,
+                      child: Text('M3U playlist'),
+                    ),
+                    DropdownMenuItem(
+                      value: DirectIptvKind.pluto,
+                      child: Text('Pluto TV'),
+                    ),
+                  ],
+                  onChanged: (kind) {
+                    if (kind != null) setState(() => _kind = kind);
+                  },
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: _baseUrl,
+                  keyboardType: TextInputType.url,
+                  decoration: InputDecoration(
+                    labelText: _kind == DirectIptvKind.dispatcharr
+                        ? 'Dispatcharr address'
+                        : _kind == DirectIptvKind.pluto
+                        ? 'Guide address'
+                        : 'Playlist address',
+                    hintText: _kind == DirectIptvKind.pluto
+                        ? 'https://i.mjh.nz/PlutoTV/us.xml'
+                        : 'http://host:9191',
+                  ),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: _username,
+                  decoration: const InputDecoration(
+                    labelText: 'Username',
+                    helperText: 'Optional. Used when no token is set.',
+                  ),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: _password,
+                  obscureText: true,
+                  decoration: const InputDecoration(labelText: 'Password'),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: _token,
+                  obscureText: true,
+                  decoration: const InputDecoration(
+                    labelText: 'Token',
+                    helperText: 'Optional. Sent as a bearer token instead of a password.',
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'The password and token stay on this device with the other preferences. They are not encrypted.',
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: _m3uPath,
+                  decoration: InputDecoration(
+                    labelText: 'M3U path',
+                    helperText: _kind == DirectIptvKind.dispatcharr
+                        ? 'Blank uses /output/m3u/. A full URL is also accepted.'
+                        : _kind == DirectIptvKind.pluto
+                        ? 'Unused. Pluto channels come from the guide.'
+                        : 'Blank uses the address above as the playlist.',
+                  ),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: _epgPath,
+                  decoration: InputDecoration(
+                    labelText: 'EPG path',
+                    helperText: _kind == DirectIptvKind.dispatcharr
+                        ? 'Blank uses /output/epg/. Some servers use /output/xmltv. Enter - to skip the guide.'
+                        : _kind == DirectIptvKind.pluto
+                        ? 'Blank uses the address above as the XMLTV guide. Channels play from jmp2.uk. Enter - to skip.'
+                        : 'Optional XMLTV path or URL. Blank skips the guide.',
+                  ),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: _refreshMinutes,
+                  keyboardType: TextInputType.number,
+                  decoration: const InputDecoration(
+                    labelText: 'Refresh every (minutes)',
+                  ),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: _subtitleLanguage,
+                  decoration: const InputDecoration(
+                    labelText: 'Preferred subtitle language',
+                    hintText: 'en',
+                  ),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: _audioLanguage,
+                  decoration: const InputDecoration(
+                    labelText: 'Preferred audio language',
+                    hintText: 'en',
+                  ),
+                ),
+                SwitchListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: const Text('Captions on by default'),
+                  subtitle: const Text(
+                    'Selects the preferred language on direct channels. Pluto marks its WebVTT rendition off, so the player has to turn it on. CEA-608 is used when that is what the stream carries instead.',
+                  ),
+                  value: _captionsOn,
+                  onChanged: (value) => setState(() => _captionsOn = value),
+                ),
+                SwitchListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: const Text('Enabled'),
+                  value: _enabled,
+                  onChanged: (value) => setState(() => _enabled = value),
+                ),
+                if (_error != null)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 12),
+                    child: Text(
+                      _error!,
+                      style: const TextStyle(color: Colors.redAccent),
+                    ),
+                  ),
+                FilledButton(
+                  onPressed: () => unawaited(_save()),
+                  child: const Text('Save'),
+                ),
+                if (widget.existing != null) ...[
+                  const SizedBox(height: 8),
+                  TextButton(
+                    onPressed: () => unawaited(_delete()),
+                    child: const Text('Remove source'),
+                  ),
+                ],
+              ],
             ),
           ),
-          const SizedBox(height: 12),
-          TextField(
-            controller: _username,
-            decoration: const InputDecoration(
-              labelText: 'Username',
-              helperText: 'Optional. Used when no token is set.',
-            ),
-          ),
-          const SizedBox(height: 12),
-          TextField(
-            controller: _password,
-            obscureText: true,
-            decoration: const InputDecoration(labelText: 'Password'),
-          ),
-          const SizedBox(height: 12),
-          TextField(
-            controller: _token,
-            obscureText: true,
-            decoration: const InputDecoration(
-              labelText: 'Token',
-              helperText: 'Optional. Sent as a bearer token instead of a password.',
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'The password and token stay on this device with the other preferences. They are not encrypted.',
-            style: Theme.of(context).textTheme.bodySmall,
-          ),
-          const SizedBox(height: 12),
-          TextField(
-            controller: _m3uPath,
-            decoration: InputDecoration(
-              labelText: 'M3U path',
-              helperText: _kind == DirectIptvKind.dispatcharr
-                  ? 'Blank uses /output/m3u/. A full URL is also accepted.'
-                  : _kind == DirectIptvKind.pluto
-                  ? 'Unused. Pluto channels come from the guide.'
-                  : 'Blank uses the address above as the playlist.',
-            ),
-          ),
-          const SizedBox(height: 12),
-          TextField(
-            controller: _epgPath,
-            decoration: InputDecoration(
-              labelText: 'EPG path',
-              helperText: _kind == DirectIptvKind.dispatcharr
-                  ? 'Blank uses /output/epg/. Some servers use /output/xmltv. Enter - to skip the guide.'
-                  : _kind == DirectIptvKind.pluto
-                  ? 'Blank uses the address above as the XMLTV guide. Channels play from jmp2.uk. Enter - to skip.'
-                  : 'Optional XMLTV path or URL. Blank skips the guide.',
-            ),
-          ),
-          const SizedBox(height: 12),
-          TextField(
-            controller: _refreshMinutes,
-            keyboardType: TextInputType.number,
-            decoration: const InputDecoration(
-              labelText: 'Refresh every (minutes)',
-            ),
-          ),
-          const SizedBox(height: 12),
-          TextField(
-            controller: _subtitleLanguage,
-            decoration: const InputDecoration(
-              labelText: 'Preferred subtitle language',
-              hintText: 'en',
-            ),
-          ),
-          const SizedBox(height: 12),
-          TextField(
-            controller: _audioLanguage,
-            decoration: const InputDecoration(
-              labelText: 'Preferred audio language',
-              hintText: 'en',
-            ),
-          ),
-          SwitchListTile(
-            contentPadding: EdgeInsets.zero,
-            title: const Text('Captions on by default'),
-            subtitle: const Text(
-              'Selects the preferred language on direct channels. Pluto marks its WebVTT rendition off, so the player has to turn it on. CEA-608 is used when that is what the stream carries instead.',
-            ),
-            value: _captionsOn,
-            onChanged: (value) => setState(() => _captionsOn = value),
-          ),
-          SwitchListTile(
-            contentPadding: EdgeInsets.zero,
-            title: const Text('Enabled'),
-            value: _enabled,
-            onChanged: (value) => setState(() => _enabled = value),
-          ),
-          if (_error != null)
-            Padding(
-              padding: const EdgeInsets.only(bottom: 12),
-              child: Text(_error!, style: const TextStyle(color: Colors.redAccent)),
-            ),
-          FilledButton(onPressed: () => unawaited(_save()), child: const Text('Save')),
-          if (widget.existing != null) ...[
-            const SizedBox(height: 8),
-            TextButton(
-              onPressed: () => unawaited(_delete()),
-              child: const Text('Remove source'),
-            ),
-          ],
-        ],
+        ),
       ),
     );
   }
