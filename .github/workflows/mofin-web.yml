@@ -1,0 +1,68 @@
+name: Mo-Fin Web
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: mofin-web
+  cancel-in-progress: true
+
+env:
+  FLUTTER_VERSION: '3.47.2'
+
+jobs:
+  web:
+    name: Build Mo-Fin web bundle
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+
+      - name: Build web
+        run: |
+          flutter pub get
+          flutter build web --wasm --release --base-href "/mofin/"
+
+      - name: Write runtime config
+        run: |
+          cat > build/web/config.json <<'JSON'
+          {
+            "schemaVersion": 1,
+            "defaultServerUrl": null,
+            "discoveryProxyUrl": null,
+            "enableWebRtcScan": true,
+            "brandingName": "Moonfin",
+            "pluginMode": false,
+            "forcedServerUrl": null
+          }
+          JSON
+          echo "${GITHUB_SHA}" > build/web/mofin-build.txt
+
+      - name: Zip build/web
+        run: cd build/web && zip -q -r -9 "$GITHUB_WORKSPACE/Mo-Fin-web.zip" .
+
+      - name: Upload web artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Mo-Fin-web
+          path: Mo-Fin-web.zip
+          if-no-files-found: error
+
+      # Upload only the zip so the APK job's release name/body stay untouched.
+      - name: Publish Mo-Fin-web.zip to the latest release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if ! gh release view latest >/dev/null 2>&1; then
+            gh release create latest --title Mo-Fin --notes "Mo-Fin builds." --latest
+          fi
+          gh release upload latest Mo-Fin-web.zip --clobber
