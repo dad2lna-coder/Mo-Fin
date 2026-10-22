@@ -295,12 +295,24 @@ class XmltvScan {
 }
 
 /// `https://jmp2.uk/plu-<id>.m3u8`. A channel id that already starts with
-/// `plu-` is not prefixed twice.
+/// `plu-` is not prefixed twice. On web the same playlist comes from the
+/// page's own server instead, see [plutoWebProxyUrl].
 String plutoStreamUrl(String channelId) {
   var id = channelId.trim();
   if (id.toLowerCase().startsWith('plu-')) id = id.substring(4);
   if (id.isEmpty) id = channelId.trim();
+  if (kIsWeb) return plutoWebProxyUrl(id);
   return 'https://jmp2.uk/plu-$id.m3u8';
+}
+
+/// `<page origin>/mofin/pluto/plu-<id>.m3u8`. jmp2.uk and Pluto's stitcher
+/// send no CORS headers a browser accepts, so the web app's server proxies
+/// the playlists, keys, segments and subtitles and rewrites every URI back
+/// through itself. The origin comes from [page] (default [Uri.base]), so a
+/// non-default port such as :8443 carries over.
+String plutoWebProxyUrl(String id, {Uri? page}) {
+  final origin = (page ?? Uri.base).origin;
+  return '$origin/mofin/pluto/plu-${Uri.encodeComponent(id)}.m3u8';
 }
 
 /// `20261021120000 +0000` and the same form with a colon in the offset.
