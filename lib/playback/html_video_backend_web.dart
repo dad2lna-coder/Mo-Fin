@@ -91,6 +91,16 @@ class HtmlVideoBackend extends PlayerBackend {
 
   int _knownTextTrackCount = 0;
 
+  /// Marks the text tracks this backend made, so the HLS subtitle renditions
+  /// the browser or hls.js found in the stream can be told apart from them.
+  static const _externalTrackProperty = 'moonfinExternalTrack';
+
+  /// Language of the stream's own subtitle rendition to turn on once it shows
+  /// up, when the source asks for one (Pluto marks its WebVTT DEFAULT=NO).
+  String? _pendingTextLanguage;
+  DateTime? _pendingTextSince;
+  bool _pendingTextApplied = false;
+
   web.HTMLVideoElement _createVideoElement() {
     final element = web.HTMLVideoElement()
       // The id is what the cue stylesheet selects on, so a second player on
@@ -174,6 +184,7 @@ class HtmlVideoBackend extends PlayerBackend {
     if (textTrackCount != _knownTextTrackCount) {
       _knownTextTrackCount = textTrackCount;
       _forEachTextTrack(_watchCuesFor);
+      _applyPendingTextRendition();
       if (!_tracksChangedStream.isClosed) {
         _tracksChangedStream.add(null);
       }
@@ -376,6 +387,13 @@ class HtmlVideoBackend extends PlayerBackend {
     final container = payload['container']?.toString();
     if (url.isEmpty) return;
 
+    final textLanguage = payload['nativeTextLanguage']?.toString().trim() ?? '';
+    final selectText =
+        payload['selectNativeTextRendition'] == true && textLanguage.isNotEmpty;
+    _pendingTextLanguage = selectText ? textLanguage : null;
+    _pendingTextSince = selectText ? DateTime.now() : null;
+    _pendingTextApplied = false;
+
     _tracksKnown = false;
     _tracksReadyCompleter = null;
     _knownTextTrackCount = 0;
@@ -438,6 +456,7 @@ class HtmlVideoBackend extends PlayerBackend {
     _videoElement.removeAttribute('src');
     _videoElement.load();
     _clearExternalTracks();
+    _pendingTextLanguage = null;
     _tracksKnown = false;
     _tracksReadyCompleter = null;
     _knownTextTrackCount = 0;
@@ -542,6 +561,7 @@ class HtmlVideoBackend extends PlayerBackend {
     // Track ordinals count from one over the tracks the player was handed, and
     // the only ones a browser is ever handed are the ones added here, so the
     // ordinal is a position in that list.
+    _pendingTextLanguage = null;
     _showTrackAt(index - 1);
   }
 
@@ -601,14 +621,97 @@ class HtmlVideoBackend extends PlayerBackend {
     final tracks = _inBandCaptionTracks();
     if (id <= 0 || id > tracks.length) return;
 
+    _pendingTextLanguage = null;
     _showTrackAt(-1);
     tracks[id - 1].mode = 'showing';
+  }
+
+  /// Subtitle renditions declared by the HLS master itself (Safari's native
+  /// player and hls.js both surface them as `subtitles` text tracks).
+  List<web.TextTrack> _streamSubtitleTracks() {
+    final found = <web.TextTrack>[];
+    try {
+      final tracks = _videoElement.textTracks;
+      for (var i = 0; i < tracks.length; i++) {
+        final track = tracks[i];
+        if (track.kind != 'subtitles') continue;
+        if (track.has(_externalTrackProperty)) continue;
+        found.add(track);
+      }
+    } catch (_) {}
+    return found;
+  }
+
+  static String _renditionId(int position, web.TextTrack track) =>
+      'web:$position:${track.language}:${track.label}';
+
+  @override
+  List<NativeTextRendition> get nativeTextRenditions {
+    final tracks = _streamSubtitleTracks();
+    return List.unmodifiable([
+      for (var i = 0; i < tracks.length; i++)
+        NativeTextRendition(
+          id: _renditionId(i, tracks[i]),
+          label: tracks[i].label.isEmpty
+              ? (tracks[i].language.isEmpty ? 'Subtitles' : tracks[i].language)
+              : tracks[i].label,
+          language: tracks[i].language.isEmpty ? null : tracks[i].language,
+          mimeType: 'text/vtt',
+          selected: tracks[i].mode == 'showing',
+        ),
+    ]);
+  }
+
+  @override
+  Future<void> setNativeTextRendition(String? id) async {
+    if (_disposed) return;
+    _pendingTextLanguage = null;
+    _showTrackAt(-1);
+    if (id == null || id.isEmpty) return;
+    final tracks = _streamSubtitleTracks();
+    for (var i = 0; i < tracks.length; i++) {
+      if (_renditionId(i, tracks[i]) == id) {
+        tracks[i].mode = 'showing';
+        return;
+      }
+    }
+  }
+
+  /// Turns on the stream rendition in [_pendingTextLanguage] once the player
+  /// has listed it. Matching is on the primary subtag, so `en` takes `en-US`.
+  void _applyPendingTextRendition() {
+    final wanted = _pendingTextLanguage?.toLowerCase();
+    if (wanted == null || _pendingTextApplied) return;
+    final primary = wanted.split(RegExp('[-_]')).first;
+    for (final track in _streamSubtitleTracks()) {
+      final language = track.language.toLowerCase();
+      final matches = language == wanted ||
+          language.split(RegExp('[-_]')).first == primary;
+      if (!matches) continue;
+      _pendingTextApplied = true;
+      _showTrackAt(-1);
+      track.mode = 'showing';
+      return;
+    }
   }
 
   @override
   Future<void> disableSubtitleTrack() async {
     if (_disposed) return;
+    // The manager clears subtitles on its own while a stream starts. A source
+    // that asked for its stream rendition keeps it through that; a later Off
+    // is the viewer's and wins.
+    final since = _pendingTextSince;
+    final starting = _pendingTextLanguage != null &&
+        since != null &&
+        DateTime.now().difference(since) < const Duration(seconds: 6);
     _showTrackAt(-1);
+    if (starting) {
+      _pendingTextApplied = false;
+      _applyPendingTextRendition();
+      return;
+    }
+    _pendingTextLanguage = null;
   }
 
   @override
@@ -685,6 +788,7 @@ class HtmlVideoBackend extends PlayerBackend {
     }
 
     _externalTracks.add((url: url, element: element));
+    element.track.setProperty(_externalTrackProperty.toJS, true.toJS);
     _watchCuesFor(element.track);
     return _externalTracks.length - 1;
   }
