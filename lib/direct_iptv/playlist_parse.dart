@@ -1,5 +1,7 @@
 import 'dart:convert';
 
+import 'package:flutter/foundation.dart' show kIsWeb;
+
 import 'models.dart';
 
 /// Reads an M3U playlist. Attribute names are matched without case, and the
@@ -577,8 +579,10 @@ String? _absoluteUrl(DirectIptvSource source, String? url) {
 }
 
 Map<String, String> authHeaders(DirectIptvSource source) {
+  // Browsers can't set User-Agent and treat it as a custom header that
+  // forces a CORS preflight, which GitHub and many hosts reject.
   final headers = <String, String>{
-    'User-Agent': 'Moonfin',
+    if (!kIsWeb) 'User-Agent': 'Moonfin',
     'Accept': '*/*',
   };
   final token = source.token.trim();
