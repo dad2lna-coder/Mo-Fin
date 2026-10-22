@@ -7,8 +7,25 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'direct_iptv_client.dart';
 import 'models.dart';
 import 'playlist_parse.dart';
-import 'snapshot_store_stub.dart'
-    if (dart.library.io) 'snapshot_store_io.dart';
+import 'snapshot_store_stub.dart' if (dart.library.io) 'snapshot_store_io.dart';
+
+/// What a finished guide refresh should tell the user.
+class DirectIptvRefreshResult {
+  final int channelCount;
+  final String? error;
+
+  const DirectIptvRefreshResult({required this.channelCount, this.error});
+
+  String get message =>
+      directGuideRefreshMessage(channelCount: channelCount, error: error);
+}
+
+/// "Updated · N channels", or [error] when the refresh did not succeed.
+String directGuideRefreshMessage({required int channelCount, String? error}) {
+  final problem = error?.trim();
+  if (problem != null && problem.isNotEmpty) return problem;
+  return 'Updated · $channelCount channels';
+}
 
 /// Saved Dispatcharr and raw M3U accounts, plus the cached lineup for each.
 ///
@@ -70,9 +87,8 @@ class DirectIptvCatalog extends ChangeNotifier {
             ..clear()
             ..addAll(
               decoded.whereType<Map>().map(
-                (entry) => DirectIptvSource.fromJson(
-                  Map<String, dynamic>.from(entry),
-                ),
+                (entry) =>
+                    DirectIptvSource.fromJson(Map<String, dynamic>.from(entry)),
               ),
             );
         }
@@ -126,18 +142,24 @@ class DirectIptvCatalog extends ChangeNotifier {
     }
   }
 
-  Future<void> refresh(String sourceId, {bool force = false}) async {
+  /// Manual refresh ([force]) always hits the server. The result is what the
+  /// guide snackbar says: the channel count, or the error string.
+  Future<DirectIptvRefreshResult?> refresh(
+    String sourceId, {
+    bool force = false,
+  }) async {
     await ensureLoaded();
     final source = sourceById(sourceId);
-    if (source == null || !source.enabled) return;
+    if (source == null || !source.enabled) return null;
     if (!force) {
       final refused = _refusedUntil[sourceId];
-      if (refused != null && DateTime.now().isBefore(refused)) return;
+      if (refused != null && DateTime.now().isBefore(refused)) return null;
       final snapshot = _snapshots[sourceId];
       final fresh =
           snapshot != null &&
-          DateTime.now().difference(snapshot.fetchedAt) < source.refreshInterval;
-      if (fresh) return;
+          DateTime.now().difference(snapshot.fetchedAt) <
+              source.refreshInterval;
+      if (fresh) return null;
     }
 
     final generation = (_generation[sourceId] ?? 0) + 1;
@@ -147,32 +169,43 @@ class DirectIptvCatalog extends ChangeNotifier {
     notifyListeners();
     try {
       final built = await _fetch(source);
-      if (_generation[sourceId] != generation) return;
+      if (_generation[sourceId] != generation) return null;
       _refusedUntil.remove(sourceId);
       _remember(built);
       await _store.write(built);
-      if (built.channels.isEmpty) {
-        _errors[sourceId] = 'The playlist has no channels';
-      }
+      final empty = built.channels.isEmpty
+          ? 'The playlist has no channels'
+          : null;
+      if (empty != null) _errors[sourceId] = empty;
+      return DirectIptvRefreshResult(
+        channelCount: built.channels.length,
+        error: empty,
+      );
     } on DirectIptvException catch (error) {
-      if (_generation[sourceId] == generation) {
-        if (error is DirectIptvRejected) {
-          _refusedUntil[sourceId] = DateTime.now().add(source.refreshInterval);
-        }
-        _errors[sourceId] = error.message;
+      if (_generation[sourceId] != generation) return null;
+      if (error is DirectIptvRejected) {
+        _refusedUntil[sourceId] = DateTime.now().add(source.refreshInterval);
       }
+      _errors[sourceId] = error.message;
+      return DirectIptvRefreshResult(
+        channelCount: _snapshots[sourceId]?.channels.length ?? 0,
+        error: error.message,
+      );
     } on FormatException {
-      if (_generation[sourceId] == generation) {
-        _errors[sourceId] = 'The base URL is not a valid address';
-      }
+      if (_generation[sourceId] != generation) return null;
+      const message = 'The base URL is not a valid address';
+      _errors[sourceId] = message;
+      return const DirectIptvRefreshResult(channelCount: 0, error: message);
     } on TimeoutException {
-      if (_generation[sourceId] == generation) {
-        _errors[sourceId] = 'The server took too long to answer';
-      }
+      if (_generation[sourceId] != generation) return null;
+      const message = 'The server took too long to answer';
+      _errors[sourceId] = message;
+      return const DirectIptvRefreshResult(channelCount: 0, error: message);
     } catch (_) {
-      if (_generation[sourceId] == generation) {
-        _errors[sourceId] = 'Could not reach the server';
-      }
+      if (_generation[sourceId] != generation) return null;
+      const message = 'Could not reach the server';
+      _errors[sourceId] = message;
+      return const DirectIptvRefreshResult(channelCount: 0, error: message);
     } finally {
       if (_generation[sourceId] == generation) {
         _refreshing.remove(sourceId);

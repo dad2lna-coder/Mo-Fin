@@ -2,11 +2,13 @@ import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:get_it/get_it.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../direct_iptv/direct_guide.dart';
 import '../../../direct_iptv/direct_iptv_catalog.dart';
+import '../../../direct_iptv/direct_iptv_recordings.dart';
 import '../../../direct_iptv/models.dart';
 import '../../../direct_iptv/playlist_parse.dart';
 import '../../../util/focus/dpad_keys.dart';
@@ -14,6 +16,7 @@ import '../../../util/focus/key_event_utils.dart';
 import '../../navigation/destinations.dart';
 import 'direct_guide_layout.dart';
 import 'direct_iptv_preview.dart';
+import 'direct_iptv_recordings_screen.dart';
 import 'direct_iptv_settings_screen.dart';
 
 const _navy = Color(0xFF071422);
@@ -36,9 +39,12 @@ class DirectIptvGuideScreen extends StatefulWidget {
 class _DirectIptvGuideScreenState extends State<DirectIptvGuideScreen> {
   final _searchNode = FocusNode(debugLabel: 'direct-guide-search');
   final _sourceNode = FocusNode(debugLabel: 'direct-guide-source');
+  final _recordingsNode = FocusNode(debugLabel: 'direct-guide-recordings');
   final _settingsNode = FocusNode(debugLabel: 'direct-guide-settings');
   final _refreshNode = FocusNode(debugLabel: 'direct-guide-refresh');
   final _gridNode = FocusNode(debugLabel: 'direct-guide-grid');
+  final _selectKeyHandler = LongPressSelectKeyHandler();
+  final _recorder = DirectIptvRecordings();
   final Map<int, FocusNode> _groupNodes = {};
   final _rowsScroll = ScrollController();
 
@@ -57,6 +63,8 @@ class _DirectIptvGuideScreenState extends State<DirectIptvGuideScreen> {
   double _rowExtent = 68;
   List<DirectProgram>? _indexedFrom;
   Map<String, List<DirectProgram>> _programIndex = const {};
+  List<DirectRecording> _recordings = const [];
+  String? _recordingsSourceId;
 
   @override
   void initState() {
@@ -86,9 +94,11 @@ class _DirectIptvGuideScreenState extends State<DirectIptvGuideScreen> {
     _rowsScroll.dispose();
     _searchNode.dispose();
     _sourceNode.dispose();
+    _recordingsNode.dispose();
     _settingsNode.dispose();
     _refreshNode.dispose();
     _gridNode.dispose();
+    _selectKeyHandler.dispose();
     for (final node in _groupNodes.values) {
       node.dispose();
     }
@@ -99,6 +109,7 @@ class _DirectIptvGuideScreenState extends State<DirectIptvGuideScreen> {
     _indexedFrom = null;
     if (!mounted) return;
     setState(_selectDefaultSource);
+    _watchRecordings();
     _schedulePreview();
   }
 
@@ -409,7 +420,145 @@ class _DirectIptvGuideScreenState extends State<DirectIptvGuideScreen> {
       _cursor = const DirectGuideCursor(row: 0);
       _indexedFrom = null;
     });
+    _watchRecordings();
     _schedulePreview();
+  }
+
+  void _snack(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context)
+        .showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  void _watchRecordings() {
+    final id = _sourceId;
+    if (id == _recordingsSourceId) return;
+    _recordingsSourceId = id;
+    _recordings = const [];
+    if (mounted) setState(() {});
+    if (id != null) unawaited(_loadRecordings());
+  }
+
+  Future<void> _loadRecordings() async {
+    final source = _source;
+    final id = source?.id;
+    if (source == null) return;
+    try {
+      final list = await _recorder.list(source);
+      if (!mounted || _source?.id != id) return;
+      setState(() => _recordings = list);
+    } on DirectIptvRecordingsException {
+      // A missing recordings route stays quiet until the user records.
+    }
+  }
+
+  DirectProgram? _focusedProgram(
+    List<DirectChannel> channels,
+    DirectGuideWindow window,
+  ) {
+    if (channels.isEmpty) return null;
+    final cursor = _clampedCursor(channels);
+    final blocks = _blocksFor(channels, window, cursor.row);
+    if (blocks.isEmpty) return null;
+    final index = directGuideBlockIndex(blocks, cursor.programId, _now);
+    return blocks[index].program;
+  }
+
+  bool _programMarked(DirectChannel channel, DirectProgram? program) {
+    if (program == null) return false;
+    return directRecordingFor(
+          recordings: _recordings,
+          channel: channel,
+          program: program,
+        ) !=
+        null;
+  }
+
+  Future<void> _recordFocused() async {
+    final channels = _channels;
+    final compact = MediaQuery.sizeOf(context).width < 720;
+    final window = directGuideWindow(_now, halfHours: compact ? 4 : 8);
+    final channel = _channelAt(channels, _clampedCursor(channels).row);
+    final program = _focusedProgram(channels, window);
+    if (channel == null || program == null) {
+      _snack('No program to record');
+      return;
+    }
+    await _toggleRecord(channel, program);
+  }
+
+  Future<void> _toggleRecord(
+    DirectChannel channel,
+    DirectProgram program,
+  ) async {
+    final source = _source;
+    if (source == null) return;
+    final existing = directRecordingFor(
+      recordings: _recordings,
+      channel: channel,
+      program: program,
+    );
+    try {
+      if (existing != null) {
+        await _recorder.cancel(source, existing.id);
+        if (!mounted) return;
+        setState(() {
+          _recordings = [
+            for (final item in _recordings)
+              if (item.id != existing.id) item,
+          ];
+        });
+        _snack('Recording cancelled');
+      } else {
+        final tvg = channel.tvgId?.trim() ?? '';
+        if (tvg.isEmpty) {
+          _snack('This channel has no guide id');
+          return;
+        }
+        final created = await _recorder.schedule(
+          source: source,
+          tvgId: tvg,
+          title: program.title,
+          start: program.start,
+          end: program.end,
+        );
+        if (!mounted) return;
+        setState(() => _recordings = [..._recordings, created]);
+        _snack('Recording scheduled');
+      }
+      await _loadRecordings();
+    } on DirectIptvRecordingsException catch (error) {
+      if (mounted) _snack(error.message);
+    }
+  }
+
+  Future<void> _openRecordings() {
+    return _suspendAndRun(() async {
+      final source = _source;
+      if (source == null) return;
+      await Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) => DirectIptvRecordingsScreen(
+            source: source,
+            recordings: _recorder,
+            onChanged: (list) {
+              if (!mounted || _source?.id != source.id) return;
+              setState(() => _recordings = list);
+            },
+          ),
+        ),
+      );
+      await _loadRecordings();
+    });
+  }
+
+  Future<void> _refreshGuide() async {
+    final source = _source;
+    if (source == null || _catalog.isRefreshing(source.id)) return;
+    final result = await _catalog.refresh(source.id, force: true);
+    if (!mounted || result == null) return;
+    _snack(result.message);
+    unawaited(_loadRecordings());
   }
 
   @override
@@ -549,6 +698,31 @@ class _DirectIptvGuideScreenState extends State<DirectIptvGuideScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(8, 4, 8, 8),
+              child: Row(
+                children: [
+                  SvgPicture.asset(
+                    'assets/icons/moonfin_logo.svg',
+                    width: compact ? 22 : 28,
+                    height: compact ? 22 : 28,
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'MoFin',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w700,
+                        fontSize: compact ? 14 : 18,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
             if (multipleSources)
               _SidebarTile(
                 focusNode: _sourceNode,
@@ -556,20 +730,6 @@ class _DirectIptvGuideScreenState extends State<DirectIptvGuideScreen> {
                 icon: Icons.dns_outlined,
                 onSelect: () => unawaited(_pickSource()),
                 onKey: (event) => _sidebarArrows(event, onDown: _searchNode),
-              )
-            else
-              Padding(
-                padding: const EdgeInsets.fromLTRB(8, 4, 8, 8),
-                child: Text(
-                  _source?.name ?? 'Direct IPTV',
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w700,
-                    fontSize: compact ? 13 : 16,
-                  ),
-                ),
               ),
             _SidebarTile(
               focusNode: _searchNode,
@@ -602,15 +762,24 @@ class _DirectIptvGuideScreenState extends State<DirectIptvGuideScreen> {
                           _selectGroup(i == 0 ? null : groups[i - 1]),
                       onKey: (event) => _sidebarArrows(
                         event,
-                        onUp: i == 0
-                            ? (multipleSources ? _sourceNode : _searchNode)
-                            : _nodeForGroup(i - 1),
+                        onUp: i == 0 ? _searchNode : _nodeForGroup(i - 1),
                         onDown: i == lastGroup
-                            ? _settingsNode
+                            ? _recordingsNode
                             : _nodeForGroup(i + 1),
                       ),
                     ),
                 ],
+              ),
+            ),
+            _SidebarTile(
+              focusNode: _recordingsNode,
+              label: 'Recordings',
+              icon: Icons.video_library_outlined,
+              onSelect: () => unawaited(_openRecordings()),
+              onKey: (event) => _sidebarArrows(
+                event,
+                onUp: _nodeForGroup(lastGroup),
+                onDown: _settingsNode,
               ),
             ),
             _SidebarTile(
@@ -620,7 +789,7 @@ class _DirectIptvGuideScreenState extends State<DirectIptvGuideScreen> {
               onSelect: () => unawaited(_openSettings()),
               onKey: (event) => _sidebarArrows(
                 event,
-                onUp: _nodeForGroup(lastGroup),
+                onUp: _recordingsNode,
                 onDown: _refreshNode,
               ),
             ),
@@ -669,7 +838,7 @@ class _DirectIptvGuideScreenState extends State<DirectIptvGuideScreen> {
       onKey: (event) => _sidebarArrows(event, onUp: _settingsNode),
       onPressed: source == null || refreshing
           ? null
-          : () => unawaited(_catalog.refresh(source.id, force: true)),
+          : () => unawaited(_refreshGuide()),
     );
   }
 
@@ -785,6 +954,27 @@ class _DirectIptvGuideScreenState extends State<DirectIptvGuideScreen> {
               program == null ? '' : directProgramTimeRange(program),
               style: const TextStyle(color: Colors.white70, fontSize: 13),
             ),
+            if (program != null && channel != null)
+              TextButton.icon(
+                style: TextButton.styleFrom(
+                  foregroundColor: Colors.white,
+                  visualDensity: VisualDensity.compact,
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                  minimumSize: const Size(0, 32),
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                ),
+                onPressed: () => unawaited(_recordFocused()),
+                icon: Icon(
+                  Icons.fiber_manual_record,
+                  size: 14,
+                  color: _programMarked(channel, program)
+                      ? const Color(0xFFEF4444)
+                      : Colors.white70,
+                ),
+                label: Text(
+                  _programMarked(channel, program) ? 'Cancel' : 'Record',
+                ),
+              ),
           ],
         ),
         const SizedBox(height: 8),
@@ -964,10 +1154,14 @@ class _DirectIptvGuideScreenState extends State<DirectIptvGuideScreen> {
     required List<String> groups,
   }) {
     if (channels.isEmpty) return KeyEventResult.ignored;
-    final select = handleOneShotSelect(event, () {
-      final channel = _channelAt(channels, _cursor.row);
-      if (channel != null) unawaited(_play(channel));
-    });
+    final select = _selectKeyHandler.handleKeyEvent(
+      event,
+      onTap: () {
+        final channel = _channelAt(channels, _cursor.row);
+        if (channel != null) unawaited(_play(channel));
+      },
+      onLongPress: () => unawaited(_recordFocused()),
+    );
     if (select != KeyEventResult.ignored) return select;
     if (!event.isActionable) return KeyEventResult.ignored;
     final key = event.logicalKey;
@@ -1127,6 +1321,7 @@ class _DirectIptvGuideScreenState extends State<DirectIptvGuideScreen> {
                   window: window,
                   timeline: timeline,
                   focused: i == focusedIndex,
+                  recording: _programMarked(channel, blocks[i].program),
                   onTap: () {
                     _applyCursor(
                       DirectGuideCursor(
@@ -1135,6 +1330,17 @@ class _DirectIptvGuideScreenState extends State<DirectIptvGuideScreen> {
                       ),
                     );
                     unawaited(_play(channel));
+                  },
+                  onLongPress: () {
+                    final program = blocks[i].program;
+                    _applyCursor(
+                      DirectGuideCursor(row: index, programId: program?.id),
+                    );
+                    if (program == null) {
+                      _snack('No program to record');
+                      return;
+                    }
+                    unawaited(_toggleRecord(channel, program));
                   },
                 ),
             ],
@@ -1149,7 +1355,9 @@ class _DirectIptvGuideScreenState extends State<DirectIptvGuideScreen> {
     required DirectGuideWindow window,
     required double timeline,
     required bool focused,
+    required bool recording,
     required VoidCallback onTap,
+    required VoidCallback onLongPress,
   }) {
     final program = block.program;
     final raw = block.width(window) * timeline;
@@ -1173,6 +1381,7 @@ class _DirectIptvGuideScreenState extends State<DirectIptvGuideScreen> {
         borderRadius: BorderRadius.circular(6),
         child: InkWell(
           onTap: onTap,
+          onLongPress: onLongPress,
           borderRadius: BorderRadius.circular(6),
           child: DecoratedBox(
             decoration: BoxDecoration(
@@ -1182,34 +1391,57 @@ class _DirectIptvGuideScreenState extends State<DirectIptvGuideScreen> {
                 width: focused ? 2 : 1,
               ),
             ),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text(
-                    program?.title ?? 'No guide data',
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      color: past && !focused ? Colors.white54 : Colors.white,
-                      fontWeight: focused ? FontWeight.w700 : FontWeight.w600,
-                      fontSize: 12,
-                    ),
+            child: Stack(
+              children: [
+                Padding(
+                  padding: EdgeInsets.fromLTRB(6, 4, recording ? 14 : 6, 4),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        program?.title ?? 'No guide data',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          color: past && !focused
+                              ? Colors.white54
+                              : Colors.white,
+                          fontWeight: focused
+                              ? FontWeight.w700
+                              : FontWeight.w600,
+                          fontSize: 12,
+                        ),
+                      ),
+                      if (width > 96 && program != null)
+                        Text(
+                          formatGuideTime(program.start),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            color: Colors.white60,
+                            fontSize: 10,
+                          ),
+                        ),
+                    ],
                   ),
-                  if (width > 96 && program != null)
-                    Text(
-                      formatGuideTime(program.start),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        color: Colors.white60,
-                        fontSize: 10,
+                ),
+                if (recording)
+                  const Positioned(
+                    top: 5,
+                    right: 5,
+                    child: SizedBox(
+                      width: 7,
+                      height: 7,
+                      child: DecoratedBox(
+                        decoration: BoxDecoration(
+                          color: Color(0xFFEF4444),
+                          shape: BoxShape.circle,
+                        ),
                       ),
                     ),
-                ],
-              ),
+                  ),
+              ],
             ),
           ),
         ),
@@ -1267,7 +1499,10 @@ class _IconFocusButtonState extends State<_IconFocusButton> {
             child: widget.busy
                 ? const Padding(
                     padding: EdgeInsets.all(8),
-                    child: CircularProgressIndicator(strokeWidth: 2),
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: Colors.white,
+                    ),
                   )
                 : Icon(
                     widget.icon,

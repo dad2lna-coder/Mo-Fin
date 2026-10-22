@@ -7,7 +7,7 @@ import 'package:moonfin/direct_iptv/direct_iptv_resolver.dart';
 import 'package:moonfin/direct_iptv/models.dart';
 import 'package:playback_core/playback_core.dart';
 
-class _Transport implements DirectIptvTransport {
+class _Transport extends DirectIptvTransport {
   _Transport(this.body);
 
   final String body;

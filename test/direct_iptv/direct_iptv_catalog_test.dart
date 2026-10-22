@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
@@ -7,10 +8,10 @@ import 'package:moonfin/direct_iptv/models.dart';
 import 'package:moonfin/direct_iptv/snapshot_store.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-class _Transport implements DirectIptvTransport {
+class _Transport extends DirectIptvTransport {
   _Transport(this.handler);
 
-  final DirectIptvHttpResult Function(Uri url) handler;
+  final FutureOr<DirectIptvHttpResult> Function(Uri url) handler;
   final calls = <Uri>[];
 
   @override
@@ -111,22 +112,29 @@ void main() {
     expect(again.snapshotFor('src')!.channels.single.name, 'News');
   });
 
-  test('a rejected playlist is reported and the previous lineup stays', () async {
-    final transport = _Transport((url) => const DirectIptvHttpResult(401, ''));
-    final prefs = await SharedPreferences.getInstance();
-    final catalog = DirectIptvCatalog(
-      preferences: prefs,
-      transport: transport,
-      store: store,
-    );
-    await catalog.upsert(source(epgPath: '-'));
-    expect(catalog.snapshotFor('src'), isNull);
-    expect(catalog.errorFor('src'), contains('rejected'));
-    expect(transport.calls.single.path, '/output/m3u/');
-  });
+  test(
+    'a rejected playlist is reported and the previous lineup stays',
+    () async {
+      final transport = _Transport(
+        (url) => const DirectIptvHttpResult(401, ''),
+      );
+      final prefs = await SharedPreferences.getInstance();
+      final catalog = DirectIptvCatalog(
+        preferences: prefs,
+        transport: transport,
+        store: store,
+      );
+      await catalog.upsert(source(epgPath: '-'));
+      expect(catalog.snapshotFor('src'), isNull);
+      expect(catalog.errorFor('src'), contains('rejected'));
+      expect(transport.calls.single.path, '/output/m3u/');
+    },
+  );
 
   test('403 stops before the guide and is not retried until forced', () async {
-    final transport = _Transport((url) => const DirectIptvHttpResult(403, 'no'));
+    final transport = _Transport(
+      (url) => const DirectIptvHttpResult(403, 'no'),
+    );
     final prefs = await SharedPreferences.getInstance();
     final catalog = DirectIptvCatalog(
       preferences: prefs,
@@ -180,4 +188,81 @@ void main() {
     expect(channels.first.logoUrl, 'https://cdn/news.png');
     expect(catalog.programOnNow(channels.last.id)?.title, 'Now');
   });
+
+  test('refresh feedback names the channel count or the error', () {
+    expect(
+      directGuideRefreshMessage(channelCount: 12, error: null),
+      'Updated · 12 channels',
+    );
+    expect(
+      directGuideRefreshMessage(channelCount: 0, error: '  '),
+      'Updated · 0 channels',
+    );
+    expect(
+      directGuideRefreshMessage(
+        channelCount: 4,
+        error: 'Could not reach the server',
+      ),
+      'Could not reach the server',
+    );
+  });
+
+  test('manual refresh stays busy, then reports the channel count', () async {
+    final gate = Completer<void>();
+    var held = false;
+    final m3u =
+        '#EXTM3U\n#EXTINF:-1 tvg-id="news" tvg-chno="5" group-title="News",News\n'
+        'http://dispatch.test/news.ts\n';
+    final transport = _Transport((url) async {
+      if (!held && url.path.contains('m3u')) {
+        held = true;
+        await gate.future;
+      }
+      if (url.path.contains('m3u')) return DirectIptvHttpResult(200, m3u);
+      return const DirectIptvHttpResult(200, '<tv></tv>');
+    });
+    final prefs = await SharedPreferences.getInstance();
+    final catalog = DirectIptvCatalog(
+      preferences: prefs,
+      transport: transport,
+      store: store,
+    );
+
+    final pending = catalog.upsert(source());
+    for (var i = 0; i < 30 && !catalog.isRefreshing('src'); i++) {
+      await Future<void>.delayed(Duration.zero);
+    }
+    expect(catalog.isRefreshing('src'), isTrue);
+
+    gate.complete();
+    await pending;
+    expect(catalog.isRefreshing('src'), isFalse);
+
+    final result = await catalog.refresh('src', force: true);
+    expect(result, isNotNull);
+    expect(result!.channelCount, 1);
+    expect(result.error, isNull);
+    expect(result.message, 'Updated · 1 channels');
+    expect(catalog.isRefreshing('src'), isFalse);
+  });
+
+  test(
+    'a failed refresh reports the error instead of a channel count',
+    () async {
+      final transport = _Transport(
+        (url) => const DirectIptvHttpResult(500, ''),
+      );
+      final prefs = await SharedPreferences.getInstance();
+      final catalog = DirectIptvCatalog(
+        preferences: prefs,
+        transport: transport,
+        store: store,
+      );
+      await catalog.upsert(source());
+      final result = await catalog.refresh('src', force: true);
+      expect(result!.message, 'Playlist request failed (500)');
+      expect(result.message.contains('Updated'), isFalse);
+      expect(catalog.isRefreshing('src'), isFalse);
+    },
+  );
 }

@@ -48,12 +48,28 @@ abstract class DirectIptvTransport {
       finalUrl: url,
     );
   }
+
+  /// POST, DELETE, and other verbs. [body] is written as a string.
+  /// Fake transports used by playlist tests can ignore this.
+  Future<DirectIptvHttpResult> send(
+    String method,
+    Uri url,
+    Map<String, String> headers, {
+    Object? body,
+    Duration timeout = const Duration(seconds: 20),
+  }) {
+    if (method.toUpperCase() == 'GET' && body == null) {
+      return get(url, headers, timeout: timeout);
+    }
+    throw UnsupportedError('DirectIptvTransport.$method');
+  }
 }
 
 class HttpDirectIptvTransport implements DirectIptvTransport {
   final http.Client _client;
 
-  HttpDirectIptvTransport([http.Client? client]) : _client = client ?? http.Client();
+  HttpDirectIptvTransport([http.Client? client])
+    : _client = client ?? http.Client();
 
   @override
   Future<DirectIptvHttpResult> get(
@@ -85,5 +101,26 @@ class HttpDirectIptvTransport implements DirectIptvTransport {
       bytes: streamed.stream,
       finalUrl: finalUrl,
     );
+  }
+
+  @override
+  Future<DirectIptvHttpResult> send(
+    String method,
+    Uri url,
+    Map<String, String> headers, {
+    Object? body,
+    Duration timeout = const Duration(seconds: 20),
+  }) async {
+    final request = http.Request(method, url)..headers.addAll(headers);
+    if (body != null) {
+      request.body = body is String ? body : body.toString();
+      request.headers.putIfAbsent(
+        'Content-Type',
+        () => 'application/json; charset=utf-8',
+      );
+    }
+    final streamed = await _client.send(request).timeout(timeout);
+    final response = await http.Response.fromStream(streamed);
+    return DirectIptvHttpResult(response.statusCode, response.body);
   }
 }
