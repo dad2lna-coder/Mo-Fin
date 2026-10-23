@@ -4,11 +4,11 @@ MoFin integrates with your Jellyfin media server to provide access to your movie
 
 ## Administrative Features
 
-### Admin-Only Item Deletion (🖕)
+### Admin & Permissioned Item Deletion (🖕)
 
-When logged in as a Jellyfin account with administrative privileges (`IsAdministrator`), MoFin displays a deletion button represented by the 🖕 emoji on movie and episode detail screens and video player control overlays.
+When logged in as a Jellyfin account with administrative privileges (`IsAdministrator`) or with content deletion permission (`EnableContentDeletion`), MoFin displays a deletion button represented by the 🖕 emoji on movie and episode detail screens and video player control overlays.
 
-- **Admin Access Only**: Non-admin users will not see the deletion option.
+- **Permissions**: Shown to server administrators and users with explicit content deletion permissions. Non-permissioned users will not see the deletion option.
 - **Confirmation Safety**: Selecting the deletion button opens a confirmation dialog asking you to confirm whether you wish to permanently delete the item from your Jellyfin server.
 - **Default Focus**: In the confirmation dialog, the **Cancel** button is focused by default. This ensures that accidental presses on a TV D-pad remote will not inadvertently trigger a deletion.
 

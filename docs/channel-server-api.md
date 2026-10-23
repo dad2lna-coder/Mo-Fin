@@ -6,7 +6,7 @@ This document details the REST API endpoints and M3U playlist attributes that Mo
 
 A MoFin Direct IPTV source base URI typically points to an endpoint ending with `/mofin/free/` (e.g., `https://your-server/mofin/free/`).
 
-Relative endpoints (`report`, `remove`, `resolution`) are resolved against this base URI.
+Relative endpoints (`report`, `remove`, `resolution`, `s/stack-<slug>.m3u8`) are resolved against this base URI.
 
 ---
 
@@ -20,28 +20,37 @@ MoFin parses custom `EXTINF` attributes in M3U playlists:
 | `tvg-name` / `tvg-logo` / `group-title` | String | Standard M3U channel metadata and category grouping. |
 | `x-mofin-working` | Boolean (`true`/`false`) | Pre-reported channel working state. |
 | `x-mofin-checked` | String (`YYYY-MM-DD`) | Date when channel status was last verified. |
-| `x-mofin-stack` | Integer | ID representing a channel stack grouping (> 0). |
-| `x-mofin-members` | String | Comma-separated list of member `tvg-id` channels inside a stack (e.g., `ch1,ch2,ch3`). |
-| `x-mofin-rec-url` | String | Alternative URL to use when requesting a channel recording. |
+| `x-mofin-stack` | Integer | Represents the number of member channels in the stack (integer >= 1). |
+| `x-mofin-members` | String | Comma-separated list of member `tvg-id` channels inside a stack (e.g., `channel-101,channel-101-backup`). |
+| `x-mofin-rec-url` | String | Recording URL hint for channel recording requests. |
 
 ### Playlist Example
 
+In this example, `x-mofin-stack="2"` indicates a stack with 2 member channels, matching the two items listed in `x-mofin-members`.
+
 ```m3u
 #EXTM3U
-#EXTINF:-1 tvg-id="channel-101" tvg-name="Example Channel" group-title="News" x-mofin-working="true" x-mofin-checked="2026-10-23" x-mofin-stack="5" x-mofin-members="channel-101,channel-101-backup" x-mofin-rec-url="https://your-server/mofin/free/rec/channel-101", Example Channel
+#EXTINF:-1 tvg-id="channel-101" tvg-name="Example Channel" group-title="News" x-mofin-working="true" x-mofin-checked="2026-10-23" x-mofin-stack="2" x-mofin-members="channel-101,channel-101-backup" x-mofin-rec-url="https://your-server/mofin/free/rec/channel-101", Example Channel
 https://your-server/mofin/free/stream/channel-101.m3u8
 ```
 
 ---
 
-## HTTP Stream Headers
+## Stack Playlists (`GET s/stack-<slug>.m3u8`)
 
-### `X-Mofin-Member`
+Channel stacks can also be requested via stack playlists.
 
-When playing a channel within a channel stack (`x-mofin-stack`), the media player inspects response headers from stream requests.
+- **URL**: `https://your-server/mofin/free/s/stack-<slug>.m3u8`
+- **Method**: `GET`
+- **Query Parameters**:
+  - `rec=1` *(Optional)*: Requests the recording variant of the stack playlist instead of the live stream variant.
 
-- **Header**: `X-Mofin-Member: <member-tvg-id>`
-- **Usage**: Indicates which underlying stack member served the stream.
+### HTTP Response Header (`X-Mofin-Member`)
+
+When serving or streaming a channel stack, the server identifies the active member stream by sending the HTTP response header:
+
+- **Header**: `X-Mofin-Member: <tvg-id>`
+- **Usage**: The app inspects `X-Mofin-Member` from stream load responses to identify which specific underlying stack member is actively playing or serving the stream.
 
 ---
 
@@ -62,9 +71,13 @@ Submits a user status report (🙂 working / 🙁 broken) for a channel.
 {
   "tvg_id": "channel-101",
   "working": true,
-  "name": "Example Channel"
+  "name": "Example Channel",
+  "note": "Optional user comment or error description",
+  "member": "channel-101-backup"
 }
 ```
+
+*Fields `name`, `note`, and `member` are optional.*
 
 #### Responses
 
@@ -85,9 +98,13 @@ Requests removal or disabling of a non-working channel (triggered by the 🖕 re
 
 - **URL**: `https://your-server/mofin/free/remove`
 - **Method**: `POST`
+- **Authorization**:
+  Requests are authorized using a key token via one of three methods:
+  - Header: `X-Mofin-Key: <your-key>`
+  - Query Parameter: `?key=<your-key>`
+  - Header: `Authorization: Bearer <your-key>`
 - **Headers**:
   - `Content-Type: application/json`
-  - `X-Mofin-Key: <your-key>` *(Optional key token configured in playlist source)*
 
 #### Request Body
 
@@ -98,6 +115,8 @@ Requests removal or disabling of a non-working channel (triggered by the 🖕 re
 }
 ```
 
+*Field `name` is optional.*
+
 #### Responses
 
 - **200 OK**: Channel successfully removed.
@@ -106,8 +125,8 @@ Requests removal or disabling of a non-working channel (triggered by the 🖕 re
     "ok": true
   }
   ```
-- **403 Forbidden**: Invalid token or network forbidden.
-- **404 Not Found**: Channel specified by `tvg_id` not found.
+- **403 Forbidden**: Request is not authorized or key token is missing/invalid.
+- **404 Not Found**: Unknown `tvg_id` specified.
 - **429 Too Many Requests**: Rate limit exceeded.
 
 ---
@@ -131,11 +150,13 @@ Automatically reports decoded video resolution height during playback.
 }
 ```
 
-*(Note: `member` field is included when stream was resolved from a stack via `X-Mofin-Member` header).*
+*Field `member` is optional and included when stream was served by a stack member.*
 
-#### Allowed Resolution Values
+#### Allowed Resolution Values (`res`)
 
+Must be one of:
 - `"2160p"`
+- `"1440p"`
 - `"1080p"`
 - `"720p"`
 - `"480p"`

@@ -1,6 +1,6 @@
 # Streaming Tab
 
-The **Streaming** tab in MoFin integrates TMDB (The Movie Database) "where to watch" data to discover popular and trending content across popular subscription streaming services.
+The **Streaming** tab in MoFin integrates TMDB (The Movie Database) "where to watch" data (US region) to discover popular and trending content across popular subscription streaming services.
 
 ## Supported Streaming Services
 
@@ -11,9 +11,12 @@ The **Streaming** tab in MoFin integrates TMDB (The Movie Database) "where to wa
 
 ## How It Works
 
-1. MoFin queries TMDB for trending and popular media available on configured streaming providers in your region.
+1. MoFin queries TMDB for trending and popular media available on configured streaming providers in the US region.
 2. Selecting a title shows media details and available streaming providers.
-3. Choosing a provider directly launches the corresponding official native app on supported TV operating systems (Fire TV / Android TV).
+3. Behavior when selecting a provider:
+   - **Fire TV / Android TV**: Directly launches the corresponding official native application.
+   - **Web**: Opens the streaming service's search page in a new browser tab.
+   - **Roku**: Hides the Watch buttons.
 
 ## Setup & Configuration
 

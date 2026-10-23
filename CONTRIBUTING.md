@@ -22,6 +22,7 @@ flutter pub get
 - Match the surrounding code style and architecture.
 - Verify `flutter analyze` passes and `flutter test` succeeds.
 - Test on at least one target platform.
+- Don't edit translation files under `lib/l10n/` by hand, except for `lib/l10n/app_en.arb`.
 
 ## License
 

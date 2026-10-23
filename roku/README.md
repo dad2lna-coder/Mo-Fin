@@ -24,6 +24,5 @@ curl -f -u rokudev:PASSWORD --anyauth \
   http://<roku-ip>/plugin_install
 ```
 
-The default channel source template is `https://your-server/mofin/free/`
-(`playlist.m3u`, `guide.xml`, and `rec/`). Change it from Settings on the
-channel. The server certificate must be trusted by the Roku.
+An example channel source is `https://your-server/mofin/free/`
+(`playlist.m3u`, `guide.xml`, and `rec/`). Configure or change your channel source from Settings on the channel. The server certificate must be trusted by the Roku.
