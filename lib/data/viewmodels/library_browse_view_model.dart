@@ -15,6 +15,7 @@ import '../utils/blocked_ratings.dart';
 import '../repositories/mdblist_repository.dart';
 import '../services/plugin_sync_service.dart';
 import '../services/user_data_sync.dart';
+import '../services/deleted_item_bus.dart';
 import '../services/user_ratings_api.dart';
 import '../utils/alphabet_bucket.dart';
 import '../utils/bounded_concurrency.dart';
@@ -473,6 +474,7 @@ class LibraryBrowseViewModel extends ChangeNotifier {
     );
     _prefs.addListener(_onPrefsChanged);
     userDataSync.addListener(_onUserDataChanged);
+    deletedItemBus.addListener(_onItemDeleted);
   }
 
   /// Whether anything the grid shows has been watched, favourited or rated
@@ -490,6 +492,18 @@ class LibraryBrowseViewModel extends ChangeNotifier {
       notifyListeners();
     }
     if (!_syncingUserData) _userDataStale = true;
+  }
+
+  void _onItemDeleted() {
+    if (_disposed) return;
+    final id = deletedItemBus.lastId;
+    if (id == null || id.isEmpty) return;
+    final kept = _items.where((item) => item.id != id).toList();
+    if (kept.length == _items.length) return;
+    final removed = _items.length - kept.length;
+    _items = kept;
+    if (_totalCount >= removed) _totalCount -= removed;
+    notifyListeners();
   }
 
   /// Does nothing until a change has actually been recorded, so coming back to
@@ -1871,6 +1885,7 @@ class LibraryBrowseViewModel extends ChangeNotifier {
     _pageWalkGeneration++;
     _prefs.removeListener(_onPrefsChanged);
     userDataSync.removeListener(_onUserDataChanged);
+    deletedItemBus.removeListener(_onItemDeleted);
     super.dispose();
   }
 }

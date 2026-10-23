@@ -8,6 +8,7 @@ import '../repositories/user_views_repository.dart';
 import '../utils/blocked_ratings.dart';
 import '../utils/genre_browse_utils.dart';
 import '../utils/playlist_utils.dart';
+import '../services/deleted_item_bus.dart';
 
 class BreadcrumbEntry {
   final String id;
@@ -31,7 +32,9 @@ class FolderBrowseViewModel extends ChangeNotifier {
   static const _imageTypeLimit = 1;
 
   FolderBrowseViewModel(this._client, {String? serverId})
-    : _serverId = serverId;
+    : _serverId = serverId {
+    deletedItemBus.addListener(_onItemDeleted);
+  }
 
   ImageApi get imageApi => _client.imageApi;
 
@@ -351,6 +354,20 @@ class FolderBrowseViewModel extends ChangeNotifier {
   @override
   void dispose() {
     _disposed = true;
+    deletedItemBus.removeListener(_onItemDeleted);
     super.dispose();
+  }
+
+  void _onItemDeleted() {
+    if (_disposed) return;
+    final id = deletedItemBus.lastId;
+    if (id == null || id.isEmpty) return;
+    final kept = _items.where((item) => item.id != id).toList();
+    if (kept.length == _items.length) return;
+    final removed = _items.length - kept.length;
+    _items = kept;
+    if (_totalCount >= removed) _totalCount -= removed;
+    if (_rawItemsFetched >= removed) _rawItemsFetched -= removed;
+    _notify();
   }
 }

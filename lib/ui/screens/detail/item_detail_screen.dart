@@ -38,6 +38,7 @@ import '../../../data/viewmodels/seerr_media_detail_view_model.dart';
 import '../../../data/services/plugin_sync_service.dart';
 import '../../navigation/route_lifecycle_observer.dart';
 import '../../navigation/home_refresh_bus.dart';
+import '../../../data/services/deleted_item_bus.dart';
 import '../../navigation/app_router.dart';
 import '../../navigation/playback_launcher.dart';
 import 'detail_buttons.dart';
@@ -6766,8 +6767,11 @@ class DetailActionButtonsState extends State<DetailActionButtons> {
     final manager = GetIt.instance<PlaybackManager>();
     final queued = manager.queueService.currentItem;
     if (queued is AggregatedItem && queued.id == item.id) {
-      unawaited(manager.stop(userInitiated: false));
+      try {
+        await manager.stop(userInitiated: false);
+      } catch (_) {}
     }
+    deletedItemBus.forget(item.id);
     homeRefreshBus.requestNowOrAfterNavigation();
     appRouter.go(Destinations.home);
     WidgetsBinding.instance.addPostFrameCallback((_) {

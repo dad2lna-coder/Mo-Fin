@@ -81,6 +81,7 @@ import '../../../auth/repositories/user_repository.dart';
 import '../../navigation/destinations.dart';
 import '../../navigation/app_router.dart';
 import '../../navigation/home_refresh_bus.dart';
+import '../../../data/services/deleted_item_bus.dart';
 import '../../jellyfin_own_delete.dart';
 import '../../widgets/adaptive/sf_symbol.dart';
 import '../../screensaver/screensaver_controller.dart';
@@ -2958,6 +2959,15 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
       return;
     }
     homeRefreshBus.requestNowOrAfterNavigation();
+    deletedItemBus.forget(itemId);
+    if (mounted) {
+      setState(() => _isStopping = true);
+    } else {
+      _isStopping = true;
+    }
+    try {
+      await _manager.stop(userInitiated: false);
+    } catch (_) {}
     appRouter.go(Destinations.home);
     _showJellyfinDeleteToast('Deleted');
   }

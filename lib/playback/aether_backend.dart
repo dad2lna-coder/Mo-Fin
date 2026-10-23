@@ -771,6 +771,13 @@ class AetherBackend implements PlayerBackend, SubtitleLoadingBackend {
   @override
   Stream<void> get tracksChangedStream => _tracksChangedController.stream;
 
+  // AVPlayer does not report a decoded picture height back to Dart.
+  @override
+  int get videoHeight => 0;
+
+  @override
+  Stream<int> get videoHeightStream => const Stream<int>.empty();
+
   @override
   void dispose() {
     _pendingEmbeddedSubtitle = null;

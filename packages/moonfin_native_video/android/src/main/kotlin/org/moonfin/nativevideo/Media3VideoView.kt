@@ -75,6 +75,8 @@ import androidx.media3.exoplayer.mediacodec.MediaCodecAdapter
 import androidx.media3.exoplayer.mediacodec.MediaCodecInfo
 import androidx.media3.exoplayer.mediacodec.MediaCodecSelector
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
+import androidx.media3.exoplayer.source.LoadEventInfo
+import androidx.media3.exoplayer.source.MediaLoadData
 import androidx.media3.exoplayer.source.MediaSource
 import androidx.media3.exoplayer.source.MergingMediaSource
 import androidx.media3.exoplayer.trackselection.DefaultTrackSelector
@@ -1115,6 +1117,24 @@ class Media3VideoView(
         }
     }
 
+    private fun emitStreamHeaders(loadEventInfo: LoadEventInfo) {
+        val headers = loadEventInfo.responseHeaders
+        if (headers.isEmpty()) return
+        var member = ""
+        for ((key, values) in headers) {
+            if (!key.equals("X-Mofin-Member", ignoreCase = true)) continue
+            member = values.firstOrNull()?.trim().orEmpty()
+            break
+        }
+        Media3Bridge.emitEvent(
+            mapOf(
+                "event" to "streamHeaders",
+                "sawHeaders" to true,
+                "member" to member,
+            ),
+        )
+    }
+
     private val listener = object : Player.Listener {
         @Suppress("DEPRECATION")
         override fun onCues(cues: List<Cue>) {
@@ -1446,6 +1466,14 @@ class Media3VideoView(
                     "elapsedMs" to elapsedMs,
                 ),
             )
+        }
+
+        override fun onLoadCompleted(
+            eventTime: AnalyticsListener.EventTime,
+            loadEventInfo: LoadEventInfo,
+            mediaLoadData: MediaLoadData,
+        ) {
+            emitStreamHeaders(loadEventInfo)
         }
 
         override fun onAudioUnderrun(

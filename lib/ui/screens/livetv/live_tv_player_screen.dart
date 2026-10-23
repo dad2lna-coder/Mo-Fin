@@ -3005,7 +3005,12 @@ class _LiveTvPlayerScreenState extends State<LiveTvPlayerScreen>
     String? member;
     final stacked = (catalog.channelById(channelId)?.stackSize ?? 0) >= 1;
     if (stacked) {
-      member = await catalog.peekMofinMember(channelId);
+      final played = await _memberFromPlayingResponse(backend);
+      if (played != null) {
+        member = played.member;
+      } else {
+        member = await catalog.peekMofinMember(channelId);
+      }
       if (epoch != _mofinResolutionEpoch) return;
       if (mounted && _currentChannel.id != channelId) return;
     }
@@ -3035,6 +3040,20 @@ class _LiveTvPlayerScreenState extends State<LiveTvPlayerScreen>
     } on TimeoutException {
       return 0;
     }
+  }
+
+  /// Member from the response that is already playing. Null means this
+  /// backend never saw those headers, so the cancelled Range probe may run.
+  /// A present result with a null member is still an answer.
+  Future<({String? member})?> _memberFromPlayingResponse(
+    PlayerBackend backend,
+  ) async {
+    if (backend is! Media3PlayerBackend) return null;
+    await backend.waitForStreamHeaders(const Duration(seconds: 4));
+    if (!backend.sawStreamHeaders) return null;
+    final member = backend.streamMember?.trim();
+    if (member == null || member.isEmpty) return (member: null);
+    return (member: member);
   }
 
   bool? get _mofinChoice => _directCatalog?.mofinWorking(_currentChannel.id);

@@ -139,12 +139,13 @@ class HttpDirectIptvTransport implements DirectIptvTransport {
     Duration timeout = const Duration(seconds: 8),
   }) async {
     final request = http.Request('GET', url)..headers.addAll(headers);
-    request.headers.putIfAbsent('Range', () => 'bytes=0-1023');
+    request.persistentConnection = false;
+    request.headers['Range'] = 'bytes=0-1023';
     final streamed = await _client.send(request).timeout(timeout);
     final flat = <String, String>{
       for (final entry in streamed.headers.entries) entry.key: entry.value,
     };
-    // Headers are already in. Cancel before a live stream can fill the buffer.
+    // Headers are already in. Cancel immediately so the socket is not held.
     try {
       final subscription = streamed.stream.listen((_) {}, onError: (_) {});
       await subscription.cancel();

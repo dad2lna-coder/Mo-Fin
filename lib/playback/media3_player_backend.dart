@@ -150,6 +150,9 @@ class Media3PlayerBackend extends PlayerBackend
   final _subtitleLoadingStream = StreamController<bool>.broadcast();
   final _videoHeightStream = StreamController<int>.broadcast();
   int _videoHeight = 0;
+  final _streamHeadersSeen = StreamController<void>.broadcast();
+  bool _sawStreamHeaders = false;
+  String? _streamMember;
 
   @override
   bool get isSubtitleLoading => _isSubtitleLoading;
@@ -565,6 +568,8 @@ class Media3PlayerBackend extends PlayerBackend
         _diag(
           'Media3: video size ${_toInt(map['width'])}x${_toInt(map['height'])}',
         );
+      case 'streamHeaders':
+        _noteStreamHeaders(map);
       case 'frameRate':
         _onFrameRateEvent(map);
     }
@@ -1074,6 +1079,8 @@ class Media3PlayerBackend extends PlayerBackend
 
     _completed = false;
     _videoHeight = 0;
+    _sawStreamHeaders = false;
+    _streamMember = null;
     // The native ticker keeps reporting the previous item's frozen position
     // until the new source is set. Left in place, a stop in the first second
     // reports where the last episode ended, which marks this one watched.
@@ -1725,6 +1732,7 @@ class Media3PlayerBackend extends PlayerBackend
     _tracksChangedController.close();
     _subtitleLoadingStream.close();
     _videoHeightStream.close();
+    _streamHeadersSeen.close();
   }
 
   @override
@@ -1737,6 +1745,42 @@ class Media3PlayerBackend extends PlayerBackend
     if (height <= 0) return;
     _videoHeight = height;
     if (!_videoHeightStream.isClosed) _videoHeightStream.add(height);
+  }
+
+  /// True once the load that is actually playing has response headers.
+  bool get sawStreamHeaders => _sawStreamHeaders;
+
+  /// `X-Mofin-Member` from that load, or null when the header was absent.
+  String? get streamMember => _streamMember;
+
+  /// Completes when those headers arrive. An empty member is still an
+  /// answer, so the probe must not open a second connection to look again.
+  Future<void> waitForStreamHeaders(Duration timeout) {
+    if (_sawStreamHeaders) return Future<void>.value();
+    final completer = Completer<void>();
+    late final StreamSubscription<void> sub;
+    sub = _streamHeadersSeen.stream.listen((_) {
+      if (!completer.isCompleted) completer.complete();
+      unawaited(sub.cancel());
+    });
+    if (_sawStreamHeaders && !completer.isCompleted) {
+      completer.complete();
+      unawaited(sub.cancel());
+    }
+    return completer.future.timeout(timeout, onTimeout: () {}).whenComplete(
+      () => unawaited(sub.cancel()),
+    );
+  }
+
+  void _noteStreamHeaders(Map<String, dynamic> map) {
+    if (map['sawHeaders'] != true) return;
+    final raw = map['member']?.toString().trim() ?? '';
+    if (raw.isNotEmpty && (_streamMember == null || _streamMember!.isEmpty)) {
+      _streamMember = raw;
+    }
+    if (_sawStreamHeaders) return;
+    _sawStreamHeaders = true;
+    if (!_streamHeadersSeen.isClosed) _streamHeadersSeen.add(null);
   }
 }
 

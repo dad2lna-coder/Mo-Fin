@@ -31,6 +31,7 @@ import '../../../data/services/theme_music_service.dart';
 import '../../../data/services/media_server_client_factory.dart';
 import '../../../data/services/plugin_sync_service.dart';
 import '../../../data/services/user_data_sync.dart';
+import '../../../data/services/deleted_item_bus.dart';
 import '../../../data/services/connectivity_service.dart';
 import '../../../data/services/log_service.dart';
 import '../../../data/utils/media_type_badges.dart';
@@ -208,6 +209,7 @@ class _HomeShellState extends State<_HomeShell>
     _lastObservedPath = appRouter.routerDelegate.currentConfiguration.uri.path;
     homeRefreshBus.addListener(_onHomeRefreshRequested);
     userDataSync.addListener(_onUserDataChanged);
+    deletedItemBus.addListener(_onItemDeleted);
     if (homeRefreshBus.consumePending()) {
       _viewModel.refresh(preserveExisting: true);
     }
@@ -254,6 +256,13 @@ class _HomeShellState extends State<_HomeShell>
     _viewModel.applyUserDataChanges();
   }
 
+  void _onItemDeleted() {
+    if (!mounted) return;
+    final id = deletedItemBus.lastId;
+    if (id == null || id.isEmpty) return;
+    _viewModel.forgetItem(id);
+  }
+
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
@@ -275,6 +284,7 @@ class _HomeShellState extends State<_HomeShell>
     appRouter.routerDelegate.removeListener(_onRouteChanged);
     homeRefreshBus.removeListener(_onHomeRefreshRequested);
     userDataSync.removeListener(_onUserDataChanged);
+    deletedItemBus.removeListener(_onItemDeleted);
     WidgetsBinding.instance.removeObserver(this);
     _selectionDebounce?.cancel();
     _backdropDebounce?.cancel();

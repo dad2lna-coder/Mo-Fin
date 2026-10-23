@@ -308,6 +308,8 @@ class MediaKitPlayerBackend extends PlayerBackend
   /// state still describes the previous one.
   VideoParams? _decodedVideoParams;
   StreamSubscription<VideoParams>? _videoParamsSub;
+  final _videoHeightStream = StreamController<int>.broadcast();
+  int _videoHeight = 0;
 
   /// Bumped by every open, stop and dispose, so a play() still awaiting an
   /// earlier step can tell it has been overtaken and leave the player alone.
@@ -873,6 +875,7 @@ class MediaKitPlayerBackend extends PlayerBackend
     // Whatever mpv reported for the previous title must not answer for this
     // one; the listener repopulates it once this file is loaded.
     _decodedVideoParams = null;
+    _videoHeight = 0;
     _handBackChecked = false;
     await _prepareNativeWindowForOpen(payload);
     if (!_ownsPlayback(generation)) return;
@@ -1081,6 +1084,7 @@ class MediaKitPlayerBackend extends PlayerBackend
   void _onVideoParams(VideoParams params) {
     final loaded = params.gamma != null || params.primaries != null;
     _decodedVideoParams = loaded ? params : null;
+    _setVideoHeight(_pictureHeight(params));
     if (!loaded || !PlatformDetection.supportsNativeHdrWindow) return;
     final status = hdrOutput.status.value;
     final engagedCheckDue =
@@ -3154,6 +3158,25 @@ class MediaKitPlayerBackend extends PlayerBackend
   }
 
   @override
+  int get videoHeight => _videoHeight;
+
+  @override
+  Stream<int> get videoHeightStream => _videoHeightStream.stream;
+
+  /// Display height when mpv has one, otherwise the coded height.
+  int _pictureHeight(VideoParams params) {
+    final display = params.dh ?? 0;
+    if (display > 0) return display;
+    return params.h ?? 0;
+  }
+
+  void _setVideoHeight(int height) {
+    if (height <= 0) return;
+    _videoHeight = height;
+    if (!_videoHeightStream.isClosed) _videoHeightStream.add(height);
+  }
+
+  @override
   void dispose() {
     _setSelectedExternalSubtitle(null);
     _isDisposed = true;
@@ -3167,6 +3190,7 @@ class MediaKitPlayerBackend extends PlayerBackend
     _prefs.removeListener(_onPreferencesChanged);
     _ccTracksSub?.cancel();
     _videoParamsSub?.cancel();
+    _videoHeightStream.close();
     _tracksChangedController.close();
     _playingGateChangedController.close();
     _subtitleLoadingStream.close();

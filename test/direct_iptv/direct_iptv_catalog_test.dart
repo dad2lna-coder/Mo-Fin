@@ -501,8 +501,13 @@ void main() {
     expect(transport.posts, hasLength(2));
 
     transport.peekHeadersResult = {'X-Mofin-Member': ' bbc '};
-    await catalog.reportMofinResolution(channelId: stack.id, height: 1440);
+    final member = await catalog.peekMofinMember(stack.id);
     expect(transport.peeks, 1);
+    await catalog.reportMofinResolution(
+      channelId: stack.id,
+      height: 1440,
+      member: member,
+    );
     expect(transport.posts, hasLength(3));
     expect(jsonDecode(transport.lastBody as String), {
       'tvg_id': 'stack-news',

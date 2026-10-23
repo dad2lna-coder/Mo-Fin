@@ -758,6 +758,36 @@ class HomeViewModel extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Drops a just-deleted item from every loaded row and the row cache.
+  void forgetItem(String itemId) {
+    if (itemId.isEmpty) return;
+    var changed = false;
+    final next = <HomeRow>[];
+    for (final row in _rows) {
+      final kept = row.items.where((item) => item.id != itemId).toList();
+      if (kept.length == row.items.length) {
+        next.add(row);
+        continue;
+      }
+      changed = true;
+      final removed = row.items.length - kept.length;
+      next.add(
+        row.copyWith(
+          items: kept,
+          totalCount: row.totalCount > removed
+              ? row.totalCount - removed
+              : kept.length,
+        ),
+      );
+    }
+    if (!changed) return;
+    _rows = next;
+    _saveRowCache();
+    _topShelf.update(_rows);
+    _watchNext.update(_rows);
+    notifyListeners();
+  }
+
   List<HomeRow> _reconcilePreservedRows(
     List<HomeSectionConfig> effectiveConfigs, {
     bool hydratedFromCache = false,

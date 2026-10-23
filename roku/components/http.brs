@@ -31,20 +31,44 @@ function httpRequest(url as string, method as string, body as string, token as s
         xfer.AddHeader(headerName, headerValue)
     end if
     xfer.SetMinimumTransferRate(100, 45)
+    port = CreateObject("roMessagePort")
+    xfer.SetMessagePort(port)
+    started = false
     if method = "POST" then
-        xfer.SetRequest("POST")
         xfer.AddHeader("Content-Type", "application/json")
-        posted = xfer.PostFromString(body)
-        if type(posted) = "String" or type(posted) = "roString" then result.body = posted
+        started = xfer.AsyncPostFromString(body)
     else
         if method = "DELETE" then xfer.SetRequest("DELETE")
-        fetched = xfer.GetToString()
-        if type(fetched) = "String" or type(fetched) = "roString" then result.body = fetched
+        started = xfer.AsyncGetToString()
     end if
-    result.code = xfer.GetResponseCode()
-    reason = xfer.GetFailureReason()
+    if started <> true then
+        result.error = "HTTP start failed"
+        return result
+    end if
+    ' The code and body live on the event. roUrlTransfer has neither.
+    elapsed = CreateObject("roTimespan")
+    elapsed.Mark()
+    while true
+        left = 120000 - elapsed.TotalMilliseconds()
+        if left < 1 then
+            xfer.AsyncCancel()
+            result.error = "HTTP timeout"
+            return result
+        end if
+        msg = wait(left, port)
+        if type(msg) = "roUrlEvent" and msg.GetInt() = 1 then
+            result.code = msg.GetResponseCode()
+            fetched = msg.GetString()
+            if type(fetched) = "String" or type(fetched) = "roString" then result.body = fetched
+            exit while
+        else if msg = invalid then
+            xfer.AsyncCancel()
+            result.error = "HTTP timeout"
+            return result
+        end if
+    end while
+    xfer.AsyncCancel()
     if result.code < 200 or result.code >= 300 then
-        if reason <> invalid and reason <> "" then result.error = reason
         if result.error = "" then result.error = "HTTP " + result.code.ToStr()
     end if
     return result
@@ -63,11 +87,17 @@ function peekMemberHeader(url as string) as string
     xfer.AddHeader("Range", "bytes=0-1023")
     port = CreateObject("roMessagePort")
     xfer.SetMessagePort(port)
-    if xfer.AsyncGetToString() = false then return ""
-    wait(4000, port)
-    headers = xfer.GetResponseHeaders()
+    if xfer.AsyncGetToString() <> true then
+        xfer.AsyncCancel()
+        return ""
+    end if
+    msg = wait(4000, port)
+    member = ""
+    if type(msg) = "roUrlEvent" then
+        member = memberFromHeaders(msg.GetResponseHeaders())
+    end if
     xfer.AsyncCancel()
-    return memberFromHeaders(headers)
+    return member
 end function
 
 function memberFromHeaders(headers as object) as string
