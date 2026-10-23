@@ -18,6 +18,7 @@ void main() {
       );
       expect(streamingServiceForProviderName('Disney+'), StreamingService.disneyPlus);
       expect(streamingServiceForProviderName('Max'), StreamingService.max);
+      expect(streamingServiceForProviderName('HBO Max'), StreamingService.max);
       expect(
         streamingServiceForProviderName('Amazon Prime Video'),
         StreamingService.primeVideo,
@@ -30,10 +31,10 @@ void main() {
       for (final rejected in [
         'Netflix Standard with Ads',
         'Max Amazon Channel',
+        'HBO Max Amazon Channel',
         'Amazon Prime Video with Ads',
         'Hulu',
         'Apple TV Plus',
-        'HBO Max',
         '',
       ]) {
         expect(streamingServiceForProviderName(rejected), isNull, reason: rejected);
@@ -315,6 +316,70 @@ void main() {
       expect(searched.needsKey, isTrue);
       expect(searched.message, kStreamingMissingKeyMessage);
       expect(calls, isEmpty);
+    });
+
+    test('the shared client makes no second network call within six hours', () async {
+      TmdbStreamingClient.resetSharedClients();
+      addTearDown(TmdbStreamingClient.resetSharedClients);
+      var calls = 0;
+      final first = TmdbStreamingClient.forKey(
+        'shared-key',
+        create: (apiKey) => TmdbStreamingClient(
+          apiKey: apiKey,
+          clock: Clock(() => DateTime.utc(2026, 6, 1)),
+          fetch: (uri) async {
+            calls++;
+            expect(uri.queryParameters['api_key'], 'shared-key');
+            return const TmdbFetchResult(200, '{"results":[]}');
+          },
+        ),
+      );
+
+      await first.loadHome();
+      final afterFirst = calls;
+      expect(afterFirst, greaterThan(0));
+
+      final second = TmdbStreamingClient.forKey(
+        'shared-key',
+        create: (_) => throw StateError('a new client would drop the cache'),
+      );
+      expect(identical(first, second), isTrue);
+      await second.loadHome();
+      expect(calls, afterFirst);
+
+      final replaced = TmdbStreamingClient.forKey(
+        'other-key',
+        create: (apiKey) => TmdbStreamingClient(
+          apiKey: apiKey,
+          fetch: (_) async => const TmdbFetchResult(200, '{"results":[]}'),
+        ),
+      );
+      expect(identical(replaced, first), isFalse);
+    });
+
+    test('failures never include the key or the request url', () async {
+      final secret = 'super-secret-key';
+      final broken = TmdbStreamingClient(
+        apiKey: secret,
+        fetch: (uri) async {
+          throw Exception('ClientException: $uri');
+        },
+      );
+      final refused = TmdbStreamingClient(
+        apiKey: secret,
+        fetch: (uri) async => TmdbFetchResult(401, 'nope $uri'),
+      );
+
+      final home = await broken.loadHome();
+      final denied = await refused.loadHome();
+
+      expect(home.error, "Couldn't reach TMDB");
+      expect(denied.error, "Couldn't reach TMDB (401)");
+      for (final message in [home.error, denied.error]) {
+        expect(message, isNot(contains(secret)));
+        expect(message, isNot(contains('api_key')));
+        expect(message, isNot(contains('ClientException')));
+      }
     });
   });
 }

@@ -12,7 +12,7 @@ function serviceForName(providerName as string) as string
     name = LCase(providerName.Trim())
     if name = "netflix" then return "netflix"
     if name = "disney plus" or name = "disney+" then return "disney"
-    if name = "max" then return "max"
+    if name = "max" or name = "hbo max" then return "max"
     if name = "amazon prime video" or name = "prime video" then return "prime"
     return ""
 end function

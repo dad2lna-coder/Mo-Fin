@@ -9,13 +9,38 @@ const String kStreamingMissingKeyMessage = 'Add a TMDB key in Settings';
 
 const _tmdbHost = 'api.themoviedb.org';
 const _region = 'US';
-const _ttl = Duration(hours: 6);
+const _defaultTtl = Duration(hours: 6);
+const _providerLookupLimit = 8;
 
 class TmdbFetchResult {
   final int statusCode;
   final String body;
 
   const TmdbFetchResult(this.statusCode, this.body);
+}
+
+/// A TMDB failure that is safe to show. It never carries the request URL.
+class TmdbRequestException implements Exception {
+  final int? statusCode;
+
+  const TmdbRequestException(this.statusCode);
+
+  String get display => statusCode == null
+      ? "Couldn't reach TMDB"
+      : "Couldn't reach TMDB ($statusCode)";
+}
+
+/// Text for a Streaming error. Anything that might contain `api_key` or a
+/// [ClientException] is replaced.
+String streamingErrorText(Object error) {
+  if (error is TmdbRequestException) return error.display;
+  final text = error.toString();
+  if (text.startsWith("Couldn't reach TMDB") &&
+      !text.contains('api_key') &&
+      !text.contains('http')) {
+    return text;
+  }
+  return "Couldn't reach TMDB";
 }
 
 typedef TmdbFetch = Future<TmdbFetchResult> Function(Uri uri);
@@ -131,7 +156,33 @@ class TmdbStreamingClient {
     Duration? ttl,
   })  : _fetch = fetch,
         _clock = clock ?? const Clock(),
-        _ttl = ttl ?? _ttl;
+        _ttl = ttl ?? _defaultTtl;
+
+  static final Map<String, TmdbStreamingClient> _byKey = {};
+
+  /// One client per key so home, search, and details share the 6-hour cache.
+  /// A different key replaces it. [create] is for tests.
+  static TmdbStreamingClient forKey(
+    String apiKey, {
+    TmdbStreamingClient Function(String apiKey)? create,
+  }) {
+    final trimmed = apiKey.trim();
+    if (trimmed.isEmpty) {
+      return TmdbStreamingClient(
+        apiKey: '',
+        fetch: (_) async => const TmdbFetchResult(0, ''),
+      );
+    }
+    final existing = _byKey[trimmed];
+    if (existing != null) return existing;
+    final client = create?.call(trimmed) ?? TmdbStreamingClient.network(trimmed);
+    _byKey
+      ..clear()
+      ..[trimmed] = client;
+    return client;
+  }
+
+  static void resetSharedClients() => _byKey.clear();
 
   factory TmdbStreamingClient.network(
     String apiKey, {
@@ -181,8 +232,10 @@ class TmdbStreamingClient {
         ));
       }
       return StreamingPage(rows: rows);
+    } on TmdbRequestException catch (error) {
+      return StreamingPage(error: error.display);
     } catch (error) {
-      return StreamingPage(error: error.toString());
+      return StreamingPage(error: streamingErrorText(error));
     }
   }
 
@@ -200,20 +253,25 @@ class TmdbStreamingClient {
         'language': 'en-US',
       });
       final results = _list(json, 'results');
-      final matches = <StreamingTitle>[];
+      final pending = <_PendingTitle>[];
       for (final raw in results) {
         if (raw is! Map) continue;
-        final type = raw['media_type']?.toString();
+        final type = raw['media_type']?.toString() ?? '';
         if (type != 'movie' && type != 'tv') continue;
         final id = _int(raw['id']);
         if (id == null) continue;
-        final services = await _servicesFor(type, id, ids);
-        if (services.isEmpty) continue;
-        matches.add(_titleFrom(raw, type, services: services));
+        pending.add(_PendingTitle(raw, type, id));
       }
+      final matches = await _mapPool(pending, (item) async {
+        final services = await _servicesFor(item.type, item.id, ids);
+        if (services.isEmpty) return null;
+        return _titleFrom(item.raw, item.type, services: services);
+      });
       return StreamingPage(titles: matches);
+    } on TmdbRequestException catch (error) {
+      return StreamingPage(error: error.display);
     } catch (error) {
-      return StreamingPage(error: error.toString());
+      return StreamingPage(error: streamingErrorText(error));
     }
   }
 
@@ -242,19 +300,20 @@ class TmdbStreamingClient {
 
   Future<List<StreamingTitle>> _trending(_ProviderIds ids) async {
     final json = await _get('/trending/all/week', {'language': 'en-US'});
-    final results = _list(json, 'results');
-    final titles = <StreamingTitle>[];
-    for (final raw in results) {
+    final pending = <_PendingTitle>[];
+    for (final raw in _list(json, 'results')) {
       if (raw is! Map) continue;
-      final type = raw['media_type']?.toString();
+      final type = raw['media_type']?.toString() ?? '';
       if (type != 'movie' && type != 'tv') continue;
       final id = _int(raw['id']);
       if (id == null) continue;
-      final services = await _servicesFor(type, id, ids);
-      if (services.isEmpty) continue;
-      titles.add(_titleFrom(raw, type, services: services));
+      pending.add(_PendingTitle(raw, type, id));
     }
-    return titles;
+    return _mapPool(pending, (item) async {
+      final services = await _servicesFor(item.type, item.id, ids);
+      if (services.isEmpty) return null;
+      return _titleFrom(item.raw, item.type, services: services);
+    });
   }
 
   Future<List<StreamingTitle>> _discoverService(
@@ -273,13 +332,20 @@ class TmdbStreamingClient {
         'include_adult': 'false',
         'language': 'en-US',
       });
+      final pending = <_PendingTitle>[];
       for (final raw in _list(json, 'results')) {
         if (raw is! Map) continue;
         final id = _int(raw['id']);
         if (id == null) continue;
-        final services = await _servicesFor(type, id, ids);
-        if (!services.contains(service)) continue;
-        found['$type:$id'] = _titleFrom(raw, type, services: services);
+        pending.add(_PendingTitle(raw, type, id));
+      }
+      final titles = await _mapPool(pending, (item) async {
+        final services = await _servicesFor(item.type, item.id, ids);
+        if (!services.contains(service)) return null;
+        return _titleFrom(item.raw, item.type, services: services);
+      });
+      for (final title in titles) {
+        found['${title.mediaType}:${title.id}'] = title;
       }
     }
     final titles = found.values.toList();
@@ -355,9 +421,14 @@ class TmdbStreamingClient {
       ...query,
       'api_key': apiKey.trim(),
     });
-    final response = await _fetch(uri);
+    final TmdbFetchResult response;
+    try {
+      response = await _fetch(uri);
+    } catch (_) {
+      throw const TmdbRequestException(null);
+    }
     if (response.statusCode < 200 || response.statusCode >= 300) {
-      throw Exception('TMDB ${response.statusCode} for $path');
+      throw TmdbRequestException(response.statusCode);
     }
     final decoded = response.body.isEmpty ? null : jsonDecode(response.body);
     _cache[key] = _CacheEntry(now, decoded);
@@ -371,6 +442,29 @@ class TmdbStreamingClient {
       parts.add('$key=${query[key]}');
     }
     return parts.join('&');
+  }
+
+  Future<List<StreamingTitle>> _mapPool(
+    List<_PendingTitle> items,
+    Future<StreamingTitle?> Function(_PendingTitle item) work,
+  ) async {
+    if (items.isEmpty) return const [];
+    final results = List<StreamingTitle?>.filled(items.length, null);
+    var cursor = 0;
+    Future<void> run() async {
+      while (true) {
+        final index = cursor;
+        if (index >= items.length) return;
+        cursor += 1;
+        results[index] = await work(items[index]);
+      }
+    }
+
+    final workers = items.length < _providerLookupLimit
+        ? items.length
+        : _providerLookupLimit;
+    await Future.wait(List.generate(workers, (_) => run()));
+    return [for (final title in results) if (title != null) title];
   }
 
   StreamingTitle _titleFrom(
@@ -401,6 +495,14 @@ class TmdbStreamingClient {
       services: services,
     );
   }
+}
+
+class _PendingTitle {
+  final Map raw;
+  final String type;
+  final int id;
+
+  const _PendingTitle(this.raw, this.type, this.id);
 }
 
 List<dynamic> _list(Object? json, String key) {

@@ -34,17 +34,22 @@ extension StreamingServiceInfo on StreamingService {
   ///
   /// Netflix on Fire TV is `com.netflix.ninja` (the phone app is
   /// `com.netflix.mediaclient`). Disney+ is `com.disney.disneyplus` on both.
-  /// Max is `com.wbd.stream`. Prime Video preinstalled on Fire OS is
-  /// `com.amazon.avod`; the Appstore build is
-  /// `com.amazon.avod.thirdpartyclient`.
+  /// Max on Fire TV is `com.wbd.stream`; older sticks still have
+  /// `com.hbo.hbonow`. Prime Video on Fire TV is `com.amazon.firebat`.
+  /// `com.amazon.avod` is the older Fire OS package, and
+  /// `com.amazon.avod.thirdpartyclient` is the Appstore build.
   List<String> get androidPackages => switch (this) {
         StreamingService.netflix => const [
             'com.netflix.ninja',
             'com.netflix.mediaclient',
           ],
         StreamingService.disneyPlus => const ['com.disney.disneyplus'],
-        StreamingService.max => const ['com.wbd.stream'],
+        StreamingService.max => const [
+            'com.wbd.stream',
+            'com.hbo.hbonow',
+          ],
         StreamingService.primeVideo => const [
+            'com.amazon.firebat',
             'com.amazon.avod',
             'com.amazon.avod.thirdpartyclient',
           ],
@@ -87,7 +92,7 @@ StreamingService? streamingServiceForProviderName(String providerName) {
   return switch (providerName.trim().toLowerCase()) {
     'netflix' => StreamingService.netflix,
     'disney plus' || 'disney+' => StreamingService.disneyPlus,
-    'max' => StreamingService.max,
+    'max' || 'hbo max' => StreamingService.max,
     'amazon prime video' || 'prime video' => StreamingService.primeVideo,
     _ => null,
   };

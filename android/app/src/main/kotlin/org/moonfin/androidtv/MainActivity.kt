@@ -1810,19 +1810,19 @@ class MainActivity : AudioServiceActivity(), GamepadsCompatibleActivity {
      *
      * Fire TV packages, in the order Dart sends them:
      * Netflix `com.netflix.ninja` (phone build is `com.netflix.mediaclient`),
-     * Disney+ `com.disney.disneyplus`, Max `com.wbd.stream`,
-     * Prime Video `com.amazon.avod` (Appstore build is
-     * `com.amazon.avod.thirdpartyclient`).
+     * Disney+ `com.disney.disneyplus`. Max is `com.wbd.stream`, then the
+     * older `com.hbo.hbonow`. Prime Video on Fire TV is `com.amazon.firebat`,
+     * then `com.amazon.avod`, then the Appstore package
+     * `com.amazon.avod.thirdpartyclient`.
      */
     private fun launchStreamingApp(args: Map<*, *>): String {
         val packages = (args["packages"] as? List<*>)?.mapNotNull { it as? String }.orEmpty()
         val searchUrl = args["searchUrl"] as? String
         for (pkg in packages) {
-            if (packageManager.getLaunchIntentForPackage(pkg) == null) continue
+            val launch = streamingLaunchIntent(pkg) ?: continue
             if (!searchUrl.isNullOrBlank() && startStreamingView(pkg, searchUrl)) {
                 return "opened"
             }
-            val launch = packageManager.getLaunchIntentForPackage(pkg) ?: continue
             launch.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             try {
                 startActivity(launch)
@@ -1831,6 +1831,11 @@ class MainActivity : AudioServiceActivity(), GamepadsCompatibleActivity {
             }
         }
         return "missing"
+    }
+
+    private fun streamingLaunchIntent(pkg: String): Intent? {
+        return packageManager.getLaunchIntentForPackage(pkg)
+            ?: packageManager.getLeanbackLaunchIntentForPackage(pkg)
     }
 
     private fun startStreamingView(pkg: String, searchUrl: String): Boolean {

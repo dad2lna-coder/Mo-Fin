@@ -28,6 +28,7 @@ import android.view.TextureView
 import android.view.View
 import android.util.Log as AndroidLog
 import android.widget.FrameLayout
+import java.io.IOException
 import androidx.annotation.OptIn
 import androidx.core.content.getSystemService
 import androidx.media3.common.C
@@ -971,6 +972,11 @@ class Media3VideoView(
     // the previous channel is dropped.
     private var streamHeaderGeneration = 0
     private val streamHeaderTaskGeneration = HashMap<Long, Int>()
+    // A failed attempt is taken out of [streamHeaderTaskGeneration] so its
+    // completion cannot publish headers. The generation it failed under is
+    // kept only so a retry of this same prepare can be tracked again. A new
+    // prepare clears it, and that retry must not adopt the new generation.
+    private val streamHeaderRetryGeneration = HashMap<Long, Int>()
     private var streamHeadersSentFor = 0
     // The host only ever plays audio, and starting there saves a decoder
     // rebuild on its first source.
@@ -1490,8 +1496,12 @@ class Media3VideoView(
             if (retryCount != 0 &&
                 !streamHeaderTaskGeneration.containsKey(loadEventInfo.loadTaskId)
             ) {
-                return
+                val failedAt = streamHeaderRetryGeneration[loadEventInfo.loadTaskId]
+                if (failedAt == null || failedAt != streamHeaderGeneration) {
+                    return
+                }
             }
+            streamHeaderRetryGeneration.remove(loadEventInfo.loadTaskId)
             streamHeaderTaskGeneration[loadEventInfo.loadTaskId] = streamHeaderGeneration
         }
 
@@ -1501,6 +1511,22 @@ class Media3VideoView(
             mediaLoadData: MediaLoadData,
         ) {
             streamHeaderTaskGeneration.remove(loadEventInfo.loadTaskId)
+            streamHeaderRetryGeneration.remove(loadEventInfo.loadTaskId)
+        }
+
+        override fun onLoadError(
+            eventTime: AnalyticsListener.EventTime,
+            loadEventInfo: LoadEventInfo,
+            mediaLoadData: MediaLoadData,
+            error: IOException,
+            wasCanceled: Boolean,
+        ) {
+            val tracked = streamHeaderTaskGeneration.remove(loadEventInfo.loadTaskId)
+            if (!wasCanceled && tracked != null && tracked == streamHeaderGeneration) {
+                streamHeaderRetryGeneration[loadEventInfo.loadTaskId] = tracked
+            } else {
+                streamHeaderRetryGeneration.remove(loadEventInfo.loadTaskId)
+            }
         }
 
         override fun onLoadCompleted(
@@ -2261,8 +2287,16 @@ class Media3VideoView(
         try {
             when (call.method) {
                 "setSource" -> {
+                    val before = streamHeaderGeneration
                     setSource(call.arguments)
-                    result.success(null)
+                    val generation = streamHeaderGeneration
+                    result.success(
+                        if (generation != before) {
+                            mapOf("streamHeaderGeneration" to generation)
+                        } else {
+                            null
+                        },
+                    )
                 }
 
                 "play" -> {
@@ -4183,6 +4217,13 @@ class Media3VideoView(
         cancelPendingRetime()
         streamHeaderGeneration += 1
         streamHeaderTaskGeneration.clear()
+        streamHeaderRetryGeneration.clear()
+        Media3Bridge.emitEvent(
+            mapOf(
+                "event" to "loadGeneration",
+                "generation" to streamHeaderGeneration,
+            ),
+        )
 
         val mediaItemBuilder = MediaItem.Builder()
             .setUri(parseUri(url))

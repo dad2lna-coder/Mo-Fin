@@ -162,6 +162,8 @@
         <package android:name="com.netflix.mediaclient" />
         <package android:name="com.disney.disneyplus" />
         <package android:name="com.wbd.stream" />
+        <package android:name="com.hbo.hbonow" />
+        <package android:name="com.amazon.firebat" />
         <package android:name="com.amazon.avod" />
         <package android:name="com.amazon.avod.thirdpartyclient" />
     </queries>

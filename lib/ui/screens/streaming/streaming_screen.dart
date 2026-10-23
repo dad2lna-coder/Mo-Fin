@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:moonfin_design/moonfin_design.dart';
 
+import '../../../preference/preference_constants.dart';
 import '../../../streaming/streaming_service.dart';
 import '../../../streaming/tmdb_key_store.dart';
 import '../../../streaming/tmdb_streaming_client.dart';
@@ -73,7 +74,7 @@ class _StreamingScreenState extends State<StreamingScreen> with RouteAware {
   Future<void> _load() async {
     final key = await store.read();
     if (!mounted) return;
-    final client = widget.clientFor?.call(key) ?? TmdbStreamingClient.network(key);
+    final client = widget.clientFor?.call(key) ?? TmdbStreamingClient.forKey(key);
     _client = client;
     if (!client.hasKey) {
       setState(() {
@@ -117,9 +118,7 @@ class _StreamingScreenState extends State<StreamingScreen> with RouteAware {
   Widget _body(BuildContext context) {
     final position =
         NavigationLayout.positionNotifier.value ?? NavbarPosition.top;
-    final topInset = position == NavbarPosition.top
-        ? 28 + 56
-        : 28.0;
+    final double topInset = position == NavbarPosition.top ? 28.0 + 56.0 : 28.0;
     return SafeArea(
       child: Padding(
         padding: EdgeInsets.fromLTRB(
@@ -184,7 +183,7 @@ class _StreamingScreenState extends State<StreamingScreen> with RouteAware {
     }
     if (page.error != null) {
       return Center(
-        child: Text(page.error!, style: const TextStyle(color: Colors.white70)),
+        child: Text(streamingErrorText(page.error!), style: const TextStyle(color: Colors.white70)),
       );
     }
     if (_searching) {

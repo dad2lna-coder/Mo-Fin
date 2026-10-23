@@ -153,7 +153,7 @@ class Media3PlayerBackend extends PlayerBackend
   final _streamHeadersSeen = StreamController<void>.broadcast();
   bool _sawStreamHeaders = false;
   String? _streamMember;
-  int _newestHeaderGeneration = 0;
+  int _expectedHeaderGeneration = 0;
   int _headerGenerationFloor = 0;
 
   @override
@@ -572,6 +572,8 @@ class Media3PlayerBackend extends PlayerBackend
         );
       case 'streamHeaders':
         _noteStreamHeaders(map);
+      case 'loadGeneration':
+        _noteLoadGeneration(map);
       case 'frameRate':
         _onFrameRateEvent(map);
     }
@@ -1081,9 +1083,13 @@ class Media3PlayerBackend extends PlayerBackend
 
     _completed = false;
     _videoHeight = 0;
-    _headerGenerationFloor = _newestHeaderGeneration;
     _sawStreamHeaders = false;
     _streamMember = null;
+    // Accept headers only for the generation this prepare reports. Until that
+    // reply or loadGeneration event arrives, a late event from the previous
+    // source cannot match.
+    _expectedHeaderGeneration = 0;
+    _headerGenerationFloor = 0;
     // The native ticker keeps reporting the previous item's frozen position
     // until the new source is set. Left in place, a stop in the first second
     // reports where the last episode ended, which marks this one watched.
@@ -1174,7 +1180,7 @@ class Media3PlayerBackend extends PlayerBackend
       _subtitleDelaySeconds = 0.0;
     }
     _subtitleDelaySessionId = subtitleDelaySessionId;
-    await _invoke<void>('setSource', {
+    final sourceReply = await _invoke<dynamic>('setSource', {
       'url': url,
       'headers': headers,
       'autoPlay': autoPlay,
@@ -1222,6 +1228,7 @@ class Media3PlayerBackend extends PlayerBackend
       'volumeBoostLevel': _volumeBoostLevel,
       'preview': isPreview,
     });
+    _noteLoadGeneration(sourceReply);
     await _invoke<void>('setRepeatMode', {
       'mode': _repeatModeToWire(_repeatMode),
     });
@@ -1775,13 +1782,27 @@ class Media3PlayerBackend extends PlayerBackend
     );
   }
 
+  void _noteLoadGeneration(dynamic source) {
+    if (source is! Map) return;
+    final generation = _toInt(
+      source['streamHeaderGeneration'] ?? source['generation'],
+    );
+    if (generation <= 0) return;
+    // An older prepare's reply can land after a newer one. Don't rewind.
+    if (generation < _expectedHeaderGeneration) return;
+    if (generation != _expectedHeaderGeneration) {
+      _sawStreamHeaders = false;
+      _streamMember = null;
+    }
+    _expectedHeaderGeneration = generation;
+    _headerGenerationFloor = generation - 1;
+  }
+
   void _noteStreamHeaders(Map<String, dynamic> map) {
     if (map['sawHeaders'] != true) return;
     final generation = _toInt(map['generation']);
+    if (generation != _expectedHeaderGeneration) return;
     if (generation <= _headerGenerationFloor) return;
-    if (generation > _newestHeaderGeneration) {
-      _newestHeaderGeneration = generation;
-    }
     final raw = map['member']?.toString().trim() ?? '';
     if (raw.isNotEmpty && (_streamMember == null || _streamMember!.isEmpty)) {
       _streamMember = raw;

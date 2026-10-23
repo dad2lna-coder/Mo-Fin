@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:moonfin_design/moonfin_design.dart';
 
+import '../../../preference/preference_constants.dart';
 import '../../../streaming/streaming_launcher.dart';
 import '../../../streaming/streaming_service.dart';
 import '../../../streaming/tmdb_key_store.dart';
@@ -43,7 +44,7 @@ class _StreamingDetailScreenState extends State<StreamingDetailScreen> {
 
   Future<void> _load() async {
     final key = await (widget.store ?? _store).read();
-    final client = TmdbStreamingClient.network(key);
+    final client = TmdbStreamingClient.forKey(key);
     if (!client.hasKey) {
       if (!mounted) return;
       setState(() {
@@ -67,7 +68,7 @@ class _StreamingDetailScreenState extends State<StreamingDetailScreen> {
       if (!mounted) return;
       setState(() {
         _loading = false;
-        _error = error.toString();
+        _error = streamingErrorText(error);
       });
     }
   }
@@ -210,7 +211,14 @@ class _WatchButton extends StatefulWidget {
 }
 
 class _WatchButtonState extends State<_WatchButton> {
+  final _buttonFocus = FocusNode(skipTraversal: true, canRequestFocus: false);
   bool _focused = false;
+
+  @override
+  void dispose() {
+    _buttonFocus.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -230,6 +238,7 @@ class _WatchButtonState extends State<_WatchButton> {
             ),
           ),
           child: TextButton(
+            focusNode: _buttonFocus,
             onPressed: widget.onPressed,
             style: TextButton.styleFrom(
               foregroundColor: Colors.white,
