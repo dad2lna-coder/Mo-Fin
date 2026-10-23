@@ -9,7 +9,9 @@ sub run()
     if body = invalid then body = ""
     token = m.top.token
     if token = invalid then token = ""
-    result = httpRequest(m.top.url, method, body, token)
+    tokenHeader = m.top.tokenHeader
+    if tokenHeader = invalid then tokenHeader = ""
+    result = httpRequest(m.top.url, method, body, token, tokenHeader)
     m.top.code = result.code
     m.top.response = result.body
     m.top.error = result.error

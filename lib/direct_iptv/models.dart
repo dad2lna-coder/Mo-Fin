@@ -195,6 +195,17 @@ class DirectChannel {
   /// `x-mofin-checked`, `YYYY-MM-DD`, when the playlist or a tap provided one.
   final String? mofinChecked;
 
+  /// `x-mofin-stack`. Kept in memory for the guide badge. Not written into
+  /// the lineup snapshot.
+  final int? stackSize;
+
+  /// `x-mofin-members`. Same rule as [stackSize]: not catalog storage.
+  final List<String> stackMembers;
+
+  /// `x-mofin-rec-url`. Recording still posts [tvgId]; the server chooses
+  /// the source. Not catalog storage.
+  final String? mofinRecUrl;
+
   const DirectChannel({
     required this.id,
     required this.sourceId,
@@ -208,6 +219,9 @@ class DirectChannel {
     this.resolution,
     this.mofinWorking,
     this.mofinChecked,
+    this.stackSize,
+    this.stackMembers = const [],
+    this.mofinRecUrl,
   });
 
   DirectChannel withMofinReport({
@@ -227,6 +241,9 @@ class DirectChannel {
       resolution: resolution,
       mofinWorking: working,
       mofinChecked: checked,
+      stackSize: stackSize,
+      stackMembers: stackMembers,
+      mofinRecUrl: mofinRecUrl,
     );
   }
 

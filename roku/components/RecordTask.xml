@@ -5,6 +5,7 @@
         <field id="method" type="string" />
         <field id="body" type="string" />
         <field id="token" type="string" />
+        <field id="tokenHeader" type="string" />
         <field id="code" type="integer" />
         <field id="response" type="string" />
         <field id="error" type="string" />

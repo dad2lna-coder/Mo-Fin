@@ -8,7 +8,7 @@ function joinUrl(base as string, path as string) as string
     return b + p
 end function
 
-function httpRequest(url as string, method as string, body as string, token as string) as object
+function httpRequest(url as string, method as string, body as string, token as string, tokenHeader as dynamic) as object
     result = { code: 0, body: "", error: "" }
     xfer = CreateObject("roUrlTransfer")
     if xfer = invalid then
@@ -22,7 +22,13 @@ function httpRequest(url as string, method as string, body as string, token as s
     xfer.SetUrl(url)
     xfer.AddHeader("Accept", "*/*")
     if token <> invalid and token <> "" then
-        xfer.AddHeader("Authorization", "Bearer " + token)
+        headerName = "Authorization"
+        headerValue = "Bearer " + token
+        if tokenHeader <> invalid and tokenHeader <> "" then
+            headerName = tokenHeader
+            headerValue = token
+        end if
+        xfer.AddHeader(headerName, headerValue)
     end if
     xfer.SetMinimumTransferRate(100, 45)
     if method = "POST" then

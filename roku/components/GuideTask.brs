@@ -6,7 +6,7 @@ sub run()
     base = m.top.baseUrl
     token = m.top.token
     if token = invalid then token = ""
-    playlist = httpRequest(joinUrl(base, "playlist.m3u"), "GET", "", token)
+    playlist = httpRequest(joinUrl(base, "playlist.m3u"), "GET", "", token, "")
     if playlist.code < 200 or playlist.code >= 300 or playlist.body = "" then
         m.top.error = "Playlist failed. " + playlist.error
         return
@@ -14,7 +14,7 @@ sub run()
     channels = parseM3u(playlist.body)
     programs = {}
     guideError = ""
-    guide = httpRequest(joinUrl(base, "guide.xml"), "GET", "", token)
+    guide = httpRequest(joinUrl(base, "guide.xml"), "GET", "", token, "")
     if guide.code >= 200 and guide.code < 300 and guide.body <> "" then
         programs = parseXmltv(guide.body)
     else
@@ -51,6 +51,10 @@ function channelFromExtinf(info as string, url as string) as object
     if comma >= 0 then name = info.Mid(comma + 1).Trim()
     if name = "" then name = "Channel"
     tvgId = quotedAttr(info, "tvg-id")
+    stack = 0
+    stackRaw = quotedAttr(info, "x-mofin-stack")
+    if stackRaw <> "" then stack = stackRaw.ToInt()
+    if stack < 1 then stack = 0
     return {
         name: name
         number: quotedAttr(info, "tvg-chno")
@@ -58,6 +62,9 @@ function channelFromExtinf(info as string, url as string) as object
         group: quotedAttr(info, "group-title")
         url: url.Trim()
         tvgId: tvgId
+        stack: stack
+        members: quotedAttr(info, "x-mofin-members")
+        recUrl: quotedAttr(info, "x-mofin-rec-url")
     }
 end function
 
@@ -74,16 +81,26 @@ end function
 function groupNames(channels as object) as object
     seen = {}
     names = []
+    others = []
     for each channel in channels
         group = channel.group
         if group = invalid then group = ""
         group = group.Trim()
-        if group <> "" and seen.DoesExist(LCase(group)) = false then
-            seen[LCase(group)] = true
+        if group = "" then continue for
+        key = LCase(group)
+        if seen.DoesExist(key) then continue for
+        seen[key] = true
+        if key = "other" then
+            others.Push(group)
+        else
             names.Push(group)
         end if
     end for
-    return sortStrings(names)
+    names = sortStrings(names)
+    for each group in others
+        names.Push(group)
+    end for
+    return names
 end function
 
 function sortStrings(items as object) as object

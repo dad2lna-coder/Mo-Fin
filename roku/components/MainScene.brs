@@ -22,6 +22,13 @@ sub init()
     m.playingUrl = ""
     m.baseUrl = readSetting("baseUrl", m.defaultBase)
     m.token = readSetting("token", "")
+    m.playerControls = false
+    m.playerIndex = 0
+    m.resumePlayer = false
+    m.playingChannel = invalid
+    m.statusHold = ""
+    m.removeTvgId = ""
+    m.removeName = ""
 
     m.preview = m.top.findNode("preview")
     m.preview.captionMode = "On"
@@ -45,6 +52,7 @@ sub init()
     m.recordingsPanel = m.top.findNode("recordings")
     m.recordingList = m.top.findNode("recordingList")
     m.playerHint = m.top.findNode("playerHint")
+    m.playerBar = m.top.findNode("playerBar")
     m.sidebar = m.top.findNode("sidebar")
     m.brand = m.top.findNode("brand")
     m.brandSub = m.top.findNode("brandSub")
@@ -178,6 +186,26 @@ function onRecordingsKey(key as string) as boolean
 end function
 
 function onPlayerKey(key as string) as boolean
+    if m.playerControls then
+        if key = "left" then
+            if m.playerIndex > 0 then m.playerIndex = m.playerIndex - 1
+        else if key = "right" then
+            if m.playerIndex < 3 then m.playerIndex = m.playerIndex + 1
+        else if key = "up" then
+            m.playerControls = false
+        else if key = "OK" or key = "play" then
+            activatePlayerControl()
+        else
+            return false
+        end if
+        drawPlayerBar()
+        return true
+    end if
+    if key = "down" or key = "left" or key = "right" then
+        m.playerControls = true
+        drawPlayerBar()
+        return true
+    end if
     if key = "OK" or key = "play" then
         if m.preview.state = "playing" then
             m.preview.control = "pause"
@@ -268,6 +296,11 @@ sub activateDialog()
         closeDialog()
         return
     end if
+    if m.dialogKind = "remove" then
+        if m.dialogIndex = 0 then postRemove()
+        closeDialog()
+        return
+    end if
     if m.dialogIndex = 0 then
         closeDialog()
         enterPlayer()
@@ -283,10 +316,17 @@ end sub
 
 sub closeDialog()
     m.dialog.visible = false
-    if m.mode = "dialog" then
-        m.mode = "guide"
-        showGuide()
+    if m.mode <> "dialog" then return
+    if m.resumePlayer = true then
+        m.resumePlayer = false
+        m.mode = "player"
+        showPanels()
+        m.top.setFocus(true)
+        drawPlayerBar()
+        return
     end if
+    m.mode = "guide"
+    showGuide()
 end sub
 
 sub activateSettings()
@@ -335,6 +375,7 @@ end sub
 
 sub showGuide()
     m.mode = "guide"
+    m.playerControls = false
     m.preview.width = 440
     m.preview.height = 248
     m.preview.translation = [0, 0]
@@ -349,6 +390,9 @@ sub enterPlayer()
     channel = focusedChannel()
     if channel = invalid or channel.url = "" then return
     m.mode = "player"
+    m.playingChannel = channel
+    m.playerControls = false
+    m.playerIndex = 0
     m.hero.visible = true
     m.grid.visible = false
     m.dialog.visible = false
@@ -362,22 +406,25 @@ sub enterPlayer()
     m.dateLabel.visible = false
     m.playerHint.visible = true
     playUrl(channel.url, true)
+    drawPlayerBar()
 end sub
 
 sub showPanels()
-    guide = (m.mode = "guide" or m.mode = "dialog")
+    removing = (m.mode = "dialog" and m.dialogKind = "remove")
+    guide = (m.mode = "guide" or (m.mode = "dialog" and removing = false))
     m.hero.visible = (m.mode = "guide" or m.mode = "dialog" or m.mode = "player")
     m.grid.visible = guide
-    m.sidebar.visible = (m.mode <> "player")
-    m.brand.visible = (m.mode <> "player")
-    m.brandSub.visible = (m.mode <> "player")
-    m.sideList.visible = (m.mode <> "player")
-    m.clock.visible = (m.mode <> "player")
-    m.dateLabel.visible = (m.mode <> "player")
+    m.sidebar.visible = (m.mode <> "player" and removing = false)
+    m.brand.visible = (m.mode <> "player" and removing = false)
+    m.brandSub.visible = (m.mode <> "player" and removing = false)
+    m.sideList.visible = (m.mode <> "player" and removing = false)
+    m.clock.visible = (m.mode <> "player" and removing = false)
+    m.dateLabel.visible = (m.mode <> "player" and removing = false)
     m.dialog.visible = (m.mode = "dialog")
     m.settings.visible = (m.mode = "settings")
     m.recordingsPanel.visible = (m.mode = "recordings")
     m.playerHint.visible = (m.mode = "player")
+    if m.playerBar <> invalid then m.playerBar.visible = (m.mode = "player")
 end sub
 
 sub loadGuide()
@@ -400,12 +447,26 @@ sub onGuide()
     if m.groups = invalid then m.groups = []
     m.programs = payload.programs
     if m.programs = invalid then m.programs = {}
-    m.row = 0
-    m.block = 0
-    m.cursorTime = nowSeconds()
     refreshVisible()
+    if m.mode = "player" and m.playingChannel <> invalid then
+        m.row = 0
+        for i = 0 to m.visible.Count() - 1
+            if m.visible[i].url = m.playingChannel.url then
+                m.row = i
+                exit for
+            end if
+        end for
+    else
+        m.row = 0
+        m.block = 0
+        m.cursorTime = nowSeconds()
+    end if
     if payload.guideError <> invalid and payload.guideError <> "" then
         m.status.text = payload.guideError
+        m.statusHold = ""
+    else if m.statusHold <> invalid and m.statusHold <> "" then
+        m.status.text = m.statusHold
+        m.statusHold = ""
     else
         m.status.text = m.channels.Count().ToStr() + " channels"
     end if
@@ -423,7 +484,7 @@ end sub
 
 sub loadRecordings()
     if m.recordBusy then return
-    startRecord("GET", joinUrl(activeBase(), "rec/list"), "", "list")
+    startRecord("GET", joinUrl(activeBase(), "rec/list"), "", "list", "")
 end sub
 
 sub toggleRecord()
@@ -449,7 +510,7 @@ sub toggleRecord()
         status: "scheduled"
     })
     drawAll()
-    startRecord("POST", joinUrl(activeBase(), "rec/schedule"), FormatJSON(body), "schedule")
+    startRecord("POST", joinUrl(activeBase(), "rec/schedule"), FormatJSON(body), "schedule", "")
 end sub
 
 sub deleteRecording(rec as object)
@@ -457,10 +518,10 @@ sub deleteRecording(rec as object)
     xfer = CreateObject("roUrlTransfer")
     escaped = rec.id
     if xfer <> invalid then escaped = xfer.Escape(rec.id)
-    startRecord("DELETE", joinUrl(activeBase(), "rec/" + escaped), "", "delete")
+    startRecord("DELETE", joinUrl(activeBase(), "rec/" + escaped), "", "delete", "")
 end sub
 
-sub startRecord(method as string, url as string, body as string, op as string)
+sub startRecord(method as string, url as string, body as string, op as string, tokenHeader as dynamic)
     m.recordBusy = true
     m.recordOp = op
     task = CreateObject("roSGNode", "RecordTask")
@@ -468,6 +529,8 @@ sub startRecord(method as string, url as string, body as string, op as string)
     task.url = url
     task.body = body
     task.token = m.token
+    if tokenHeader = invalid then tokenHeader = ""
+    task.tokenHeader = tokenHeader
     task.observeField("done", "onRecordDone")
     m.recordTask = task
     task.control = "RUN"
@@ -479,6 +542,14 @@ sub onRecordDone()
     m.recordBusy = false
     code = task.code
     op = m.recordOp
+    if op = "remove" then
+        handleRemove(code, task.response)
+        return
+    end if
+    if op = "report" then
+        handleReport(code, task.response)
+        return
+    end if
     if code = 404 or code = 405 or code = 501 then
         m.recordingsKnown = true
         m.status.text = "Recordings aren't available on this source"
@@ -684,6 +755,7 @@ sub drawGrid()
         if rowFocused then m.grid.appendChild(makeRect(0, y, 250, 64, "0x12263CFF"))
         name = channel.name
         if channel.number <> "" then name = channel.number + "  " + name
+        if stackOf(channel) >= 1 then name = name + "  ×" + stackOf(channel).ToStr()
         m.grid.appendChild(makeLabel(name, 8, y + 16, 234, 32, "0xFFFFFFFF"))
         blocks = blocksFor(channel)
         for b = 0 to blocks.Count() - 1
@@ -713,7 +785,11 @@ sub drawDialog()
     title = "Program"
     body = ""
     labels = ["Play", "Record", "Close"]
-    if m.dialogKind = "program" then
+    if m.dialogKind = "remove" then
+        title = "Remove from lineup?"
+        body = "Remove " + m.removeName + " from lineup?"
+        labels = ["Yes", "No", ""]
+    else if m.dialogKind = "program" then
         channel = focusedChannel()
         program = focusedProgram()
         if channel <> invalid then title = channel.name
@@ -784,8 +860,192 @@ sub drawRecordings()
 end sub
 
 function dialogCount() as integer
-    if m.dialogKind = "delete" then return 2
+    if m.dialogKind = "delete" or m.dialogKind = "remove" then return 2
     return 3
+end function
+
+sub drawPlayerBar()
+    if m.playerBar = invalid then return
+    m.playerBar.visible = (m.mode = "player")
+    labels = ["Info", "🙂", "☹️", "🖕"]
+    for i = 0 to 3
+        node = m.top.findNode("pbtn" + i.ToStr())
+        if node = invalid then continue for
+        prefix = "  "
+        if m.playerControls and i = m.playerIndex then prefix = "> "
+        node.text = prefix + labels[i]
+        if m.playerControls and i = m.playerIndex then
+            node.color = "0x93C5FDFF"
+        else
+            node.color = "0xFFFFFFFF"
+        end if
+    end for
+end sub
+
+sub activatePlayerControl()
+    channel = m.playingChannel
+    if channel = invalid then channel = focusedChannel()
+    if channel = invalid then return
+    if m.playerIndex = 0 then
+        text = channel.name
+        if channel.number <> "" then text = channel.number + "  " + text
+        if channel.tvgId <> "" then text = text + "  " + channel.tvgId
+        if stackOf(channel) >= 1 then text = text + "  ×" + stackOf(channel).ToStr()
+        m.status.text = text
+        return
+    end if
+    if channel.tvgId = invalid or channel.tvgId = "" then
+        m.status.text = "This channel has no guide id"
+        return
+    end if
+    if m.playerIndex = 1 then
+        postReport(true, channel)
+        return
+    end if
+    if m.playerIndex = 2 then
+        postReport(false, channel)
+        return
+    end if
+    m.removeTvgId = channel.tvgId
+    m.removeName = channel.name
+    m.dialogKind = "remove"
+    m.dialogIndex = 0
+    m.resumePlayer = true
+    m.mode = "dialog"
+    showPanels()
+    drawDialog()
+end sub
+
+sub postReport(working as boolean, channel as object)
+    if m.recordBusy then
+        m.status.text = "Busy, try again"
+        return
+    end if
+    body = {}
+    body.tvg_id = channel.tvgId
+    body.working = working
+    body.name = channel.name
+    startRecord("POST", joinUrl(activeBase(), "report"), FormatJSON(body), "report", "")
+end sub
+
+sub postRemove()
+    if m.recordBusy then
+        m.status.text = "Busy, try again"
+        return
+    end if
+    body = {}
+    body.tvg_id = m.removeTvgId
+    body.name = m.removeName
+    startRecord("POST", joinUrl(activeBase(), "remove"), FormatJSON(body), "remove", "X-Mofin-Key")
+end sub
+
+sub handleReport(code as integer, body as string)
+    if code = 429 then
+        m.status.text = "Too many reports, try later"
+    else if code = 200 and jsonOk(body) then
+        m.status.text = "Thanks, saved"
+    else
+        m.status.text = "Not saved"
+    end if
+end sub
+
+sub handleRemove(code as integer, body as string)
+    if code = 200 and jsonOk(body) then
+        m.status.text = "Removed"
+        m.statusHold = "Removed"
+        dropAndPlayNext(m.removeTvgId, m.removeName)
+        loadGuide()
+        return
+    end if
+    if code = 403 then
+        m.status.text = "Not allowed from this network"
+    else if code = 404 then
+        m.status.text = "Channel not found"
+    else if code = 429 then
+        m.status.text = "Too many requests, try later"
+    else
+        m.status.text = "Not removed"
+    end if
+end sub
+
+function jsonOk(body as string) as boolean
+    if body = invalid or body = "" then return false
+    parsed = ParseJSON(body)
+    if type(parsed) <> "roAssociativeArray" then return false
+    if parsed.ok = true then return true
+    return false
+end function
+
+sub dropAndPlayNext(tvgId as string, name as string)
+    idx = -1
+    for i = 0 to m.visible.Count() - 1
+        if sameChannel(m.visible[i], tvgId, name) then
+            idx = i
+            exit for
+        end if
+    end for
+    kept = []
+    for each channel in m.channels
+        if sameChannel(channel, tvgId, name) = false then kept.Push(channel)
+    end for
+    m.channels = kept
+    m.groups = groupsStillPresent()
+    refreshVisible()
+    if m.visible.Count() = 0 and m.channels.Count() > 0 then
+        m.filter = ""
+        m.sideIndex = 0
+        refreshVisible()
+    end if
+    if m.visible.Count() = 0 then
+        m.playingChannel = invalid
+        showGuide()
+        return
+    end if
+    nextIndex = idx
+    if nextIndex < 0 or nextIndex > m.visible.Count() - 1 then nextIndex = 0
+    m.row = nextIndex
+    m.block = 0
+    channel = m.visible[nextIndex]
+    m.playingChannel = channel
+    if m.mode <> "player" then m.mode = "player"
+    playUrl(channel.url, true)
+    drawPlayerBar()
+end sub
+
+function sameChannel(channel as object, tvgId as string, name as string) as boolean
+    if channel = invalid then return false
+    if tvgId <> "" and channel.tvgId = tvgId then return true
+    if tvgId = "" and channel.name = name then return true
+    return false
+end function
+
+function groupsStillPresent() as object
+    seen = {}
+    for each channel in m.channels
+        group = channel.group
+        if group = invalid then group = ""
+        group = group.Trim()
+        if group <> "" then seen[LCase(group)] = true
+    end for
+    kept = []
+    added = {}
+    for each group in m.groups
+        key = LCase(group)
+        if seen.DoesExist(key) and added.DoesExist(key) = false then
+            kept.Push(group)
+            added[key] = true
+        end if
+    end for
+    return kept
+end function
+
+function stackOf(channel as object) as integer
+    if channel = invalid then return 0
+    raw = channel.stack
+    if raw = invalid then return 0
+    value = raw.ToStr().ToInt()
+    if value < 1 then return 0
+    return value
 end function
 
 function sideItems() as object

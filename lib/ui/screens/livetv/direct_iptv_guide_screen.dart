@@ -1296,7 +1296,10 @@ class _DirectIptvGuideScreenState extends State<DirectIptvGuideScreen> {
                   children: [
                     Padding(
                       padding: EdgeInsets.only(
-                        right: channel.resolution == null ? 0 : 42,
+                        right: channel.resolution == null &&
+                                channel.stackSize == null
+                            ? 0
+                            : 42,
                       ),
                       child: Row(
                         children: [
@@ -1341,6 +1344,12 @@ class _DirectIptvGuideScreenState extends State<DirectIptvGuideScreen> {
                         top: 3,
                         right: 0,
                         child: _ResolutionBadge(channel.resolution!),
+                      ),
+                    if (channel.stackSize != null)
+                      Positioned(
+                        top: channel.resolution == null ? 3 : 20,
+                        right: 0,
+                        child: _ResolutionBadge('×${channel.stackSize}'),
                       ),
                   ],
                 ),

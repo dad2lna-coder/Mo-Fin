@@ -428,6 +428,51 @@ class DirectIptvCatalog extends ChangeNotifier {
     }
   }
 
+  /// POST `<base>remove`. A removed channel leaves the in-memory lineup
+  /// immediately. The snapshot on disk is left alone; the caller refreshes
+  /// the playlist, which is what rewrites catalog storage.
+  Future<MofinRemoveStatus> removeMofinChannel(String channelId) async {
+    final channel = channelById(channelId);
+    final source = channel == null ? null : sourceById(channel.sourceId);
+    final tvgId = channel?.tvgId;
+    if (channel == null || source == null || tvgId == null || tvgId.isEmpty) {
+      return MofinRemoveStatus.failed;
+    }
+    final uri = mofinRemoveUri(source.baseUrl);
+    if (uri == null) return MofinRemoveStatus.failed;
+    try {
+      final result = await _transport.send(
+        'POST',
+        uri,
+        mofinRemoveHeaders(source.token),
+        body: mofinRemoveBody(tvgId: tvgId, name: channel.name),
+      );
+      final status = classifyMofinRemove(result.statusCode, result.body);
+      if (status == MofinRemoveStatus.removed) {
+        _dropChannel(channelId);
+      }
+      return status;
+    } catch (_) {
+      return MofinRemoveStatus.failed;
+    }
+  }
+
+  void _dropChannel(String channelId) {
+    for (final snapshot in _snapshots.values) {
+      final index = snapshot.channels.indexWhere(
+        (channel) => channel.id == channelId,
+      );
+      if (index < 0) continue;
+      snapshot.channels.removeAt(index);
+      snapshot.programs.removeWhere(
+        (program) => program.channelKey == channelId,
+      );
+      _programsByChannel.remove(channelId);
+      notifyListeners();
+      return;
+    }
+  }
+
   Future<void> _applyMofinReport(
     String channelId, {
     required bool working,

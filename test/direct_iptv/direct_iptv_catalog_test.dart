@@ -345,6 +345,104 @@ void main() {
       expect(catalog.mofinWorking(channel.id), isFalse);
     },
   );
+
+  test('remove posts the channel and hides it without rewriting storage', () async {
+    const playlist =
+        '#EXTM3U\n'
+        '#EXTINF:-1 tvg-id="stack-news" x-mofin-stack="2" x-mofin-members="cnn,bbc" x-mofin-rec-url="https://rec.example/news.ts",News Stack\n'
+        'http://example/stack.ts\n'
+        '#EXTINF:-1 tvg-id="espn" group-title="Sports",ESPN\n'
+        'http://example/espn.ts\n';
+    final transport = _ReportingTransport((method, url, body) async {
+      expect(method, 'POST');
+      expect(
+        url,
+        Uri.parse('https://dad2lna.duckdns.org:8443/mofin/free/remove'),
+      );
+      expect(jsonDecode(body as String), {
+        'tvg_id': 'stack-news',
+        'name': 'News Stack',
+      });
+      return const DirectIptvHttpResult(200, '{"ok":true}');
+    }, playlist);
+    final prefs = await SharedPreferences.getInstance();
+    final counted = _CountingStore();
+    final catalog = DirectIptvCatalog(
+      preferences: prefs,
+      transport: transport,
+      store: counted,
+    );
+    await catalog.upsert(
+      const DirectIptvSource(
+        id: 'mo',
+        name: 'Mo Fin',
+        kind: DirectIptvKind.m3u,
+        baseUrl: 'https://dad2lna.duckdns.org:8443/mofin/free/',
+        token: 'lineup-key',
+      ),
+    );
+    final beforeWrites = counted.writes;
+    final storedBefore = counted.frozen;
+    final stacked = catalog.snapshotFor('mo')!.channels.first;
+    expect(stacked.stackSize, 2);
+    expect(stacked.mofinRecUrl, 'https://rec.example/news.ts');
+    expect(stacked.streamUrl, 'http://example/stack.ts');
+
+    final removed = await catalog.removeMofinChannel(stacked.id);
+    expect(removed, MofinRemoveStatus.removed);
+    expect(transport.posts, hasLength(1));
+    expect(transport.lastHeaders['X-Mofin-Key'], 'lineup-key');
+    expect(transport.lastHeaders.containsKey('Authorization'), isFalse);
+    expect(
+      catalog.snapshotFor('mo')!.channels.map((channel) => channel.tvgId),
+      ['espn'],
+    );
+    expect(catalog.channelById(stacked.id), isNull);
+    expect(counted.writes, beforeWrites);
+    expect(counted.frozen, storedBefore);
+    expect(storedBefore, contains('stack-news'));
+
+    transport.onSend = (method, url, body) async {
+      return const DirectIptvHttpResult(403, '');
+    };
+    final espn = catalog.snapshotFor('mo')!.channels.single;
+    expect(
+      await catalog.removeMofinChannel(espn.id),
+      MofinRemoveStatus.forbidden,
+    );
+    expect(catalog.snapshotFor('mo')!.channels, hasLength(1));
+
+    transport.onSend = (method, url, body) async {
+      return const DirectIptvHttpResult(404, '');
+    };
+    expect(
+      await catalog.removeMofinChannel(espn.id),
+      MofinRemoveStatus.missing,
+    );
+
+    transport.onSend = (method, url, body) async {
+      return const DirectIptvHttpResult(429, '');
+    };
+    expect(
+      await catalog.removeMofinChannel(espn.id),
+      MofinRemoveStatus.limited,
+    );
+    expect(catalog.snapshotFor('mo')!.channels.single.tvgId, 'espn');
+    expect(counted.writes, beforeWrites);
+    expect(counted.frozen, storedBefore);
+  });
+}
+
+class _CountingStore extends MemoryDirectIptvSnapshotStore {
+  int writes = 0;
+  String frozen = '';
+
+  @override
+  Future<void> write(DirectIptvSnapshot snapshot) async {
+    writes++;
+    frozen = jsonEncode(snapshot.toJson());
+    await super.write(snapshot);
+  }
 }
 
 class _ReportingTransport extends _Transport {
@@ -355,6 +453,7 @@ class _ReportingTransport extends _Transport {
   onSend;
   final String playlist;
   final posts = <Uri>[];
+  Map<String, String> lastHeaders = const {};
 
   @override
   Future<DirectIptvHttpResult> send(
@@ -365,6 +464,7 @@ class _ReportingTransport extends _Transport {
     Duration timeout = const Duration(seconds: 20),
   }) {
     posts.add(url);
+    lastHeaders = headers;
     return onSend(method, url, body);
   }
 }

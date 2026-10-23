@@ -26,7 +26,13 @@
         <Group id="grid" translation="[320, 290]" />
 
         <Label id="status" translation="[340, 1040]" width="1500" height="28" font="font:SmallSystemFont" color="0xFCA5A5FF" />
-        <Label id="playerHint" translation="[48, 1000]" width="600" height="32" visible="false" text="Back returns to the guide" font="font:SmallSystemFont" color="0xFFFFFFFF" />
+        <Label id="playerHint" translation="[48, 1000]" width="900" height="32" visible="false" text="Down for controls. Back returns to the guide" font="font:SmallSystemFont" color="0xFFFFFFFF" />
+        <Group id="playerBar" visible="false" translation="[48, 920]">
+            <Label id="pbtn0" translation="[0, 0]" width="160" height="48" font="font:MediumSystemFont" color="0xFFFFFFFF" />
+            <Label id="pbtn1" translation="[180, 0]" width="120" height="48" font="font:MediumSystemFont" color="0xFFFFFFFF" />
+            <Label id="pbtn2" translation="[320, 0]" width="120" height="48" font="font:MediumSystemFont" color="0xFFFFFFFF" />
+            <Label id="pbtn3" translation="[460, 0]" width="160" height="48" font="font:MediumSystemFont" color="0xFFFFFFFF" />
+        </Group>
 
         <Group id="dialog" visible="false">
             <Rectangle width="1920" height="1080" color="0x000000AA" />

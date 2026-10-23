@@ -78,6 +78,9 @@ List<ParsedM3uChannel> parseM3u(String body) {
         resolution: normalizeTvgResolution(parsedAttributes['tvg-resolution']),
         mofinWorking: parseMofinWorking(parsedAttributes['x-mofin-working']),
         mofinChecked: normalizeMofinChecked(parsedAttributes['x-mofin-checked']),
+        stackSize: parseMofinStack(parsedAttributes['x-mofin-stack']),
+        stackMembers: parseMofinMembers(parsedAttributes['x-mofin-members']),
+        mofinRecUrl: _blankToNull(parsedAttributes['x-mofin-rec-url']),
       ),
     );
     reset();
@@ -97,6 +100,9 @@ class ParsedM3uChannel {
   final String? resolution;
   final bool? mofinWorking;
   final String? mofinChecked;
+  final int? stackSize;
+  final List<String> stackMembers;
+  final String? mofinRecUrl;
 
   const ParsedM3uChannel({
     required this.name,
@@ -110,6 +116,9 @@ class ParsedM3uChannel {
     this.resolution,
     this.mofinWorking,
     this.mofinChecked,
+    this.stackSize,
+    this.stackMembers = const [],
+    this.mofinRecUrl,
   });
 }
 
@@ -493,6 +502,9 @@ DirectIptvSnapshot assembleSnapshot({
         resolution: entry.resolution,
         mofinWorking: entry.mofinWorking,
         mofinChecked: entry.mofinChecked,
+        stackSize: entry.stackSize,
+        stackMembers: entry.stackMembers,
+        mofinRecUrl: _absoluteUrl(source, entry.mofinRecUrl),
       ),
     );
   }

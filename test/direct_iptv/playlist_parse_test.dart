@@ -367,4 +367,90 @@ http://example/plain.ts
     expect(classifyMofinReport(429, ''), MofinReportStatus.limited);
     expect(classifyMofinReport(500, '{"ok":true}'), MofinReportStatus.failed);
   });
+
+  test('m3u keeps a stack and does not store it in the catalog', () {
+    const playlist = '''
+#EXTM3U
+#EXTINF:-1 tvg-id="stack-news" tvg-chno="5" group-title="News" x-mofin-stack="3" x-mofin-members="cnn,msnbc,bbc" x-mofin-rec-url="https://rec.example/news.ts",News Stack
+http://example/stack.ts
+#EXTINF:-1 tvg-id="plain" group-title="News" x-mofin-stack="0" x-mofin-members="" x-mofin-rec-url="",Plain
+http://example/plain.ts
+#EXTINF:-1 tvg-id="stack-kids" x-mofin-stack="nope" x-mofin-members="a, b",Kids
+http://example/kids.ts
+''';
+
+    final channels = parseM3u(playlist);
+    expect(channels[0].tvgId, 'stack-news');
+    expect(channels[0].stackSize, 3);
+    expect(channels[0].stackMembers, ['cnn', 'msnbc', 'bbc']);
+    expect(channels[0].mofinRecUrl, 'https://rec.example/news.ts');
+    expect(channels[0].streamUrl, 'http://example/stack.ts');
+    expect(channels[1].stackSize, isNull);
+    expect(channels[1].stackMembers, isEmpty);
+    expect(channels[1].mofinRecUrl, isNull);
+    expect(channels[2].stackSize, isNull);
+    expect(channels[2].stackMembers, ['a', 'b']);
+    expect(channels[2].mofinRecUrl, isNull);
+
+    final source = DirectIptvSource(
+      id: 'mo',
+      name: 'Mo Fin',
+      kind: DirectIptvKind.m3u,
+      baseUrl: 'https://dad2lna.duckdns.org:8443/mofin/free/',
+    );
+    final snapshot = assembleSnapshot(
+      source: source,
+      m3u: playlist,
+      epg: null,
+      fetchedAt: DateTime.utc(2026, 10, 23),
+    );
+    final stacked = snapshot.channels.first;
+    expect(stacked.tvgId, 'stack-news');
+    expect(stacked.stackSize, 3);
+    expect(stacked.stackMembers, ['cnn', 'msnbc', 'bbc']);
+    expect(stacked.mofinRecUrl, 'https://rec.example/news.ts');
+    expect(stacked.streamUrl, 'http://example/stack.ts');
+    expect(snapshot.channels[1].stackSize, isNull);
+    expect(snapshot.channels[2].stackMembers, ['a', 'b']);
+
+    final stored = stacked.toJson();
+    expect(stored.containsKey('stackSize'), isFalse);
+    expect(stored.containsKey('stackMembers'), isFalse);
+    expect(stored.containsKey('mofinRecUrl'), isFalse);
+    expect(stored.keys, [
+      'id',
+      'sourceId',
+      'name',
+      'streamUrl',
+      'number',
+      'tvgId',
+      'group',
+      'subtitles',
+    ]);
+    final restored = DirectChannel.fromJson(stored);
+    expect(restored.stackSize, isNull);
+    expect(restored.stackMembers, isEmpty);
+    expect(restored.mofinRecUrl, isNull);
+    expect(restored.tvgId, 'stack-news');
+    expect(restored.streamUrl, 'http://example/stack.ts');
+
+    expect(
+      mofinRemoveUri('https://dad2lna.duckdns.org:8443/mofin/free/'),
+      Uri.parse('https://dad2lna.duckdns.org:8443/mofin/free/remove'),
+    );
+    expect(mofinRemoveUri('http://dispatch.test'), isNull);
+    expect(mofinRemoveHeaders('secret')['X-Mofin-Key'], 'secret');
+    expect(mofinRemoveHeaders('  ')['X-Mofin-Key'], isNull);
+    expect(mofinRemoveBody(tvgId: 'stack-news', name: 'News Stack'),
+        '{"tvg_id":"stack-news","name":"News Stack"}');
+    expect(
+      classifyMofinRemove(200, '{"ok":true}'),
+      MofinRemoveStatus.removed,
+    );
+    expect(classifyMofinRemove(200, '{"ok":false}'), MofinRemoveStatus.failed);
+    expect(classifyMofinRemove(403, ''), MofinRemoveStatus.forbidden);
+    expect(classifyMofinRemove(404, ''), MofinRemoveStatus.missing);
+    expect(classifyMofinRemove(429, ''), MofinRemoveStatus.limited);
+    expect(classifyMofinRemove(500, '{"ok":true}'), MofinRemoveStatus.failed);
+  });
 }

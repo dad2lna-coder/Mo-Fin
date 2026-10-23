@@ -50,6 +50,18 @@ void main() {
     expect(groups, ['Movies', 'news', 'Sports']);
   });
 
+  test('Other is listed after every other group', () {
+    final groups = directGuideGroups([
+      _channel(id: 'a', name: 'A', group: 'Other'),
+      _channel(id: 'b', name: 'B', group: 'news'),
+      _channel(id: 'd', name: 'D', group: 'Movies'),
+      _channel(id: 'e', name: 'E', group: 'Sports'),
+      _channel(id: 'f', name: 'F', group: 'Zoo'),
+    ]);
+
+    expect(groups, ['Movies', 'news', 'Sports', 'Zoo', 'Other']);
+  });
+
   test('visible channels filter by group and by name or number', () {
     final channels = [
       _channel(id: 'a', name: 'ESPN', number: '10', group: 'Sports'),

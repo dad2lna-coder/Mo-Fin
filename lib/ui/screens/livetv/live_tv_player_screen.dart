@@ -210,6 +210,7 @@ class _LiveTvPlayerScreenState extends State<LiveTvPlayerScreen>
   final _tvPlaybackInfoFocus = FocusNode(debugLabel: 'LiveTvPlaybackInfo');
   final _tvMofinUpFocus = FocusNode(debugLabel: 'LiveTvMofinUp');
   final _tvMofinDownFocus = FocusNode(debugLabel: 'LiveTvMofinDown');
+  final _tvMofinRemoveFocus = FocusNode(debugLabel: 'LiveTvMofinRemove');
   final _tvSkipBackFocus = FocusNode(debugLabel: 'LiveTvSkipBack');
   final _tvSkipForwardFocus = FocusNode(debugLabel: 'LiveTvSkipForward');
   final _tvJumpToLiveFocus = FocusNode(debugLabel: 'LiveTvJumpToLive');
@@ -233,6 +234,11 @@ class _LiveTvPlayerScreenState extends State<LiveTvPlayerScreen>
   bool _canRewind = false;
   StreamSubscription<Duration>? _rewindWindowSub;
   bool _mofinReportInFlight = false;
+  bool _mofinRemoveInFlight = false;
+
+  /// The zap list. A copy so removing a channel does not mutate a lineup
+  /// the guide still owns.
+  late final List<GuideChannel> _lineup;
 
   // Index of the currently focused OSD control within _osdFocusOrder. Tracked
   // explicitly so arrow navigation never depends on FocusManager.primaryFocus
@@ -243,6 +249,7 @@ class _LiveTvPlayerScreenState extends State<LiveTvPlayerScreen>
   @override
   void initState() {
     super.initState();
+    _lineup = List<GuideChannel>.of(widget.channels);
     _screensaverController.setPlaybackActive(true);
     _screensaverPlayingSub = _state.playingStream.listen(
       _screensaverController.setPlaybackActive,
@@ -280,6 +287,7 @@ class _LiveTvPlayerScreenState extends State<LiveTvPlayerScreen>
     _tvPlaybackInfoFocus.addListener(_onControlFocusChanged);
     _tvMofinUpFocus.addListener(_onControlFocusChanged);
     _tvMofinDownFocus.addListener(_onControlFocusChanged);
+    _tvMofinRemoveFocus.addListener(_onControlFocusChanged);
     _tvSkipBackFocus.addListener(_onControlFocusChanged);
     _tvSkipForwardFocus.addListener(_onControlFocusChanged);
     _tvJumpToLiveFocus.addListener(_onControlFocusChanged);
@@ -363,6 +371,7 @@ class _LiveTvPlayerScreenState extends State<LiveTvPlayerScreen>
     _tvPlaybackInfoFocus.removeListener(_onControlFocusChanged);
     _tvMofinUpFocus.removeListener(_onControlFocusChanged);
     _tvMofinDownFocus.removeListener(_onControlFocusChanged);
+    _tvMofinRemoveFocus.removeListener(_onControlFocusChanged);
     _tvSkipBackFocus.removeListener(_onControlFocusChanged);
     _tvSkipForwardFocus.removeListener(_onControlFocusChanged);
     _tvJumpToLiveFocus.removeListener(_onControlFocusChanged);
@@ -377,6 +386,7 @@ class _LiveTvPlayerScreenState extends State<LiveTvPlayerScreen>
     _tvPlaybackInfoFocus.dispose();
     _tvMofinUpFocus.dispose();
     _tvMofinDownFocus.dispose();
+    _tvMofinRemoveFocus.dispose();
     _tvSkipBackFocus.dispose();
     _tvSkipForwardFocus.dispose();
     _tvJumpToLiveFocus.dispose();
@@ -761,7 +771,7 @@ class _LiveTvPlayerScreenState extends State<LiveTvPlayerScreen>
     );
   }
 
-  GuideChannel get _currentChannel => widget.channels[_currentIndex];
+  GuideChannel get _currentChannel => _lineup[_currentIndex];
 
   bool get _isDirectChannel => isDirectIptvItem(_currentChannel.rawData);
 
@@ -1240,7 +1250,11 @@ class _LiveTvPlayerScreenState extends State<LiveTvPlayerScreen>
     _tvBitrateFocus,
     if (_canRecordCurrentProgram) _tvRecordFocus,
     _tvPlaybackInfoFocus,
-    if (_canReportChannel) ...[_tvMofinUpFocus, _tvMofinDownFocus],
+    if (_canReportChannel) ...[
+      _tvMofinUpFocus,
+      _tvMofinDownFocus,
+      _tvMofinRemoveFocus,
+    ],
   ];
 
   bool get _isOverlayInteractionActive {
@@ -1315,13 +1329,13 @@ class _LiveTvPlayerScreenState extends State<LiveTvPlayerScreen>
 
   void _warmChannelCarousel() {
     if (_isDirectChannel) return;
-    if (!PlatformDetection.isTV || widget.channels.length < 2) return;
+    if (!PlatformDetection.isTV || _lineup.length < 2) return;
     final prewarm = _carouselPrewarm ??= ChannelCarouselPrewarm(_client);
-    prewarm.tuned(widget.channels, _currentChannel.id);
+    prewarm.tuned(_lineup, _currentChannel.id);
   }
 
   void _showDirectChannelStrip() {
-    if (_isCarouselOpen || widget.channels.length < 2) return;
+    if (_isCarouselOpen || _lineup.length < 2) return;
     _hideTimer?.cancel();
     setState(() {
       _isCarouselOpen = true;
@@ -1384,7 +1398,7 @@ class _LiveTvPlayerScreenState extends State<LiveTvPlayerScreen>
   }
 
   Future<void> _onCarouselChannelSelected(String channelId) async {
-    final selectedIndex = widget.channels.indexWhere(
+    final selectedIndex = _lineup.indexWhere(
       (channel) => channel.id == channelId,
     );
     if (selectedIndex < 0 || !_isCarouselOpen) return;
@@ -2009,7 +2023,7 @@ class _LiveTvPlayerScreenState extends State<LiveTvPlayerScreen>
   Future<void> _onGuideChannelSelected(String channelId) async {
     _closeGuideOverlay();
     if (channelId == _currentChannel.id) return;
-    final selectedIndex = widget.channels.indexWhere(
+    final selectedIndex = _lineup.indexWhere(
       (channel) => channel.id == channelId,
     );
     if (selectedIndex >= 0) {
@@ -2353,7 +2367,7 @@ class _LiveTvPlayerScreenState extends State<LiveTvPlayerScreen>
     if (_isDirectChannel) {
       return Positioned.fill(
         child: DirectChannelStrip(
-          channels: widget.channels,
+          channels: _lineup,
           currentChannelId: _currentChannel.id,
           onChannelSelected: _onCarouselChannelSelected,
           onDismiss: () => _dismissChannelCarousel(),
@@ -2363,7 +2377,7 @@ class _LiveTvPlayerScreenState extends State<LiveTvPlayerScreen>
     return Positioned.fill(
       child: ChannelCarouselOverlay(
         client: _client,
-        channels: widget.channels,
+        channels: _lineup,
         currentChannelId: _currentChannel.id,
         selectionRevision: _carouselSelectionRevision,
         onChannelSelected: _onCarouselChannelSelected,
@@ -2782,6 +2796,14 @@ class _LiveTvPlayerScreenState extends State<LiveTvPlayerScreen>
               tooltip: _mofinTooltip(working: false),
               onPressed: () => unawaited(_reportMofin(false)),
             ),
+            const SizedBox(width: AppSpacing.spaceSm),
+            _buildOverlayControlButton(
+              focusNode: PlatformDetection.isTV ? _tvMofinRemoveFocus : null,
+              icon: Icons.block_rounded,
+              emoji: '🖕',
+              tooltip: 'Remove from lineup',
+              onPressed: () => unawaited(_confirmRemoveChannel()),
+            ),
           ],
           const Spacer(),
         ],
@@ -2993,6 +3015,74 @@ class _LiveTvPlayerScreenState extends State<LiveTvPlayerScreen>
       setState(() {});
     } finally {
       _mofinReportInFlight = false;
+    }
+  }
+
+  Future<void> _confirmRemoveChannel() async {
+    if (_mofinRemoveInFlight) return;
+    final catalog = _directCatalog;
+    if (catalog == null || !_canReportChannel) return;
+    final channel = _currentChannel;
+    final name = channel.name.trim().isEmpty ? 'this channel' : channel.name;
+    final yes = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text('Remove $name from lineup?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text('No'),
+          ),
+          TextButton(
+            autofocus: true,
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: const Text('Yes'),
+          ),
+        ],
+      ),
+    );
+    if (yes != true || !mounted || _currentChannel.id != channel.id) return;
+    _mofinRemoveInFlight = true;
+    final sourceId = catalog.channelById(channel.id)?.sourceId;
+    try {
+      final status = await catalog.removeMofinChannel(channel.id);
+      if (!mounted) return;
+      switch (status) {
+        case MofinRemoveStatus.removed:
+          _mofinToast('Removed');
+          _dropLineupChannel(channel.id);
+          if (_lineup.isEmpty) {
+            await _exitPlayback();
+          } else {
+            await _switchChannel(_currentIndex.clamp(0, _lineup.length - 1));
+          }
+          if (sourceId != null) {
+            unawaited(catalog.refresh(sourceId, force: true));
+          }
+        case MofinRemoveStatus.forbidden:
+          _mofinToast('Not allowed from this network');
+        case MofinRemoveStatus.missing:
+          _mofinToast('Channel not found');
+        case MofinRemoveStatus.limited:
+          _mofinToast('Too many requests, try later');
+        case MofinRemoveStatus.failed:
+          _mofinToast('Not removed');
+      }
+    } finally {
+      _mofinRemoveInFlight = false;
+    }
+  }
+
+  void _dropLineupChannel(String channelId) {
+    final index = _lineup.indexWhere((item) => item.id == channelId);
+    if (index < 0) return;
+    final wasLast = index == _lineup.length - 1;
+    _lineup.removeAt(index);
+    if (_lineup.isEmpty) return;
+    if (index < _currentIndex) {
+      _currentIndex -= 1;
+    } else if (wasLast && _currentIndex >= _lineup.length) {
+      _currentIndex = 0;
     }
   }
 

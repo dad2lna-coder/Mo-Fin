@@ -35,6 +35,26 @@ String? normalizeMofinChecked(String? raw) {
   return trimmed;
 }
 
+/// `x-mofin-stack`. Zero and junk are not a stack, so a plain channel
+/// never grows a badge.
+int? parseMofinStack(String? raw) {
+  final trimmed = raw?.trim();
+  if (trimmed == null || trimmed.isEmpty) return null;
+  final value = int.tryParse(trimmed);
+  if (value == null || value < 1) return null;
+  return value;
+}
+
+/// `x-mofin-members`, a comma-separated list of the channels inside a stack.
+List<String> parseMofinMembers(String? raw) {
+  final trimmed = raw?.trim();
+  if (trimmed == null || trimmed.isEmpty) return const [];
+  return [
+    for (final part in trimmed.split(','))
+      if (part.trim().isNotEmpty) part.trim(),
+  ];
+}
+
 String mofinToday([DateTime? now]) {
   final day = now ?? DateTime.now();
   String two(int value) => value.toString().padLeft(2, '0');
@@ -60,6 +80,14 @@ Uri? mofinReportUri(String baseUrl) {
   return Uri.parse(root).resolve('report');
 }
 
+/// `<base>remove`, or null when [baseUrl] is not the Mo Fin free playlist.
+Uri? mofinRemoveUri(String baseUrl) {
+  if (!isMofinFreeBase(baseUrl)) return null;
+  final trimmed = baseUrl.trim();
+  final root = trimmed.endsWith('/') ? trimmed : '$trimmed/';
+  return Uri.parse(root).resolve('remove');
+}
+
 enum MofinReportStatus { saved, limited, failed }
 
 MofinReportStatus classifyMofinReport(int statusCode, String body) {
@@ -81,4 +109,36 @@ String mofinReportBody({
   required String name,
 }) {
   return jsonEncode({'tvg_id': tvgId, 'working': working, 'name': name});
+}
+
+enum MofinRemoveStatus { removed, forbidden, missing, limited, failed }
+
+MofinRemoveStatus classifyMofinRemove(int statusCode, String body) {
+  if (statusCode == 403) return MofinRemoveStatus.forbidden;
+  if (statusCode == 404) return MofinRemoveStatus.missing;
+  if (statusCode == 429) return MofinRemoveStatus.limited;
+  if (statusCode == 200) {
+    try {
+      final decoded = jsonDecode(body);
+      if (decoded is Map && decoded['ok'] == true) {
+        return MofinRemoveStatus.removed;
+      }
+    } catch (_) {}
+  }
+  return MofinRemoveStatus.failed;
+}
+
+String mofinRemoveBody({required String tvgId, required String name}) {
+  return jsonEncode({'tvg_id': tvgId, 'name': name});
+}
+
+/// Token rides as `X-Mofin-Key`. An empty token sends no key header.
+Map<String, String> mofinRemoveHeaders(String token) {
+  final headers = <String, String>{
+    'Accept': '*/*',
+    'Content-Type': 'application/json',
+  };
+  final key = token.trim();
+  if (key.isNotEmpty) headers['X-Mofin-Key'] = key;
+  return headers;
 }

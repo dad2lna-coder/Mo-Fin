@@ -2,12 +2,18 @@ import '../../../direct_iptv/models.dart';
 
 /// "All Channels" is the null group. Playlist group-titles are listed once,
 /// blank names dropped, and the rest ordered case-insensitively.
+/// "Other" is always last, whatever case the playlist used.
 List<String> directGuideGroups(Iterable<DirectChannel> channels) {
   final names = <String>{
     for (final channel in channels)
       if (channel.group != null && channel.group!.trim().isNotEmpty)
         channel.group!,
-  }.toList()..sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
+  }.toList()..sort((a, b) {
+    final aOther = a.toLowerCase() == 'other';
+    final bOther = b.toLowerCase() == 'other';
+    if (aOther != bOther) return aOther ? 1 : -1;
+    return a.toLowerCase().compareTo(b.toLowerCase());
+  });
   return names;
 }
 
