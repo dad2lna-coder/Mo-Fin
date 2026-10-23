@@ -23,6 +23,7 @@ import '../../../direct_iptv/direct_guide.dart';
 import '../../../direct_iptv/direct_iptv_catalog.dart';
 import '../../../direct_iptv/direct_iptv_playback.dart';
 import '../../../direct_iptv/models.dart';
+import '../../../direct_iptv/mofin_report.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../../playback/html_video_backend.dart';
 import '../../../playback/media_kit_player_backend.dart';
@@ -207,6 +208,8 @@ class _LiveTvPlayerScreenState extends State<LiveTvPlayerScreen>
   final _tvRecordFocus = FocusNode(debugLabel: 'LiveTvRecord');
   final _tvBitrateFocus = FocusNode(debugLabel: 'LiveTvBitrate');
   final _tvPlaybackInfoFocus = FocusNode(debugLabel: 'LiveTvPlaybackInfo');
+  final _tvMofinUpFocus = FocusNode(debugLabel: 'LiveTvMofinUp');
+  final _tvMofinDownFocus = FocusNode(debugLabel: 'LiveTvMofinDown');
   final _tvSkipBackFocus = FocusNode(debugLabel: 'LiveTvSkipBack');
   final _tvSkipForwardFocus = FocusNode(debugLabel: 'LiveTvSkipForward');
   final _tvJumpToLiveFocus = FocusNode(debugLabel: 'LiveTvJumpToLive');
@@ -229,6 +232,7 @@ class _LiveTvPlayerScreenState extends State<LiveTvPlayerScreen>
   /// its window a little after it starts, so this follows the position.
   bool _canRewind = false;
   StreamSubscription<Duration>? _rewindWindowSub;
+  bool _mofinReportInFlight = false;
 
   // Index of the currently focused OSD control within _osdFocusOrder. Tracked
   // explicitly so arrow navigation never depends on FocusManager.primaryFocus
@@ -261,9 +265,7 @@ class _LiveTvPlayerScreenState extends State<LiveTvPlayerScreen>
     _failureCardReconcileBufferingSub = _state.bufferingStream.listen(
       (_) => _reconcileFailureCardWithPlayback(),
     );
-    _liveRecoveryStatusSub = _manager.liveRecoveryStatusStream.listen((
-      status,
-    ) {
+    _liveRecoveryStatusSub = _manager.liveRecoveryStatusStream.listen((status) {
       if (!mounted) return;
       setState(() => _liveRecoveryStatus = status);
     });
@@ -276,6 +278,8 @@ class _LiveTvPlayerScreenState extends State<LiveTvPlayerScreen>
     _tvRecordFocus.addListener(_onControlFocusChanged);
     _tvBitrateFocus.addListener(_onControlFocusChanged);
     _tvPlaybackInfoFocus.addListener(_onControlFocusChanged);
+    _tvMofinUpFocus.addListener(_onControlFocusChanged);
+    _tvMofinDownFocus.addListener(_onControlFocusChanged);
     _tvSkipBackFocus.addListener(_onControlFocusChanged);
     _tvSkipForwardFocus.addListener(_onControlFocusChanged);
     _tvJumpToLiveFocus.addListener(_onControlFocusChanged);
@@ -357,6 +361,8 @@ class _LiveTvPlayerScreenState extends State<LiveTvPlayerScreen>
     _tvRecordFocus.removeListener(_onControlFocusChanged);
     _tvBitrateFocus.removeListener(_onControlFocusChanged);
     _tvPlaybackInfoFocus.removeListener(_onControlFocusChanged);
+    _tvMofinUpFocus.removeListener(_onControlFocusChanged);
+    _tvMofinDownFocus.removeListener(_onControlFocusChanged);
     _tvSkipBackFocus.removeListener(_onControlFocusChanged);
     _tvSkipForwardFocus.removeListener(_onControlFocusChanged);
     _tvJumpToLiveFocus.removeListener(_onControlFocusChanged);
@@ -369,6 +375,8 @@ class _LiveTvPlayerScreenState extends State<LiveTvPlayerScreen>
     _tvRecordFocus.dispose();
     _tvBitrateFocus.dispose();
     _tvPlaybackInfoFocus.dispose();
+    _tvMofinUpFocus.dispose();
+    _tvMofinDownFocus.dispose();
     _tvSkipBackFocus.dispose();
     _tvSkipForwardFocus.dispose();
     _tvJumpToLiveFocus.dispose();
@@ -1232,6 +1240,7 @@ class _LiveTvPlayerScreenState extends State<LiveTvPlayerScreen>
     _tvBitrateFocus,
     if (_canRecordCurrentProgram) _tvRecordFocus,
     _tvPlaybackInfoFocus,
+    if (_canReportChannel) ...[_tvMofinUpFocus, _tvMofinDownFocus],
   ];
 
   bool get _isOverlayInteractionActive {
@@ -2245,9 +2254,7 @@ class _LiveTvPlayerScreenState extends State<LiveTvPlayerScreen>
                     _buildTopOverlay(),
                     _buildBottomOverlay(),
                   ],
-                  if (_channelFailed &&
-                      !_isGuidePickerOpen &&
-                      !_isCarouselOpen)
+                  if (_channelFailed && !_isGuidePickerOpen && !_isCarouselOpen)
                     _buildChannelFailedCard(),
                 ],
               ),
@@ -2665,9 +2672,7 @@ class _LiveTvPlayerScreenState extends State<LiveTvPlayerScreen>
                         _seekTarget ?? snap.data ?? _state.position,
                       );
                 return _buildOverlayControlButton(
-                  focusNode: PlatformDetection.isTV
-                      ? _tvJumpToLiveFocus
-                      : null,
+                  focusNode: PlatformDetection.isTV ? _tvJumpToLiveFocus : null,
                   icon: Icons.live_tv_rounded,
                   iconColor: behind > _liveEdgeSlack
                       ? Colors.white
@@ -2738,7 +2743,8 @@ class _LiveTvPlayerScreenState extends State<LiveTvPlayerScreen>
               icon: _recordingState?.seriesTimerId != null
                   ? Icons.fiber_smart_record
                   : Icons.fiber_manual_record,
-              iconColor: _recordingState?.isRecording == true ||
+              iconColor:
+                  _recordingState?.isRecording == true ||
                       _recordingState?.seriesTimerId != null
                   ? Colors.red
                   : Colors.white,
@@ -2755,6 +2761,28 @@ class _LiveTvPlayerScreenState extends State<LiveTvPlayerScreen>
             tooltip: l10n.playbackInformation,
             onPressed: _showPlaybackInfo,
           ),
+          if (_canReportChannel) ...[
+            const SizedBox(width: AppSpacing.spaceSm),
+            _buildOverlayControlButton(
+              focusNode: PlatformDetection.isTV ? _tvMofinUpFocus : null,
+              icon: Icons.sentiment_satisfied_alt_rounded,
+              emoji: '🙂',
+              selected: _mofinChoice == true,
+              selectedColor: const Color(0xFF16A34A),
+              tooltip: _mofinTooltip(working: true),
+              onPressed: () => unawaited(_reportMofin(true)),
+            ),
+            const SizedBox(width: AppSpacing.spaceSm),
+            _buildOverlayControlButton(
+              focusNode: PlatformDetection.isTV ? _tvMofinDownFocus : null,
+              icon: Icons.sentiment_dissatisfied_rounded,
+              emoji: '☹️',
+              selected: _mofinChoice == false,
+              selectedColor: const Color(0xFFDC2626),
+              tooltip: _mofinTooltip(working: false),
+              onPressed: () => unawaited(_reportMofin(false)),
+            ),
+          ],
           const Spacer(),
         ],
       ),
@@ -2921,12 +2949,76 @@ class _LiveTvPlayerScreenState extends State<LiveTvPlayerScreen>
     );
   }
 
+  DirectIptvCatalog? get _directCatalog {
+    if (!GetIt.instance.isRegistered<DirectIptvCatalog>()) return null;
+    return GetIt.instance<DirectIptvCatalog>();
+  }
+
+  bool get _canReportChannel {
+    final catalog = _directCatalog;
+    if (catalog == null || !_isDirectChannel) return false;
+    return catalog.mofinReportAvailable(_currentChannel.id);
+  }
+
+  bool? get _mofinChoice => _directCatalog?.mofinWorking(_currentChannel.id);
+
+  String _mofinTooltip({required bool working}) {
+    final label = working ? 'Working' : 'Not working';
+    if (_mofinChoice != working) return label;
+    final checked = _directCatalog?.mofinChecked(_currentChannel.id);
+    if (checked == null || checked.isEmpty) return label;
+    return '$label · checked $checked';
+  }
+
+  Future<void> _reportMofin(bool working) async {
+    if (_mofinReportInFlight) return;
+    final catalog = _directCatalog;
+    if (catalog == null || !_canReportChannel) return;
+    _mofinReportInFlight = true;
+    final channelId = _currentChannel.id;
+    try {
+      final status = await catalog.submitMofinReport(
+        channelId: channelId,
+        working: working,
+      );
+      if (!mounted || _currentChannel.id != channelId) return;
+      switch (status) {
+        case MofinReportStatus.saved:
+          _mofinToast('Thanks, saved');
+        case MofinReportStatus.limited:
+          _mofinToast('Too many reports, try later');
+        case MofinReportStatus.failed:
+          _mofinToast('Not saved');
+      }
+      setState(() {});
+    } finally {
+      _mofinReportInFlight = false;
+    }
+  }
+
+  void _mofinToast(String message) {
+    if (!mounted) return;
+    final messenger = ScaffoldMessenger.of(context);
+    messenger
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          content: Text(message),
+          duration: const Duration(seconds: 2),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+  }
+
   Widget _buildOverlayControlButton({
     FocusNode? focusNode,
     required IconData icon,
     required String tooltip,
     required VoidCallback onPressed,
     Color iconColor = Colors.white,
+    String? emoji,
+    bool selected = false,
+    Color? selectedColor,
   }) {
     if (PlatformDetection.isTV) {
       return _LiveTvRoundControlButton(
@@ -2935,6 +3027,36 @@ class _LiveTvPlayerScreenState extends State<LiveTvPlayerScreen>
         tooltip: tooltip,
         icon: icon,
         iconColor: iconColor,
+        emoji: emoji,
+        selected: selected,
+        selectedColor: selectedColor,
+      );
+    }
+
+    if (emoji != null) {
+      final fill = selected
+          ? (selectedColor ?? Colors.white).withValues(alpha: 0.55)
+          : Colors.white.withValues(alpha: 0.14);
+      return Tooltip(
+        message: tooltip,
+        child: Material(
+          color: fill,
+          shape: const CircleBorder(),
+          child: InkWell(
+            onTap: onPressed,
+            customBorder: const CircleBorder(),
+            child: SizedBox(
+              width: 44,
+              height: 44,
+              child: Center(
+                child: Text(
+                  emoji,
+                  style: const TextStyle(fontSize: 20, height: 1),
+                ),
+              ),
+            ),
+          ),
+        ),
       );
     }
 
@@ -2967,6 +3089,9 @@ class _LiveTvRoundControlButton extends StatefulWidget {
   final String tooltip;
   final IconData icon;
   final Color iconColor;
+  final String? emoji;
+  final bool selected;
+  final Color? selectedColor;
 
   const _LiveTvRoundControlButton({
     required this.onPressed,
@@ -2974,6 +3099,9 @@ class _LiveTvRoundControlButton extends StatefulWidget {
     required this.icon,
     this.focusNode,
     this.iconColor = Colors.white,
+    this.emoji,
+    this.selected = false,
+    this.selectedColor,
   });
 
   @override
@@ -3038,6 +3166,15 @@ class _LiveTvRoundControlButtonState extends State<_LiveTvRoundControlButton> {
   @override
   Widget build(BuildContext context) {
     final focusColor = ThemeRegistry.active.borders.focusBorder.color;
+    final selectedFill = widget.selectedColor ?? AppColorScheme.accent;
+    final Color fill;
+    if (widget.selected) {
+      fill = selectedFill.withValues(alpha: _focused ? 0.9 : 0.62);
+    } else if (_focused) {
+      fill = AppColorScheme.accent.withValues(alpha: 0.30);
+    } else {
+      fill = Colors.white.withValues(alpha: 0.14);
+    }
     return Focus(
       focusNode: _effectiveFocusNode,
       onKeyEvent: (_, event) {
@@ -3064,19 +3201,26 @@ class _LiveTvRoundControlButtonState extends State<_LiveTvRoundControlButton> {
             height: 52,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              color: _focused
-                  ? AppColorScheme.accent.withValues(alpha: 0.30)
-                  : Colors.white.withValues(alpha: 0.14),
+              color: fill,
               border: Border.fromBorderSide(
                 ThemeRegistry.active.borders.focusBorder.copyWith(
                   color: _focused
                       ? focusColor
+                      : widget.selected
+                      ? selectedFill
                       : Colors.white.withValues(alpha: 0.10),
-                  width: _focused ? 2 : 1,
+                  width: _focused || widget.selected ? 2 : 1,
                 ),
               ),
             ),
-            child: Icon(widget.icon, size: 24, color: widget.iconColor),
+            child: widget.emoji == null
+                ? Icon(widget.icon, size: 24, color: widget.iconColor)
+                : Center(
+                    child: Text(
+                      widget.emoji!,
+                      style: const TextStyle(fontSize: 22, height: 1),
+                    ),
+                  ),
           ),
         ),
       ),

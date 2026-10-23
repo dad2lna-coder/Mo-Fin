@@ -6,6 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'direct_iptv_client.dart';
 import 'models.dart';
+import 'mofin_report.dart';
 import 'playlist_parse.dart';
 import 'snapshot_store_stub.dart' if (dart.library.io) 'snapshot_store_io.dart';
 
@@ -361,6 +362,90 @@ class DirectIptvCatalog extends ChangeNotifier {
       if (program.start.isAfter(moment)) return program;
     }
     return null;
+  }
+
+  DirectChannel? channelById(String channelId) {
+    for (final snapshot in _snapshots.values) {
+      for (final channel in snapshot.channels) {
+        if (channel.id == channelId) return channel;
+      }
+    }
+    return null;
+  }
+
+  /// True when this channel belongs to the Mo Fin free playlist and has a
+  /// tvg-id the report endpoint can store.
+  bool mofinReportAvailable(String channelId) {
+    final channel = channelById(channelId);
+    final tvgId = channel?.tvgId;
+    if (channel == null || tvgId == null || tvgId.isEmpty) return false;
+    final source = sourceById(channel.sourceId);
+    if (source == null) return false;
+    return mofinReportUri(source.baseUrl) != null;
+  }
+
+  bool? mofinWorking(String channelId) => channelById(channelId)?.mofinWorking;
+
+  String? mofinChecked(String channelId) =>
+      channelById(channelId)?.mofinChecked;
+
+  /// POST `<base>report`. A saved report updates the in-memory channel and
+  /// the existing lineup snapshot. It does not touch the source list.
+  Future<MofinReportStatus> submitMofinReport({
+    required String channelId,
+    required bool working,
+  }) async {
+    final channel = channelById(channelId);
+    final source = channel == null ? null : sourceById(channel.sourceId);
+    final tvgId = channel?.tvgId;
+    if (channel == null || source == null || tvgId == null || tvgId.isEmpty) {
+      return MofinReportStatus.failed;
+    }
+    final uri = mofinReportUri(source.baseUrl);
+    if (uri == null) return MofinReportStatus.failed;
+    try {
+      final result = await _transport.send(
+        'POST',
+        uri,
+        authHeaders(source),
+        body: mofinReportBody(
+          tvgId: tvgId,
+          working: working,
+          name: channel.name,
+        ),
+      );
+      final status = classifyMofinReport(result.statusCode, result.body);
+      if (status == MofinReportStatus.saved) {
+        await _applyMofinReport(
+          channelId,
+          working: working,
+          checked: mofinToday(),
+        );
+      }
+      return status;
+    } catch (_) {
+      return MofinReportStatus.failed;
+    }
+  }
+
+  Future<void> _applyMofinReport(
+    String channelId, {
+    required bool working,
+    required String checked,
+  }) async {
+    for (final snapshot in _snapshots.values) {
+      final index = snapshot.channels.indexWhere(
+        (channel) => channel.id == channelId,
+      );
+      if (index < 0) continue;
+      snapshot.channels[index] = snapshot.channels[index].withMofinReport(
+        working: working,
+        checked: checked,
+      );
+      await _store.write(snapshot);
+      notifyListeners();
+      return;
+    }
   }
 
   Future<void> _persistSources() async {

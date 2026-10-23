@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:moonfin/direct_iptv/models.dart';
+import 'package:moonfin/direct_iptv/mofin_report.dart';
 import 'package:moonfin/direct_iptv/playlist_parse.dart';
 
 void main() {
@@ -26,15 +27,17 @@ https://dispatch/stream/7.ts
     expect(channels.first.subtitles.single.language, 'en');
     expect(channels.first.subtitles.single.codec, 'vtt');
     expect(channels.last.name, 'A, B');
-    expect(
-      channels.last.subtitles.map((track) => track.url),
-      ['https://cdn/extra.srt', 'https://cdn/extra.ass'],
-    );
+    expect(channels.last.subtitles.map((track) => track.url), [
+      'https://cdn/extra.srt',
+      'https://cdn/extra.ass',
+    ]);
     expect(channels.last.subtitles.map((track) => track.codec), ['srt', 'ass']);
   });
 
   test('xmltv times and entities match a channel by tvg-id', () {
-    const amp = '&' 'amp;';
+    const amp =
+        '&'
+        'amp;';
     final start = parseXmltvTime('20261021120000 -0500')!;
     expect(start.toUtc(), DateTime.utc(2026, 10, 21, 17));
     expect(
@@ -67,22 +70,26 @@ https://dispatch/stream/7.ts
       fetchedAt: DateTime.utc(2026, 10, 21, 12),
     );
     expect(snapshot.channels.single.id, 'direct:src:pluto-news');
-    expect(snapshot.channels.single.streamUrl, 'http://dispatch.test/stream/5.ts');
-    expect(snapshot.channels.single.logoUrl, 'http://dispatch.test/logos/news.png');
+    expect(
+      snapshot.channels.single.streamUrl,
+      'http://dispatch.test/stream/5.ts',
+    );
+    expect(
+      snapshot.channels.single.logoUrl,
+      'http://dispatch.test/logos/news.png',
+    );
     expect(snapshot.programs, hasLength(1));
     expect(snapshot.programs.single.title, 'Noon News');
     expect(snapshot.programs.single.channelKey, 'direct:src:pluto-news');
     expect(source.effectiveM3uPath, '/output/m3u/');
     expect(source.effectiveEpgPath, '/output/epg/');
-    expect(
-      source.copyWith(epgPath: '-').effectiveEpgPath,
-      isEmpty,
-    );
+    expect(source.copyWith(epgPath: '-').effectiveEpgPath, isEmpty);
   });
 
   test('a relative rendition resolves against the url after the redirect', () {
     const relative = 'subtitle/en/playlist.m3u8?s=1';
-    const master = '''
+    const master =
+        '''
 #EXTM3U
 #EXT-X-MEDIA:TYPE=SUBTITLES,GROUP-ID="subs",NAME="English",LANGUAGE="en",DEFAULT=NO,URI="$relative"
 #EXT-X-STREAM-INF:BANDWIDTH=1000
@@ -262,5 +269,102 @@ index.m3u8
       pieces.programmes.map((p) => p.title).toList(),
       whole.programmes.map((p) => p.title).toList(),
     );
+  });
+
+  test('m3u keeps resolution and the last mo fin report', () {
+    const playlist = '''
+#EXTM3U
+#EXTINF:-1 tvg-id="cnn" tvg-resolution="1080P" x-mofin-working="TRUE" x-mofin-checked="2026-10-22",CNN
+http://example/cnn.ts
+#EXTINF:-1 tvg-id="bad" tvg-resolution="4K" x-mofin-working="false" x-mofin-checked="2026-1-2",Bad
+http://example/bad.ts
+#EXTINF:-1 tvg-id="sd" tvg-resolution="sd" x-mofin-working="yes",Local
+http://example/sd.ts
+#EXTINF:-1 tvg-id="plain" group-title="News",Plain
+http://example/plain.ts
+''';
+
+    final channels = parseM3u(playlist);
+    expect(channels, hasLength(4));
+    expect(channels[0].resolution, '1080p');
+    expect(channels[0].mofinWorking, isTrue);
+    expect(channels[0].mofinChecked, '2026-10-22');
+    expect(channels[1].resolution, isNull);
+    expect(channels[1].mofinWorking, isFalse);
+    expect(channels[1].mofinChecked, isNull);
+    expect(channels[2].resolution, 'SD');
+    expect(channels[2].mofinWorking, isNull);
+    expect(channels[2].mofinChecked, isNull);
+    expect(channels[3].resolution, isNull);
+    expect(channels[3].mofinWorking, isNull);
+    expect(channels[3].mofinChecked, isNull);
+
+    final source = DirectIptvSource(
+      id: 'mo',
+      name: 'Mo Fin',
+      kind: DirectIptvKind.m3u,
+      baseUrl: 'https://dad2lna.duckdns.org:8443/mofin/free/',
+    );
+    final snapshot = assembleSnapshot(
+      source: source,
+      m3u: playlist,
+      epg: null,
+      fetchedAt: DateTime.utc(2026, 10, 22),
+    );
+    expect(snapshot.channels.first.resolution, '1080p');
+    expect(snapshot.channels.first.mofinWorking, isTrue);
+    expect(snapshot.channels[1].mofinWorking, isFalse);
+    expect(snapshot.channels[2].resolution, 'SD');
+
+    final stored = snapshot.toJson();
+    final encoded = (stored['channels'] as List).cast<Map>();
+    expect(encoded.first['resolution'], '1080p');
+    expect(encoded.first['mofinWorking'], isTrue);
+    expect(encoded.first['mofinChecked'], '2026-10-22');
+    expect(encoded.last.containsKey('resolution'), isFalse);
+    expect(encoded.last.containsKey('mofinWorking'), isFalse);
+    expect(encoded.last.containsKey('mofinChecked'), isFalse);
+    expect(encoded.last.keys, [
+      'id',
+      'sourceId',
+      'name',
+      'streamUrl',
+      'tvgId',
+      'group',
+      'subtitles',
+    ]);
+
+    final restored = DirectIptvSnapshot.fromJson(stored);
+    expect(restored.channels.first.resolution, '1080p');
+    expect(restored.channels.first.mofinWorking, isTrue);
+    expect(restored.channels.first.mofinChecked, '2026-10-22');
+    expect(restored.channels[1].resolution, isNull);
+
+    final legacy = DirectChannel.fromJson(const {
+      'id': 'direct:mo:old',
+      'sourceId': 'mo',
+      'name': 'Old',
+      'streamUrl': 'http://example/old.ts',
+      'tvgId': 'old',
+      'subtitles': <dynamic>[],
+    });
+    expect(legacy.resolution, isNull);
+    expect(legacy.mofinWorking, isNull);
+    expect(legacy.mofinChecked, isNull);
+
+    expect(
+      mofinReportUri('https://dad2lna.duckdns.org:8443/mofin/free/'),
+      Uri.parse('https://dad2lna.duckdns.org:8443/mofin/free/report'),
+    );
+    expect(
+      mofinReportUri('https://dad2lna.duckdns.org:8443/mofin/free'),
+      Uri.parse('https://dad2lna.duckdns.org:8443/mofin/free/report'),
+    );
+    expect(mofinReportUri('http://dispatch.test'), isNull);
+    expect(classifyMofinReport(200, '{"ok":true}'), MofinReportStatus.saved);
+    expect(classifyMofinReport(200, '{"ok":false}'), MofinReportStatus.failed);
+    expect(classifyMofinReport(200, 'nope'), MofinReportStatus.failed);
+    expect(classifyMofinReport(429, ''), MofinReportStatus.limited);
+    expect(classifyMofinReport(500, '{"ok":true}'), MofinReportStatus.failed);
   });
 }

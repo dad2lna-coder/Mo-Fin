@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart' show kIsWeb;
 
 import 'models.dart';
+import 'mofin_report.dart';
 
 /// Reads an M3U playlist. Attribute names are matched without case, and the
 /// channel name is the text after the comma that is not inside quotes.
@@ -74,6 +75,9 @@ List<ParsedM3uChannel> parseM3u(String body) {
         ),
         group: _blankToNull(parsedAttributes['group-title']),
         subtitles: List<DirectSubtitle>.of(pendingSubtitles),
+        resolution: normalizeTvgResolution(parsedAttributes['tvg-resolution']),
+        mofinWorking: parseMofinWorking(parsedAttributes['x-mofin-working']),
+        mofinChecked: normalizeMofinChecked(parsedAttributes['x-mofin-checked']),
       ),
     );
     reset();
@@ -90,6 +94,9 @@ class ParsedM3uChannel {
   final String? number;
   final String? group;
   final List<DirectSubtitle> subtitles;
+  final String? resolution;
+  final bool? mofinWorking;
+  final String? mofinChecked;
 
   const ParsedM3uChannel({
     required this.name,
@@ -100,6 +107,9 @@ class ParsedM3uChannel {
     this.number,
     this.group,
     this.subtitles = const [],
+    this.resolution,
+    this.mofinWorking,
+    this.mofinChecked,
   });
 }
 
@@ -480,6 +490,9 @@ DirectIptvSnapshot assembleSnapshot({
               codec: track.codec,
             ),
         ],
+        resolution: entry.resolution,
+        mofinWorking: entry.mofinWorking,
+        mofinChecked: entry.mofinChecked,
       ),
     );
   }

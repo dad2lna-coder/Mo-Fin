@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:moonfin/direct_iptv/direct_iptv_catalog.dart';
 import 'package:moonfin/direct_iptv/direct_iptv_client.dart';
 import 'package:moonfin/direct_iptv/models.dart';
+import 'package:moonfin/direct_iptv/mofin_report.dart';
 import 'package:moonfin/direct_iptv/snapshot_store.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -265,4 +266,105 @@ void main() {
       expect(catalog.isRefreshing('src'), isFalse);
     },
   );
+
+  test(
+    'a mo fin report posts beside the playlist and sticks locally',
+    () async {
+      const playlist =
+          '#EXTM3U\n'
+          '#EXTINF:-1 tvg-id="cnn" tvg-resolution="720p" '
+          'x-mofin-working="true" x-mofin-checked="2026-10-01",CNN\n'
+          'http://example/cnn.ts\n';
+      final transport = _ReportingTransport((method, url, body) async {
+        expect(method, 'POST');
+        expect(
+          url,
+          Uri.parse('https://dad2lna.duckdns.org:8443/mofin/free/report'),
+        );
+        expect(jsonDecode(body as String), {
+          'tvg_id': 'cnn',
+          'working': false,
+          'name': 'CNN',
+        });
+        return const DirectIptvHttpResult(200, '{"ok":true}');
+      }, playlist);
+      final prefs = await SharedPreferences.getInstance();
+      final catalog = DirectIptvCatalog(
+        preferences: prefs,
+        transport: transport,
+        store: store,
+      );
+      await catalog.upsert(
+        const DirectIptvSource(
+          id: 'mo',
+          name: 'Mo Fin',
+          kind: DirectIptvKind.m3u,
+          baseUrl: 'https://dad2lna.duckdns.org:8443/mofin/free/',
+        ),
+      );
+      final channel = catalog.snapshotFor('mo')!.channels.single;
+      expect(channel.resolution, '720p');
+      expect(channel.mofinWorking, isTrue);
+      expect(catalog.mofinReportAvailable(channel.id), isTrue);
+
+      final saved = await catalog.submitMofinReport(
+        channelId: channel.id,
+        working: false,
+      );
+      expect(saved, MofinReportStatus.saved);
+      expect(transport.posts, hasLength(1));
+      expect(catalog.mofinWorking(channel.id), isFalse);
+      expect(catalog.mofinChecked(channel.id), mofinToday());
+
+      final reloaded = DirectIptvSnapshot.fromJson(
+        jsonDecode(jsonEncode(store.items['mo']!.toJson()))
+            as Map<String, dynamic>,
+      );
+      expect(reloaded.channels.single.mofinWorking, isFalse);
+      expect(reloaded.channels.single.resolution, '720p');
+      expect(reloaded.channels.single.mofinChecked, mofinToday());
+
+      transport.onSend = (method, url, body) async {
+        return const DirectIptvHttpResult(429, '');
+      };
+      final limited = await catalog.submitMofinReport(
+        channelId: channel.id,
+        working: true,
+      );
+      expect(limited, MofinReportStatus.limited);
+      expect(catalog.mofinWorking(channel.id), isFalse);
+
+      transport.onSend = (method, url, body) async {
+        return const DirectIptvHttpResult(500, 'no');
+      };
+      final failed = await catalog.submitMofinReport(
+        channelId: channel.id,
+        working: true,
+      );
+      expect(failed, MofinReportStatus.failed);
+      expect(catalog.mofinWorking(channel.id), isFalse);
+    },
+  );
+}
+
+class _ReportingTransport extends _Transport {
+  _ReportingTransport(this.onSend, this.playlist)
+    : super((url) => DirectIptvHttpResult(200, playlist));
+
+  Future<DirectIptvHttpResult> Function(String method, Uri url, Object? body)
+  onSend;
+  final String playlist;
+  final posts = <Uri>[];
+
+  @override
+  Future<DirectIptvHttpResult> send(
+    String method,
+    Uri url,
+    Map<String, String> headers, {
+    Object? body,
+    Duration timeout = const Duration(seconds: 20),
+  }) {
+    posts.add(url);
+    return onSend(method, url, body);
+  }
 }

@@ -1289,39 +1289,56 @@ class _DirectIptvGuideScreenState extends State<DirectIptvGuideScreen> {
               },
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 6),
-                child: Row(
+                child: Stack(
                   children: [
-                    _Logo(url: channel.logoUrl, width: 36, height: 26),
-                    const SizedBox(width: 6),
-                    Expanded(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        crossAxisAlignment: CrossAxisAlignment.start,
+                    Padding(
+                      padding: EdgeInsets.only(
+                        right: channel.resolution == null ? 0 : 42,
+                      ),
+                      child: Row(
                         children: [
-                          if ((channel.number ?? '').isNotEmpty)
-                            Text(
-                              channel.number!,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: TextStyle(
-                                color: selected ? _nowLine : Colors.white54,
-                                fontSize: 11,
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
-                          Text(
-                            channel.name,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 12,
-                              fontWeight: FontWeight.w600,
+                          _Logo(url: channel.logoUrl, width: 36, height: 26),
+                          const SizedBox(width: 6),
+                          Expanded(
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                if ((channel.number ?? '').isNotEmpty)
+                                  Text(
+                                    channel.number!,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: TextStyle(
+                                      color: selected
+                                          ? _nowLine
+                                          : Colors.white54,
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
+                                Text(
+                                  channel.name,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
                         ],
                       ),
                     ),
+                    if (channel.resolution != null)
+                      Positioned(
+                        top: 3,
+                        right: 0,
+                        child: _ResolutionBadge(channel.resolution!),
+                      ),
                   ],
                 ),
               ),
@@ -1678,6 +1695,33 @@ class _TypeTag extends StatelessWidget {
           color: Color(0xFFBFDBFE),
           fontSize: 11,
           fontWeight: FontWeight.w700,
+        ),
+      ),
+    );
+  }
+}
+
+class _ResolutionBadge extends StatelessWidget {
+  final String label;
+
+  const _ResolutionBadge(this.label);
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+      decoration: BoxDecoration(
+        color: const Color(0xE6071422),
+        borderRadius: BorderRadius.circular(3),
+        border: Border.all(color: Colors.white24),
+      ),
+      child: Text(
+        label,
+        style: const TextStyle(
+          color: Colors.white,
+          fontSize: 9,
+          fontWeight: FontWeight.w800,
+          height: 1.1,
         ),
       ),
     );

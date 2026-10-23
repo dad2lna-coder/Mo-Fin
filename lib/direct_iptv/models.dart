@@ -1,3 +1,5 @@
+import 'mofin_report.dart';
+
 /// A direct IPTV account. Dispatcharr is the first kind; a raw M3U uses the
 /// same shape so another proxy can be added without a new playback path.
 /// Pluto builds its lineup from an XMLTV guide instead of an M3U.
@@ -65,9 +67,8 @@ class DirectIptvSource {
     return path.isEmpty;
   }
 
-  Duration get refreshInterval => Duration(
-    minutes: refreshMinutes < 1 ? 30 : refreshMinutes,
-  );
+  Duration get refreshInterval =>
+      Duration(minutes: refreshMinutes < 1 ? 30 : refreshMinutes);
 
   DirectIptvSource copyWith({
     String? name,
@@ -185,6 +186,15 @@ class DirectChannel {
   final String streamUrl;
   final List<DirectSubtitle> subtitles;
 
+  /// `tvg-resolution` when it is one of 2160p, 1080p, 720p, 480p, or SD.
+  final String? resolution;
+
+  /// Last Mo Fin report for this channel, from `x-mofin-working` or a tap.
+  final bool? mofinWorking;
+
+  /// `x-mofin-checked`, `YYYY-MM-DD`, when the playlist or a tap provided one.
+  final String? mofinChecked;
+
   const DirectChannel({
     required this.id,
     required this.sourceId,
@@ -195,7 +205,30 @@ class DirectChannel {
     this.logoUrl,
     this.group,
     this.subtitles = const [],
+    this.resolution,
+    this.mofinWorking,
+    this.mofinChecked,
   });
+
+  DirectChannel withMofinReport({
+    required bool working,
+    required String checked,
+  }) {
+    return DirectChannel(
+      id: id,
+      sourceId: sourceId,
+      name: name,
+      streamUrl: streamUrl,
+      number: number,
+      tvgId: tvgId,
+      logoUrl: logoUrl,
+      group: group,
+      subtitles: subtitles,
+      resolution: resolution,
+      mofinWorking: working,
+      mofinChecked: checked,
+    );
+  }
 
   Map<String, dynamic> toJson() => {
     'id': id,
@@ -207,6 +240,9 @@ class DirectChannel {
     if (logoUrl != null) 'logoUrl': logoUrl,
     if (group != null) 'group': group,
     'subtitles': subtitles.map((track) => track.toJson()).toList(),
+    if (resolution != null) 'resolution': resolution,
+    if (mofinWorking != null) 'mofinWorking': mofinWorking,
+    if (mofinChecked != null) 'mofinChecked': mofinChecked,
   };
 
   factory DirectChannel.fromJson(Map<String, dynamic> json) => DirectChannel(
@@ -220,9 +256,16 @@ class DirectChannel {
     group: json['group']?.toString(),
     subtitles: (json['subtitles'] as List<dynamic>? ?? const [])
         .whereType<Map>()
-        .map((entry) => DirectSubtitle.fromJson(Map<String, dynamic>.from(entry)))
+        .map(
+          (entry) => DirectSubtitle.fromJson(Map<String, dynamic>.from(entry)),
+        )
         .where((track) => track.url.isNotEmpty)
         .toList(),
+    resolution: normalizeTvgResolution(json['resolution']?.toString()),
+    mofinWorking: json['mofinWorking'] is bool
+        ? json['mofinWorking'] as bool
+        : parseMofinWorking(json['mofinWorking']?.toString()),
+    mofinChecked: normalizeMofinChecked(json['mofinChecked']?.toString()),
   );
 }
 
@@ -303,11 +346,15 @@ class DirectIptvSnapshot {
       fetchedAt: DateTime.parse(json['fetchedAt'].toString()).toLocal(),
       channels: (json['channels'] as List<dynamic>? ?? const [])
           .whereType<Map>()
-          .map((entry) => DirectChannel.fromJson(Map<String, dynamic>.from(entry)))
+          .map(
+            (entry) => DirectChannel.fromJson(Map<String, dynamic>.from(entry)),
+          )
           .toList(),
       programs: (json['programs'] as List<dynamic>? ?? const [])
           .whereType<Map>()
-          .map((entry) => DirectProgram.fromJson(Map<String, dynamic>.from(entry)))
+          .map(
+            (entry) => DirectProgram.fromJson(Map<String, dynamic>.from(entry)),
+          )
           .toList(),
     );
   }
