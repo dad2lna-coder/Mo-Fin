@@ -67,6 +67,8 @@ import '../../../preference/user_preferences.dart';
 import '../../../preference/seerr_preferences.dart';
 import '../../../ui/mixins/focus_state_mixin.dart';
 import '../../../auth/repositories/user_repository.dart';
+import '../../../auth/jellyfin_item_delete.dart';
+import '../../jellyfin_own_delete.dart';
 import '../../../util/focus/key_event_utils.dart';
 import '../../../util/overview_text.dart';
 import '../../../util/seerr_credits.dart';
@@ -6723,6 +6725,60 @@ class DetailActionButtonsState extends State<DetailActionButtons> {
           prefs,
         );
 
+  bool _canDeleteOwnJellyfinItem(AggregatedItem item) {
+    final user = GetIt.instance<UserRepository>().currentUser;
+    if (user == null) return false;
+    return canDeleteOwnJellyfinItem(
+      serverType: _clientForItem(item).serverType,
+      isAdministrator: user.isAdministrator,
+      canDeleteContent: user.canDeleteContent,
+      itemType: item.type,
+    );
+  }
+
+  _DetailActionButton? _ownJellyfinDeleteButton(AggregatedItem item) {
+    if (!_canDeleteOwnJellyfinItem(item)) return null;
+    return _DetailActionButton(
+      label: 'Delete',
+      iconBuilder: (size, color) => Text(
+        '🖕',
+        style: TextStyle(fontSize: size * 0.72, height: 1),
+      ),
+      onPressed: () {
+        unawaited(_confirmOwnJellyfinDelete(item));
+      },
+    );
+  }
+
+  Future<void> _confirmOwnJellyfinDelete(AggregatedItem item) async {
+    final confirmed = await confirmOwnJellyfinDelete(context, item.name);
+    if (!confirmed || !mounted) return;
+    final failure = await viewModel.deleteItem();
+    if (!mounted) return;
+    if (failure != null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(jellyfinDeleteFailureMessage(failure.statusCode)),
+        ),
+      );
+      return;
+    }
+    final manager = GetIt.instance<PlaybackManager>();
+    final queued = manager.queueService.currentItem;
+    if (queued is AggregatedItem && queued.id == item.id) {
+      unawaited(manager.stop(userInitiated: false));
+    }
+    homeRefreshBus.requestNowOrAfterNavigation();
+    appRouter.go(Destinations.home);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final ctx = appRouter.routerDelegate.navigatorKey.currentContext;
+      if (ctx == null || !ctx.mounted) return;
+      ScaffoldMessenger.of(ctx).showSnackBar(
+        const SnackBar(content: Text('Deleted')),
+      );
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     final item = viewModel.item!;
@@ -7300,6 +7356,11 @@ class DetailActionButtonsState extends State<DetailActionButtons> {
       }).toList();
     }
 
+    final deleteButton = _ownJellyfinDeleteButton(item);
+    if (deleteButton != null) {
+      allButtons = [...allButtons, deleteButton];
+    }
+
     if (widget.nouveauStyle) {
       final orderedSecondaryButtons = <_DetailActionButton>[
         for (final detailButton in _orderedButtons(prefs)) ...[
@@ -7309,6 +7370,7 @@ class DetailActionButtonsState extends State<DetailActionButtons> {
             ?_actionForOverflow(context, btn),
         ],
       ];
+      if (deleteButton != null) orderedSecondaryButtons.add(deleteButton);
 
       // A null primary only means there is nothing to play, and the secondary
       // actions still stand on their own. NouveauActionButtons shrinks itself

@@ -80,7 +80,48 @@ Uri? mofinReportUri(String baseUrl) {
   return Uri.parse(root).resolve('report');
 }
 
-/// `<base>remove`, or null when [baseUrl] is not the Mo Fin free playlist.
+/// `<base>resolution`, or null when [baseUrl] is not the Mo Fin free playlist.
+Uri? mofinResolutionUri(String baseUrl) {
+  if (!isMofinFreeBase(baseUrl)) return null;
+  final trimmed = baseUrl.trim();
+  final root = trimmed.endsWith('/') ? trimmed : '$trimmed/';
+  return Uri.parse(root).resolve('resolution');
+}
+
+/// Decoded picture height to the label Mo Fin stores. Null when the player
+/// has not reported a height yet. 1440p is a playback measurement, not a
+/// playlist badge, so it is not part of [mofinResolutions].
+String? mofinResolutionForHeight(int height) {
+  if (height <= 0) return null;
+  if (height >= 2160) return '2160p';
+  if (height >= 1440) return '1440p';
+  if (height >= 1080) return '1080p';
+  if (height >= 720) return '720p';
+  if (height >= 480) return '480p';
+  return 'SD';
+}
+
+/// `X-Mofin-Member` from a stream response. Empty and missing are the same.
+String? mofinMemberFromHeaders(Map<String, String> headers) {
+  for (final entry in headers.entries) {
+    if (entry.key.toLowerCase() != 'x-mofin-member') continue;
+    final value = entry.value.trim();
+    if (value.isEmpty) return null;
+    return value;
+  }
+  return null;
+}
+
+String mofinResolutionBody({
+  required String tvgId,
+  required String res,
+  String? member,
+}) {
+  final body = <String, String>{'tvg_id': tvgId, 'res': res};
+  final who = member?.trim();
+  if (who != null && who.isNotEmpty) body['member'] = who;
+  return jsonEncode(body);
+}
 Uri? mofinRemoveUri(String baseUrl) {
   if (!isMofinFreeBase(baseUrl)) return null;
   final trimmed = baseUrl.trim();

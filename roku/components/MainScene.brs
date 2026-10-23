@@ -29,11 +29,18 @@ sub init()
     m.statusHold = ""
     m.removeTvgId = ""
     m.removeName = ""
+    m.reportedRes = {}
+    m.pendingRes = invalid
+    m.resEpoch = 0
+    m.resWaitEpoch = 0
+    m.resLive = false
 
     m.preview = m.top.findNode("preview")
     m.preview.captionMode = "On"
     m.preview.observeField("state", "onVideoState")
     m.preview.observeField("availableSubtitleTracks", "onTracks")
+    m.preview.observeField("streamingSegment", "onSegment")
+    m.preview.observeField("downloadedSegment", "onSegment")
     m.previewFallback = m.top.findNode("previewFallback")
     m.logo = m.top.findNode("logo")
     m.chName = m.top.findNode("chName")
@@ -65,6 +72,8 @@ sub init()
     m.clockTimer.control = "start"
     m.previewTimer = m.top.findNode("previewTimer")
     m.previewTimer.observeField("fire", "onPreview")
+    m.resWait = m.top.findNode("resWait")
+    m.resWait.observeField("fire", "onResWait")
     onClock()
     m.cursorTime = nowSeconds()
     m.status.text = "Loading Mo Fin..."
@@ -614,7 +623,14 @@ sub playUrl(url as string, fullscreen as boolean)
         m.preview.width = 440
         m.preview.height = 248
     end if
-    if m.playingUrl = url and (m.preview.state = "playing" or m.preview.state = "buffering") then return
+    if m.playingUrl = url and (m.preview.state = "playing" or m.preview.state = "buffering") then
+        if fullscreen and m.preview.state = "playing" then
+            m.resLive = true
+            noteResolution()
+        end if
+        return
+    end if
+    m.resLive = false
     content = CreateObject("roSGNode", "ContentNode")
     content.url = url
     content.streamformat = "hls"
@@ -633,8 +649,136 @@ sub onVideoState()
         if msg = invalid or msg = "" then msg = "Playback failed"
         m.status.text = msg
     end if
-    if state = "playing" then onTracks()
+    if state = "playing" then
+        onTracks()
+        m.resLive = true
+        noteResolution()
+    else
+        m.resLive = false
+    end if
 end sub
+
+sub onSegment()
+    if m.resLive <> true then return
+    if m.preview.state <> "playing" then return
+    noteResolution()
+end sub
+
+sub noteResolution()
+    if m.mode <> "player" then return
+    channel = m.playingChannel
+    if channel = invalid then return
+    tvgId = channel.tvgId
+    if tvgId = invalid or tvgId = "" then return
+    if m.reportedRes.DoesExist(tvgId) then return
+    if m.pendingRes <> invalid and m.pendingRes.tvgId = tvgId then return
+    if isMofinFreeBase(activeBase()) = false then return
+    height = segmentHeight()
+    res = resolutionForHeight(height)
+    if res = "" then return
+    m.resEpoch = m.resEpoch + 1
+    epoch = m.resEpoch
+    stack = stackOf(channel)
+    m.pendingRes = { tvgId: tvgId, res: res, stack: stack, epoch: epoch }
+    if stack >= 1 then
+        startMemberProbe(channel.url, epoch)
+        m.resWaitEpoch = epoch
+        m.resWait.control = "stop"
+        m.resWait.duration = 4
+        m.resWait.control = "start"
+        return
+    end if
+    postResolution("")
+end sub
+
+sub startMemberProbe(url as string, epoch as integer)
+    task = CreateObject("roSGNode", "ProbeTask")
+    task.url = url
+    task.epoch = epoch
+    task.observeField("done", "onMemberProbe")
+    m.probeTask = task
+    task.control = "RUN"
+end sub
+
+sub onMemberProbe()
+    if m.pendingRes = invalid or m.probeTask = invalid then return
+    if m.probeTask.done <> true then return
+    if m.probeTask.epoch <> m.pendingRes.epoch then return
+    member = m.probeTask.member
+    if member = invalid then member = ""
+    m.resWait.control = "stop"
+    postResolution(member)
+end sub
+
+sub onResWait()
+    if m.pendingRes = invalid then return
+    if m.pendingRes.epoch <> m.resWaitEpoch then return
+    postResolution("")
+end sub
+
+sub postResolution(member as string)
+    pending = m.pendingRes
+    if pending = invalid then return
+    m.pendingRes = invalid
+    m.reportedRes[pending.tvgId] = true
+    body = {}
+    body.tvg_id = pending.tvgId
+    body.res = pending.res
+    if pending.stack >= 1 and member <> invalid and member.Trim() <> "" then
+        body.member = member.Trim()
+    end if
+    task = CreateObject("roSGNode", "RecordTask")
+    task.method = "POST"
+    task.url = joinUrl(activeBase(), "resolution")
+    task.body = FormatJSON(body)
+    task.token = m.token
+    task.control = "RUN"
+    m.resolutionTask = task
+end sub
+
+function segmentHeight() as integer
+    h = fieldHeight(m.preview.streamingSegment)
+    if h > 0 then return h
+    return fieldHeight(m.preview.downloadedSegment)
+end function
+
+function fieldHeight(seg as object) as integer
+    if seg = invalid then return 0
+    if type(seg) <> "roAssociativeArray" then return 0
+    h = numberField(seg, "height")
+    if h > 0 then return h
+    return numberField(seg, "Height")
+end function
+
+function numberField(seg as object, name as string) as integer
+    if seg.DoesExist(name) = false then return 0
+    value = seg[name]
+    if value = invalid then return 0
+    return value.ToStr().ToInt()
+end function
+
+function resolutionForHeight(height as integer) as string
+    if height <= 0 then return ""
+    if height >= 2160 then return "2160p"
+    if height >= 1440 then return "1440p"
+    if height >= 1080 then return "1080p"
+    if height >= 720 then return "720p"
+    if height >= 480 then return "480p"
+    return "SD"
+end function
+
+function isMofinFreeBase(baseUrl as string) as boolean
+    if baseUrl = invalid then return false
+    raw = LCase(baseUrl.Trim())
+    slash = raw.Instr("://")
+    if slash < 0 then return false
+    rest = raw.Mid(slash + 3)
+    pathAt = rest.Instr("/")
+    if pathAt < 0 then return false
+    path = rest.Mid(pathAt)
+    if path.Len() > 1 and path.Right(1) = "/" then path = path.Left(path.Len() - 1)
+    return path.Right(11) = "/mofin/free"
+end function
 
 sub onTracks()
     tracks = m.preview.availableSubtitleTracks

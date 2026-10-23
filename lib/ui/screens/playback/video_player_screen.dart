@@ -3,6 +3,7 @@ import 'dart:math' as math;
 
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:clock/clock.dart';
+import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
@@ -75,7 +76,12 @@ import '../../../util/play_method_label.dart';
 import '../../../util/platform_detection.dart';
 import '../../../util/playback_time_label.dart';
 import '../../../util/server_url.dart';
+import '../../../auth/jellyfin_item_delete.dart';
+import '../../../auth/repositories/user_repository.dart';
 import '../../navigation/destinations.dart';
+import '../../navigation/app_router.dart';
+import '../../navigation/home_refresh_bus.dart';
+import '../../jellyfin_own_delete.dart';
 import '../../widgets/adaptive/sf_symbol.dart';
 import '../../screensaver/screensaver_controller.dart';
 import '../../widgets/remote_play_to_session_dialog.dart';
@@ -2909,6 +2915,58 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
       // If the OSD is hidden the button hides with it; if the OSD is up it
       // stays, and from now on it follows the OSD visibility.
       setState(() {});
+    });
+  }
+
+  bool _canDeleteCurrentJellyfinItem() {
+    final item = _queue.currentItem;
+    if (_isPrerollQueueItem(item)) return false;
+    final user = GetIt.instance<UserRepository>().currentUser;
+    if (user == null) return false;
+    final rawType = _rawDataForQueueItem(item)?['Type'];
+    final itemType = rawType is String ? rawType : rawType?.toString();
+    return canDeleteOwnJellyfinItem(
+      serverType: _clientForQueueItem(item).serverType,
+      isAdministrator: user.isAdministrator,
+      canDeleteContent: user.canDeleteContent,
+      itemType: itemType,
+    );
+  }
+
+  Future<void> _deleteCurrentJellyfinItem() async {
+    final item = _queue.currentItem;
+    final itemId = _itemIdForQueueItem(item);
+    if (itemId == null || itemId.isEmpty || !_canDeleteCurrentJellyfinItem()) {
+      return;
+    }
+    final raw = _rawDataForQueueItem(item);
+    final title = raw?['Name'] as String? ?? '';
+    final confirmed = await confirmOwnJellyfinDelete(context, title);
+    if (!confirmed || !mounted) return;
+    if (_itemIdForQueueItem(_queue.currentItem) != itemId) return;
+    try {
+      await _clientForQueueItem(item).itemsApi.deleteItem(itemId);
+    } on DioException catch (e) {
+      if (!mounted) return;
+      _showJellyfinDeleteToast(
+        jellyfinDeleteFailureMessage(e.response?.statusCode),
+      );
+      return;
+    } catch (_) {
+      if (!mounted) return;
+      _showJellyfinDeleteToast('Delete failed');
+      return;
+    }
+    homeRefreshBus.requestNowOrAfterNavigation();
+    appRouter.go(Destinations.home);
+    _showJellyfinDeleteToast('Deleted');
+  }
+
+  void _showJellyfinDeleteToast(String message) {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final ctx = appRouter.routerDelegate.navigatorKey.currentContext;
+      if (ctx == null || !ctx.mounted) return;
+      ScaffoldMessenger.of(ctx).showSnackBar(SnackBar(content: Text(message)));
     });
   }
 
@@ -6123,6 +6181,20 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
             _prefs,
           ))
             ?byButton[button],
+          if (_canDeleteCurrentJellyfinItem())
+            _controlButton(
+              Icons.delete_forever_outlined,
+              onPressed: () {
+                unawaited(_deleteCurrentJellyfinItem());
+              },
+              size: secondaryIconSize,
+              extent: secondaryExtent,
+              tooltip: 'Delete',
+              child: Text(
+                '🖕',
+                style: TextStyle(fontSize: secondaryIconSize * 0.85),
+              ),
+            ),
         ]);
 
         final orderedSecondaryButtons = PlatformDetection.isTV
@@ -7100,7 +7172,9 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
     FocusNode? focusNode,
     Color iconColor = Colors.white,
     VoidCallback? onRightBoundary,
+    Widget? child,
   }) {
+    final shown = child ?? AdaptiveIcon(icon, color: iconColor, size: size);
     if (PlatformDetection.isTV) {
       return _TvFocusButton(
         focusNode: focusNode,
@@ -7108,7 +7182,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
         tooltip: tooltip,
         onPressed: () => _handleControlButtonPress(onPressed),
         onRightBoundary: onRightBoundary,
-        child: AdaptiveIcon(icon, color: iconColor, size: size),
+        child: shown,
       );
     }
     return SizedBox(
@@ -7118,7 +7192,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
         focusNode: focusNode,
         onPressed: () => _handleControlButtonPress(onPressed),
         tooltip: PlatformDetection.useDesktopUi ? tooltip : null,
-        icon: AdaptiveIcon(icon, color: iconColor, size: size),
+        icon: shown,
         padding: EdgeInsets.zero,
         constraints: const BoxConstraints(),
       ),

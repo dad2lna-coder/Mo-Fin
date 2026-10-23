@@ -49,3 +49,39 @@ function httpRequest(url as string, method as string, body as string, token as s
     end if
     return result
 end function
+
+function peekMemberHeader(url as string) as string
+    if url = invalid or url = "" then return ""
+    xfer = CreateObject("roUrlTransfer")
+    if xfer = invalid then return ""
+    xfer.SetCertificatesFile("common:/certs/ca-bundle.crt")
+    xfer.InitClientCertificates()
+    xfer.EnablePeerVerification(true)
+    xfer.EnableHostVerification(true)
+    xfer.SetUrl(url)
+    xfer.AddHeader("Accept", "*/*")
+    xfer.AddHeader("Range", "bytes=0-1023")
+    port = CreateObject("roMessagePort")
+    xfer.SetMessagePort(port)
+    if xfer.AsyncGetToString() = false then return ""
+    wait(4000, port)
+    headers = xfer.GetResponseHeaders()
+    xfer.AsyncCancel()
+    return memberFromHeaders(headers)
+end function
+
+function memberFromHeaders(headers as object) as string
+    if headers = invalid then return ""
+    if type(headers) <> "roAssociativeArray" then return ""
+    keys = headers.Keys()
+    if keys = invalid then return ""
+    for each key in keys
+        if key = invalid then continue for
+        if LCase(key) = "x-mofin-member" then
+            value = headers[key]
+            if value = invalid then return ""
+            return value.ToStr().Trim()
+        end if
+    end for
+    return ""
+end function

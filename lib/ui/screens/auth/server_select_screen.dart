@@ -253,6 +253,7 @@ class _ServerSelectScreenState extends State<ServerSelectScreen> {
             false,
         canManageCollections:
           currentUser.policy?.enableCollectionManagement ?? false,
+        canDeleteContent: currentUser.policy?.enableContentDeletion ?? false,
       );
 
       await _authStore.putUser(user);

@@ -102,6 +102,7 @@ class AuthRepository {
     final canDownload = policy?.enableContentDownloading ?? false;
     final canManageSubtitles = policy?.canFetchRemoteSubtitles ?? false;
     final canManageCollections = policy?.enableCollectionManagement ?? false;
+    final canDeleteContent = policy?.enableContentDeletion ?? false;
 
     if (accessToken == null || userId == null) {
       const state = ApiClientError(error: 'Invalid auth response');
@@ -123,6 +124,7 @@ class AuthRepository {
       canDownload: canDownload,
       canManageSubtitles: canManageSubtitles,
       canManageCollections: canManageCollections,
+      canDeleteContent: canDeleteContent,
     );
 
     await _authStore.putUser(user);

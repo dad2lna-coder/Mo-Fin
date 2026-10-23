@@ -88,6 +88,8 @@ class HtmlVideoBackend extends PlayerBackend {
   final _completedStream = StreamController<bool>.broadcast();
   final _errorStream = StreamController<Map<String, dynamic>>.broadcast();
   final _tracksChangedStream = StreamController<void>.broadcast();
+  final _videoHeightStream = StreamController<int>.broadcast();
+  int _videoHeight = 0;
 
   int _knownTextTrackCount = 0;
 
@@ -170,6 +172,7 @@ class HtmlVideoBackend extends PlayerBackend {
         currentlyPlaying &&
         (_videoElement.readyState < web.HTMLMediaElement.HAVE_FUTURE_DATA);
     _setBuffering(bufferingNow);
+    _noteVideoHeight();
 
     if (!_tracksKnown &&
         _videoElement.readyState > web.HTMLMediaElement.HAVE_NOTHING) {
@@ -395,6 +398,7 @@ class HtmlVideoBackend extends PlayerBackend {
     _pendingTextApplied = false;
 
     _tracksKnown = false;
+    _videoHeight = 0;
     _tracksReadyCompleter = null;
     _knownTextTrackCount = 0;
     _completed = false;
@@ -977,5 +981,19 @@ class HtmlVideoBackend extends PlayerBackend {
     _completedStream.close();
     _errorStream.close();
     _tracksChangedStream.close();
+    _videoHeightStream.close();
+  }
+
+  @override
+  int get videoHeight => _videoHeight;
+
+  @override
+  Stream<int> get videoHeightStream => _videoHeightStream.stream;
+
+  void _noteVideoHeight() {
+    final height = _videoElement.videoHeight;
+    if (height <= 0 || height == _videoHeight) return;
+    _videoHeight = height;
+    if (!_videoHeightStream.isClosed) _videoHeightStream.add(height);
   }
 }

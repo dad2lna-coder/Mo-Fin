@@ -453,4 +453,49 @@ http://example/kids.ts
     expect(classifyMofinRemove(429, ''), MofinRemoveStatus.limited);
     expect(classifyMofinRemove(500, '{"ok":true}'), MofinRemoveStatus.failed);
   });
+
+  test('resolution height, body, and member header stay out of badges', () {
+    expect(
+      mofinResolutionUri('https://dad2lna.duckdns.org:8443/mofin/free/'),
+      Uri.parse('https://dad2lna.duckdns.org:8443/mofin/free/resolution'),
+    );
+    expect(
+      mofinResolutionUri('https://dad2lna.duckdns.org:8443/mofin/free'),
+      Uri.parse('https://dad2lna.duckdns.org:8443/mofin/free/resolution'),
+    );
+    expect(mofinResolutionUri('http://dispatch.test'), isNull);
+    expect(mofinResolutions.contains('1440p'), isFalse);
+
+    expect(mofinResolutionForHeight(0), isNull);
+    expect(mofinResolutionForHeight(-1), isNull);
+    expect(mofinResolutionForHeight(360), 'SD');
+    expect(mofinResolutionForHeight(479), 'SD');
+    expect(mofinResolutionForHeight(480), '480p');
+    expect(mofinResolutionForHeight(576), '480p');
+    expect(mofinResolutionForHeight(720), '720p');
+    expect(mofinResolutionForHeight(1080), '1080p');
+    expect(mofinResolutionForHeight(1088), '1080p');
+    expect(mofinResolutionForHeight(1440), '1440p');
+    expect(mofinResolutionForHeight(2160), '2160p');
+    expect(mofinResolutionForHeight(4320), '2160p');
+
+    expect(
+      mofinResolutionBody(tvgId: 'cnn', res: '1080p'),
+      '{"tvg_id":"cnn","res":"1080p"}',
+    );
+    expect(
+      mofinResolutionBody(tvgId: 'stack-news', res: '1440p', member: ' bbc '),
+      '{"tvg_id":"stack-news","res":"1440p","member":"bbc"}',
+    );
+    expect(
+      mofinResolutionBody(tvgId: 'cnn', res: '720p', member: '  '),
+      '{"tvg_id":"cnn","res":"720p"}',
+    );
+    expect(
+      mofinMemberFromHeaders({'X-Mofin-Member': ' cnn '}),
+      'cnn',
+    );
+    expect(mofinMemberFromHeaders({'x-mofin-member': ''}), isNull);
+    expect(mofinMemberFromHeaders({'Content-Type': 'video/mp2t'}), isNull);
+  });
 }

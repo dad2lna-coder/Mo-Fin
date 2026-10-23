@@ -148,6 +148,8 @@ class Media3PlayerBackend extends PlayerBackend
   Timer? _audioDelayDebounce;
   bool _isSubtitleLoading = false;
   final _subtitleLoadingStream = StreamController<bool>.broadcast();
+  final _videoHeightStream = StreamController<int>.broadcast();
+  int _videoHeight = 0;
 
   @override
   bool get isSubtitleLoading => _isSubtitleLoading;
@@ -559,6 +561,7 @@ class Media3PlayerBackend extends PlayerBackend
           level: map['level'] == 'error' ? LogLevel.error : LogLevel.warning,
         );
       case 'videoSizeChanged':
+        _setVideoHeight(_toInt(map['height']));
         _diag(
           'Media3: video size ${_toInt(map['width'])}x${_toInt(map['height'])}',
         );
@@ -1070,6 +1073,7 @@ class Media3PlayerBackend extends PlayerBackend
     final isPreview = payload['preview'] == true;
 
     _completed = false;
+    _videoHeight = 0;
     // The native ticker keeps reporting the previous item's frozen position
     // until the new source is set. Left in place, a stop in the first second
     // reports where the last episode ended, which marks this one watched.
@@ -1720,6 +1724,19 @@ class Media3PlayerBackend extends PlayerBackend
     _errorStream.close();
     _tracksChangedController.close();
     _subtitleLoadingStream.close();
+    _videoHeightStream.close();
+  }
+
+  @override
+  int get videoHeight => _videoHeight;
+
+  @override
+  Stream<int> get videoHeightStream => _videoHeightStream.stream;
+
+  void _setVideoHeight(int height) {
+    if (height <= 0) return;
+    _videoHeight = height;
+    if (!_videoHeightStream.isClosed) _videoHeightStream.add(height);
   }
 }
 

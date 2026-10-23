@@ -179,6 +179,14 @@ abstract class PlayerBackend {
   Stream<bool> get completedStream;
   Stream<Map<String, dynamic>>? get errorStream => null;
 
+  /// Decoded picture height, or 0 until this item has one. A new item resets
+  /// it so a caller does not report the previous picture.
+  int get videoHeight => 0;
+
+  /// Each decoded height, including the same number when the next item is
+  /// the same size. Empty on backends that never measure the picture.
+  Stream<int> get videoHeightStream => const Stream<int>.empty();
+
   /// Whether the player has been told to play. Null on engines that don't
   /// expose their own intent, and callers then fall back to "not playing".
   ///

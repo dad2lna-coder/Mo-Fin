@@ -63,6 +63,14 @@ abstract class DirectIptvTransport {
     }
     throw UnsupportedError('DirectIptvTransport.$method');
   }
+
+  /// Response headers of a short GET. The body is dropped. The default
+  /// answers nothing so playlist tests never open a stream.
+  Future<Map<String, String>> peekHeaders(
+    Uri url,
+    Map<String, String> headers, {
+    Duration timeout = const Duration(seconds: 8),
+  }) async => const {};
 }
 
 class HttpDirectIptvTransport implements DirectIptvTransport {
@@ -122,5 +130,25 @@ class HttpDirectIptvTransport implements DirectIptvTransport {
     final streamed = await _client.send(request).timeout(timeout);
     final response = await http.Response.fromStream(streamed);
     return DirectIptvHttpResult(response.statusCode, response.body);
+  }
+
+  @override
+  Future<Map<String, String>> peekHeaders(
+    Uri url,
+    Map<String, String> headers, {
+    Duration timeout = const Duration(seconds: 8),
+  }) async {
+    final request = http.Request('GET', url)..headers.addAll(headers);
+    request.headers.putIfAbsent('Range', () => 'bytes=0-1023');
+    final streamed = await _client.send(request).timeout(timeout);
+    final flat = <String, String>{
+      for (final entry in streamed.headers.entries) entry.key: entry.value,
+    };
+    // Headers are already in. Cancel before a live stream can fill the buffer.
+    try {
+      final subscription = streamed.stream.listen((_) {}, onError: (_) {});
+      await subscription.cancel();
+    } catch (_) {}
+    return flat;
   }
 }

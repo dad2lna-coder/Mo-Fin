@@ -60,5 +60,6 @@
 
         <Timer id="clockTimer" repeat="true" duration="30" />
         <Timer id="previewTimer" repeat="false" duration="0.4" />
+        <Timer id="resWait" repeat="false" duration="4" />
     </children>
 </component>

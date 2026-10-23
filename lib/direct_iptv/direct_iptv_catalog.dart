@@ -56,6 +56,9 @@ class DirectIptvCatalog extends ChangeNotifier {
   final Set<String> _refreshing = {};
   final Map<String, int> _generation = {};
   final Map<String, DateTime> _refusedUntil = {};
+
+  /// tvg-ids already posted to `<base>resolution` this process.
+  final Set<String> _resolutionReported = {};
   Future<void>? _loadFuture;
   bool _loaded = false;
 
@@ -382,6 +385,70 @@ class DirectIptvCatalog extends ChangeNotifier {
     final source = sourceById(channel.sourceId);
     if (source == null) return false;
     return mofinReportUri(source.baseUrl) != null;
+  }
+
+  /// True once this channel's resolution was posted during this process.
+  bool mofinResolutionSent(String channelId) {
+    final tvgId = channelById(channelId)?.tvgId;
+    if (tvgId == null || tvgId.isEmpty) return false;
+    return _resolutionReported.contains(tvgId);
+  }
+
+  /// `X-Mofin-Member` on a stack's stream, or null when this channel is not
+  /// a stack or the header never arrived. Errors are ignored.
+  Future<String?> peekMofinMember(String channelId) async {
+    final channel = channelById(channelId);
+    if (channel == null || (channel.stackSize ?? 0) < 1) return null;
+    final source = sourceById(channel.sourceId);
+    final uri = Uri.tryParse(channel.streamUrl);
+    if (source == null || uri == null || !uri.hasScheme) return null;
+    try {
+      final headers = await _transport.peekHeaders(
+        uri,
+        headersForPlayback(
+          headers: authHeaders(source),
+          streamUri: uri,
+          credentialHost: Uri.tryParse(source.baseUrl.trim())?.host,
+        ),
+        timeout: const Duration(seconds: 4),
+      );
+      return mofinMemberFromHeaders(headers);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// POST `<base>resolution`. Fire and forget: a failure is swallowed and
+  /// is not retried. Nothing is written into the lineup snapshot.
+  Future<void> reportMofinResolution({
+    required String channelId,
+    required int height,
+    String? member,
+  }) async {
+    final channel = channelById(channelId);
+    final source = channel == null ? null : sourceById(channel.sourceId);
+    final tvgId = channel?.tvgId;
+    if (channel == null || source == null || tvgId == null || tvgId.isEmpty) {
+      return;
+    }
+    if (_resolutionReported.contains(tvgId)) return;
+    final res = mofinResolutionForHeight(height);
+    final uri = mofinResolutionUri(source.baseUrl);
+    if (res == null || uri == null) return;
+    final who = (channel.stackSize ?? 0) >= 1 ? member?.trim() : null;
+    _resolutionReported.add(tvgId);
+    try {
+      await _transport.send(
+        'POST',
+        uri,
+        authHeaders(source),
+        body: mofinResolutionBody(
+          tvgId: tvgId,
+          res: res,
+          member: (who == null || who.isEmpty) ? null : who,
+        ),
+      );
+    } catch (_) {}
   }
 
   bool? mofinWorking(String channelId) => channelById(channelId)?.mofinWorking;

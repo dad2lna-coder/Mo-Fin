@@ -7,6 +7,7 @@ sealed class User {
   bool get canDownload;
   bool get canManageSubtitles;
   bool get canManageCollections;
+  bool get canDeleteContent;
 
   const User();
 }
@@ -30,6 +31,8 @@ class PrivateUser extends User {
   final bool canManageSubtitles;
   @override
   final bool canManageCollections;
+  @override
+  final bool canDeleteContent;
 
   const PrivateUser({
     required this.id,
@@ -42,6 +45,7 @@ class PrivateUser extends User {
     this.canDownload = false,
     this.canManageSubtitles = false,
     this.canManageCollections = false,
+    this.canDeleteContent = false,
   });
 
   Map<String, dynamic> toJson() => {
@@ -53,6 +57,7 @@ class PrivateUser extends User {
         'canDownload': canDownload,
         'canManageSubtitles': canManageSubtitles,
         'canManageCollections': canManageCollections,
+        'canDeleteContent': canDeleteContent,
       };
 
   factory PrivateUser.fromJson(
@@ -72,6 +77,7 @@ class PrivateUser extends User {
       canDownload: json['canDownload'] as bool? ?? false,
       canManageSubtitles: json['canManageSubtitles'] as bool? ?? false,
       canManageCollections: json['canManageCollections'] as bool? ?? false,
+      canDeleteContent: json['canDeleteContent'] as bool? ?? false,
     );
   }
 
@@ -86,6 +92,7 @@ class PrivateUser extends User {
     bool? canDownload,
     bool? canManageSubtitles,
     bool? canManageCollections,
+    bool? canDeleteContent,
   }) {
     return PrivateUser(
       id: id ?? this.id,
@@ -98,6 +105,7 @@ class PrivateUser extends User {
       canDownload: canDownload ?? this.canDownload,
       canManageSubtitles: canManageSubtitles ?? this.canManageSubtitles,
       canManageCollections: canManageCollections ?? this.canManageCollections,
+      canDeleteContent: canDeleteContent ?? this.canDeleteContent,
     );
   }
 }
@@ -120,6 +128,8 @@ class PublicUser extends User {
   final bool canManageSubtitles;
   @override
   final bool canManageCollections;
+  @override
+  final bool canDeleteContent;
 
   const PublicUser({
     required this.id,
@@ -131,5 +141,6 @@ class PublicUser extends User {
     this.canDownload = false,
     this.canManageSubtitles = false,
     this.canManageCollections = false,
+    this.canDeleteContent = false,
   });
 }

@@ -235,6 +235,8 @@ class _LiveTvPlayerScreenState extends State<LiveTvPlayerScreen>
   StreamSubscription<Duration>? _rewindWindowSub;
   bool _mofinReportInFlight = false;
   bool _mofinRemoveInFlight = false;
+  int _mofinResolutionEpoch = 0;
+  StreamSubscription<int>? _mofinHeightSub;
 
   /// The zap list. A copy so removing a channel does not mutate a lineup
   /// the guide still owns.
@@ -320,6 +322,8 @@ class _LiveTvPlayerScreenState extends State<LiveTvPlayerScreen>
 
   @override
   void dispose() {
+    _mofinResolutionEpoch++;
+    _mofinHeightSub?.cancel();
     _screensaverPlayingSub?.cancel();
     _screensaverController.setPlaybackActive(false);
     _carouselPrewarm?.dispose();
@@ -826,6 +830,7 @@ class _LiveTvPlayerScreenState extends State<LiveTvPlayerScreen>
     _applySubtitleStyle(force: true);
     unawaited(_fetchCurrentProgram());
     _warmChannelCarousel();
+    unawaited(_reportMofinResolution(channel.id));
     return true;
   }
 
@@ -2980,6 +2985,56 @@ class _LiveTvPlayerScreenState extends State<LiveTvPlayerScreen>
     final catalog = _directCatalog;
     if (catalog == null || !_isDirectChannel) return false;
     return catalog.mofinReportAvailable(_currentChannel.id);
+  }
+
+  /// Picture height for the Mo Fin free playlist. Once per channel. A later
+  /// tune bumps the epoch so a slow read cannot post for the channel that
+  /// just left. Nothing here writes the lineup snapshot.
+  Future<void> _reportMofinResolution(String channelId) async {
+    final epoch = ++_mofinResolutionEpoch;
+    await _mofinHeightSub?.cancel();
+    _mofinHeightSub = null;
+    final catalog = _directCatalog;
+    if (catalog == null || !catalog.mofinReportAvailable(channelId)) return;
+    if (catalog.mofinResolutionSent(channelId)) return;
+    final backend = _manager.backend;
+    if (backend == null) return;
+    final height = await _awaitVideoHeight(backend);
+    if (epoch != _mofinResolutionEpoch || height <= 0) return;
+    if (mounted && _currentChannel.id != channelId) return;
+    String? member;
+    final stacked = (catalog.channelById(channelId)?.stackSize ?? 0) >= 1;
+    if (stacked) {
+      member = await catalog.peekMofinMember(channelId);
+      if (epoch != _mofinResolutionEpoch) return;
+      if (mounted && _currentChannel.id != channelId) return;
+    }
+    await catalog.reportMofinResolution(
+      channelId: channelId,
+      height: height,
+      member: member,
+    );
+  }
+
+  Future<int> _awaitVideoHeight(PlayerBackend backend) async {
+    final ready = backend.videoHeight;
+    if (ready > 0) return ready;
+    final completer = Completer<int>();
+    try {
+      _mofinHeightSub = backend.videoHeightStream.listen((value) {
+        if (value > 0 && !completer.isCompleted) completer.complete(value);
+      });
+    } catch (_) {
+      final fallback = backend.videoHeight;
+      return fallback > 0 ? fallback : 0;
+    }
+    final raced = backend.videoHeight;
+    if (raced > 0 && !completer.isCompleted) completer.complete(raced);
+    try {
+      return await completer.future.timeout(const Duration(seconds: 12));
+    } on TimeoutException {
+      return 0;
+    }
   }
 
   bool? get _mofinChoice => _directCatalog?.mofinWorking(_currentChannel.id);

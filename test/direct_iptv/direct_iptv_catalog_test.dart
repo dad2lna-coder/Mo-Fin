@@ -431,6 +431,175 @@ void main() {
     expect(counted.writes, beforeWrites);
     expect(counted.frozen, storedBefore);
   });
+
+  test('resolution posts once and does not touch catalog storage', () async {
+    const playlist =
+        '#EXTM3U\n'
+        '#EXTINF:-1 tvg-id="cnn" tvg-resolution="720p",CNN\n'
+        'http://example/cnn.ts\n'
+        '#EXTINF:-1 tvg-id="stack-news" x-mofin-stack="2" x-mofin-members="cnn,bbc",News Stack\n'
+        'http://cdn.example/stack.ts\n'
+        '#EXTINF:-1 tvg-id="espn",ESPN\n'
+        'http://example/espn.ts\n'
+        '#EXTINF:-1 tvg-id="plain",Plain\n'
+        'http://example/plain.ts\n';
+    final transport = _ReportingTransport((method, url, body) async {
+      return const DirectIptvHttpResult(200, '{"ok":true}');
+    }, playlist);
+    final prefs = await SharedPreferences.getInstance();
+    final counted = _CountingStore();
+    final catalog = DirectIptvCatalog(
+      preferences: prefs,
+      transport: transport,
+      store: counted,
+    );
+    await catalog.upsert(
+      const DirectIptvSource(
+        id: 'mo',
+        name: 'Mo Fin',
+        kind: DirectIptvKind.m3u,
+        baseUrl: 'https://dad2lna.duckdns.org:8443/mofin/free/',
+        token: 'lineup-key',
+      ),
+    );
+    final beforeWrites = counted.writes;
+    final storedBefore = counted.frozen;
+    final channels = catalog.snapshotFor('mo')!.channels;
+    final cnn = channels[0];
+    final stack = channels[1];
+    final espn = channels[2];
+    final plain = channels[3];
+
+    await catalog.reportMofinResolution(channelId: plain.id, height: 0);
+    expect(transport.posts, isEmpty);
+    expect(catalog.mofinResolutionSent(plain.id), isFalse);
+    await catalog.reportMofinResolution(channelId: plain.id, height: 720);
+    expect(jsonDecode(transport.lastBody as String), {
+      'tvg_id': 'plain',
+      'res': '720p',
+    });
+
+    await catalog.reportMofinResolution(
+      channelId: cnn.id,
+      height: 1088,
+      member: 'should-be-ignored',
+    );
+    expect(transport.posts, hasLength(2));
+    expect(
+      transport.posts.last,
+      Uri.parse('https://dad2lna.duckdns.org:8443/mofin/free/resolution'),
+    );
+    expect(jsonDecode(transport.lastBody as String), {
+      'tvg_id': 'cnn',
+      'res': '1080p',
+    });
+    expect(transport.peeks, 0);
+    expect(catalog.mofinResolutionSent(cnn.id), isTrue);
+    expect(catalog.snapshotFor('mo')!.channels[0].resolution, '720p');
+
+    await catalog.reportMofinResolution(channelId: cnn.id, height: 2160);
+    expect(transport.posts, hasLength(2));
+
+    transport.peekHeadersResult = {'X-Mofin-Member': ' bbc '};
+    await catalog.reportMofinResolution(channelId: stack.id, height: 1440);
+    expect(transport.peeks, 1);
+    expect(transport.posts, hasLength(3));
+    expect(jsonDecode(transport.lastBody as String), {
+      'tvg_id': 'stack-news',
+      'res': '1440p',
+      'member': 'bbc',
+    });
+    expect(catalog.snapshotFor('mo')!.channels[1].resolution, isNull);
+    expect(counted.writes, beforeWrites);
+    expect(counted.frozen, storedBefore);
+    expect(storedBefore.contains('1440p'), isFalse);
+
+    transport.peekHeadersResult = const {};
+    transport.onSend = (method, url, body) async {
+      throw Exception('down');
+    };
+    await catalog.reportMofinResolution(channelId: espn.id, height: 480);
+    expect(transport.posts, hasLength(4));
+    expect(catalog.mofinResolutionSent(espn.id), isTrue);
+    await catalog.reportMofinResolution(channelId: espn.id, height: 720);
+    expect(transport.posts, hasLength(4));
+    expect(counted.writes, beforeWrites);
+
+    await catalog.reportMofinResolution(channelId: stack.id, height: 0);
+    expect(catalog.mofinResolutionSent(stack.id), isTrue);
+    expect(transport.posts, hasLength(4));
+  });
+
+  test('a non mo fin source does not post a resolution', () async {
+    const playlist =
+        '#EXTM3U\n'
+        '#EXTINF:-1 tvg-id="cnn",CNN\n'
+        'http://example/cnn.ts\n';
+    final transport = _ReportingTransport((method, url, body) async {
+      return const DirectIptvHttpResult(200, '{}');
+    }, playlist);
+    final prefs = await SharedPreferences.getInstance();
+    final catalog = DirectIptvCatalog(
+      preferences: prefs,
+      transport: transport,
+      store: store,
+    );
+    await catalog.upsert(
+      const DirectIptvSource(
+        id: 'other',
+        name: 'Other',
+        kind: DirectIptvKind.m3u,
+        baseUrl: 'http://other.test/live/',
+      ),
+    );
+    final channel = catalog.snapshotFor('other')!.channels.single;
+    await catalog.reportMofinResolution(channelId: channel.id, height: 1080);
+    expect(transport.posts, isEmpty);
+    expect(transport.peeks, 0);
+    expect(catalog.mofinResolutionSent(channel.id), isFalse);
+  });
+
+  test('a stack with no member header still posts the height', () async {
+    const playlist =
+        '#EXTM3U\n'
+        '#EXTINF:-1 tvg-id="stack-news" x-mofin-stack="2",News Stack\n'
+        'http://cdn.example/stack.ts\n';
+    final transport = _ReportingTransport((method, url, body) async {
+      throw Exception('header failed');
+    }, playlist);
+    transport.peekError = Exception('no headers');
+    final prefs = await SharedPreferences.getInstance();
+    final catalog = DirectIptvCatalog(
+      preferences: prefs,
+      transport: transport,
+      store: store,
+    );
+    await catalog.upsert(
+      const DirectIptvSource(
+        id: 'mo',
+        name: 'Mo Fin',
+        kind: DirectIptvKind.m3u,
+        baseUrl: 'https://dad2lna.duckdns.org:8443/mofin/free',
+      ),
+    );
+    final channel = catalog.snapshotFor('mo')!.channels.single;
+    final member = await catalog.peekMofinMember(channel.id);
+    expect(member, isNull);
+    expect(transport.peeks, 1);
+    await catalog.reportMofinResolution(
+      channelId: channel.id,
+      height: 360,
+      member: member,
+    );
+    expect(jsonDecode(transport.lastBody as String), {
+      'tvg_id': 'stack-news',
+      'res': 'SD',
+    });
+    expect(
+      transport.posts.single,
+      Uri.parse('https://dad2lna.duckdns.org:8443/mofin/free/resolution'),
+    );
+  });
 }
 
 class _CountingStore extends MemoryDirectIptvSnapshotStore {
@@ -454,6 +623,10 @@ class _ReportingTransport extends _Transport {
   final String playlist;
   final posts = <Uri>[];
   Map<String, String> lastHeaders = const {};
+  Object? lastBody;
+  int peeks = 0;
+  Map<String, String> peekHeadersResult = const {};
+  Object? peekError;
 
   @override
   Future<DirectIptvHttpResult> send(
@@ -465,6 +638,19 @@ class _ReportingTransport extends _Transport {
   }) {
     posts.add(url);
     lastHeaders = headers;
+    lastBody = body;
     return onSend(method, url, body);
+  }
+
+  @override
+  Future<Map<String, String>> peekHeaders(
+    Uri url,
+    Map<String, String> headers, {
+    Duration timeout = const Duration(seconds: 8),
+  }) async {
+    peeks++;
+    final error = peekError;
+    if (error != null) throw error;
+    return peekHeadersResult;
   }
 }

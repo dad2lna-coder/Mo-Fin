@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<component name="ProbeTask" extends="Task">
+    <interface>
+        <field id="url" type="string" />
+        <field id="epoch" type="integer" />
+        <field id="member" type="string" />
+        <field id="done" type="boolean" value="false" />
+    </interface>
+    <script type="text/brightscript" uri="pkg:/components/http.brs" />
+    <script type="text/brightscript" uri="pkg:/components/ProbeTask.brs" />
+</component>
