@@ -99,6 +99,7 @@ void main() {
     test('holds everything offered that isn\'t on the bar', () {
       expect(tiles(saved: true, syncPlay: true, quickConnect: true), const [
         BottomNavHubTile.action(BottomNavHubAction.saved),
+        BottomNavHubTile.tab(BottomNavTab.favorites),
         BottomNavHubTile.tab(BottomNavTab.genres),
         BottomNavHubTile.action(BottomNavHubAction.shuffle),
         BottomNavHubTile.action(BottomNavHubAction.syncPlay),

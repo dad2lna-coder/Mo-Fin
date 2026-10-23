@@ -1140,6 +1140,22 @@ class _TopToolbarState extends State<TopToolbar> with RouteAware {
                   ),
                 ),
               ],
+              _gap(),
+              _orderButton(
+                order: (order++).toDouble(),
+                child: ExpandableIconButton(
+                  key: const ValueKey('toolbar_streaming'),
+                  forceExpanded: alwaysExpanded,
+                  icon: Icons.subscriptions_rounded,
+                  label: 'Streaming',
+                  baseColor: nextNavColor(),
+                  onPressed: () {
+                    final route = widget.activeRoute ?? '';
+                    if (route == Destinations.streaming) return;
+                    context.navigateTopLevel(Destinations.streaming);
+                  },
+                ),
+              ),
               if (showFolders) ...[
                 _gap(),
                 _orderButton(

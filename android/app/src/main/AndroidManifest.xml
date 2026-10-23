@@ -156,5 +156,13 @@
         <intent>
             <action android:name="android.speech.RecognitionService"/>
         </intent>
+        <!-- Android 11+ hides packages that are not declared here, so the
+             Streaming tab could not see whether these apps are installed. -->
+        <package android:name="com.netflix.ninja" />
+        <package android:name="com.netflix.mediaclient" />
+        <package android:name="com.disney.disneyplus" />
+        <package android:name="com.wbd.stream" />
+        <package android:name="com.amazon.avod" />
+        <package android:name="com.amazon.avod.thirdpartyclient" />
     </queries>
 </manifest>

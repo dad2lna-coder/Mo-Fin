@@ -53,19 +53,23 @@ void main() {
   });
 
   group('automatic pins', () {
-    test('default settings pin Search, Libraries and Favorites', () {
+    test('default settings pin Search, Libraries and Streaming', () {
       expect(const BottomNavTabGates().resolvePins(''), [
         BottomNavTab.search,
         BottomNavTab.libraries,
-        BottomNavTab.favorites,
+        BottomNavTab.streaming,
       ]);
     });
 
     test('a turned off button is skipped for the next offered tab', () {
-      const gates = BottomNavTabGates(showFavorites: false, showLiveTv: true);
+      const gates = BottomNavTabGates(
+        showLibraries: false,
+        showFavorites: false,
+        showLiveTv: true,
+      );
       expect(gates.resolvePins(''), [
         BottomNavTab.search,
-        BottomNavTab.libraries,
+        BottomNavTab.streaming,
         BottomNavTab.liveTv,
       ]);
     });
@@ -78,8 +82,8 @@ void main() {
       );
       expect(gates.resolvePins(''), [
         BottomNavTab.search,
+        BottomNavTab.streaming,
         BottomNavTab.favorites,
-        BottomNavTab.genres,
       ]);
     });
 
@@ -132,7 +136,7 @@ void main() {
       expect(gates.resolvePins(prefs.get(UserPreferences.bottomNavbarTabs)), [
         BottomNavTab.search,
         BottomNavTab.libraries,
-        BottomNavTab.genres,
+        BottomNavTab.streaming,
       ]);
 
       // Other constructor steps seed their own keys, so only the navbar's

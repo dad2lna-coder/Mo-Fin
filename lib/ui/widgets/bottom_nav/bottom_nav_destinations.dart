@@ -29,6 +29,7 @@ String bottomNavTabLabel(AppLocalizations l10n, BottomNavTab tab) =>
           ? GetIt.instance<SeerrPreferences>().labelOrDefault(l10n.seerr)
           : l10n.seerr,
       BottomNavTab.folders => l10n.folders,
+      BottomNavTab.streaming => 'Streaming',
     };
 
 String bottomNavHubActionLabel(
@@ -91,6 +92,8 @@ Widget bottomNavTabIconWidget(
       adaptive(Icons.live_tv_rounded, Icons.live_tv_outlined),
     BottomNavTab.folders =>
       adaptive(Icons.folder_rounded, Icons.folder_outlined),
+    BottomNavTab.streaming =>
+      adaptive(Icons.subscriptions_rounded, Icons.subscriptions_outlined),
     BottomNavTab.genres => Image.asset(
         'assets/icons/genres.png',
         width: size,
@@ -152,6 +155,7 @@ void openBottomNavTab(BuildContext context, BottomNavTab tab) {
     BottomNavTab.liveTv => Destinations.directIptv,
     BottomNavTab.discover => Destinations.seerrDiscover,
     BottomNavTab.folders => Destinations.folderView,
+    BottomNavTab.streaming => Destinations.streaming,
     BottomNavTab.libraries => null,
   };
   if (route == null) return;

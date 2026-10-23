@@ -23,6 +23,7 @@ import '../../../direct_iptv/direct_guide.dart';
 import '../../../direct_iptv/direct_iptv_catalog.dart';
 import '../../../direct_iptv/direct_iptv_playback.dart';
 import '../../../direct_iptv/models.dart';
+import '../../../direct_iptv/playlist_parse.dart';
 import '../../../direct_iptv/mofin_report.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../../playback/html_video_backend.dart';
@@ -3008,7 +3009,10 @@ class _LiveTvPlayerScreenState extends State<LiveTvPlayerScreen>
       final played = await _memberFromPlayingResponse(backend);
       if (played != null) {
         member = played.member;
-      } else {
+      } else if (shouldProbeMofinMember(
+        isWeb: PlatformDetection.isWeb,
+        streamUrl: catalog.channelById(channelId)?.streamUrl ?? '',
+      )) {
         member = await catalog.peekMofinMember(channelId);
       }
       if (epoch != _mofinResolutionEpoch) return;

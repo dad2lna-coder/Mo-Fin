@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<component name="StreamingTask" extends="Task">
+    <interface>
+        <field id="apiKey" type="string" />
+        <field id="kind" type="string" />
+        <field id="query" type="string" />
+        <field id="mediaType" type="string" />
+        <field id="tmdbId" type="integer" />
+        <field id="epoch" type="integer" />
+        <field id="cache" type="assocarray" />
+        <field id="payload" type="assocarray" />
+        <field id="error" type="string" />
+    </interface>
+    <script type="text/brightscript" uri="pkg:/components/http.brs" />
+    <script type="text/brightscript" uri="pkg:/components/streaming_util.brs" />
+    <script type="text/brightscript" uri="pkg:/components/StreamingTask.brs" />
+</component>

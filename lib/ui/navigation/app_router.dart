@@ -57,6 +57,8 @@ import '../screens/livetv/live_tv_schedule_screen.dart';
 import '../screens/livetv/live_tv_screen.dart';
 import '../screens/livetv/direct_iptv_guide_screen.dart';
 import '../screens/livetv/live_tv_series_recordings_screen.dart';
+import '../screens/streaming/streaming_detail_screen.dart';
+import '../screens/streaming/streaming_screen.dart';
 import '../screens/playback/audio_player_screen.dart';
 import '../screens/playback/book_reader_screen.dart';
 import '../screens/playback/external_player_host_screen.dart';
@@ -565,6 +567,21 @@ final appRouter = GoRouter(
               );
             }
             return _opaqueFullScreenPage<void>(state: state, child: child);
+          },
+        ),
+      ],
+    ),
+
+    GoRoute(
+      path: Destinations.streaming,
+      builder: (context, state) => const StreamingScreen(),
+      routes: [
+        GoRoute(
+          path: ':type/:id',
+          builder: (context, state) {
+            final type = state.pathParameters['type'] ?? 'movie';
+            final id = int.tryParse(state.pathParameters['id'] ?? '') ?? 0;
+            return StreamingDetailScreen(mediaType: type, tmdbId: id);
           },
         ),
       ],

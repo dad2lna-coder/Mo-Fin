@@ -42,43 +42,16 @@ internal class PlaybackHttpDataSourceFactory : DataSource.Factory {
     override fun createDataSource(): DataSource {
         scoped.allowedHost = credentialHost
         scoped.authorization = authorization
-        val source = if (credentialHost.isNullOrBlank()) {
+        return if (credentialHost.isNullOrBlank()) {
             plain.createDataSource()
         } else {
             scoped.createDataSource()
         }
-        return if (source is HttpDataSource) HeaderReportingDataSource(source) else source
     }
 
     private companion object {
         const val CONNECT_TIMEOUT_MS = 120_000
         const val READ_TIMEOUT_MS = 120_000
-    }
-}
-
-/** Reads `X-Mofin-Member` off the response this player just opened. */
-@UnstableApi
-private class HeaderReportingDataSource(
-    private val delegate: HttpDataSource,
-) : HttpDataSource by delegate {
-    override fun open(dataSpec: DataSpec): Long {
-        val opened = delegate.open(dataSpec)
-        val headers = delegate.responseHeaders
-        if (headers.isEmpty()) return opened
-        var member = ""
-        for ((key, values) in headers) {
-            if (!key.equals("X-Mofin-Member", ignoreCase = true)) continue
-            member = values.firstOrNull()?.trim().orEmpty()
-            break
-        }
-        Media3Bridge.emitEvent(
-            mapOf(
-                "event" to "streamHeaders",
-                "sawHeaders" to true,
-                "member" to member,
-            ),
-        )
-        return opened
     }
 }
 

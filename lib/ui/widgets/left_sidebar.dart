@@ -1083,6 +1083,22 @@ class _LeftSidebarState extends State<LeftSidebar> with RouteAware {
                       context.navigateTopLevel(Destinations.directIptv);
                     },
                   ),
+                _SidebarItem(
+                  key: const ValueKey('sidebar-streaming'),
+                  icon: Icons.subscriptions_rounded,
+                  label: 'Streaming',
+                  baseColor: nextMainSidebarColor(),
+                  showLabel: _showLabels,
+                  onPressed: () {
+                    _onNavigate();
+                    if (_isActive(Destinations.streaming)) {
+                      _exitSidebarToContent();
+                      return;
+                    }
+                    _markNavigationAwayFromSidebar();
+                    context.navigateTopLevel(Destinations.streaming);
+                  },
+                ),
                 if (showFolders)
                   _SidebarItem(
                     key: const ValueKey('sidebar-folders'),

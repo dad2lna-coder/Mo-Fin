@@ -3,7 +3,7 @@ import 'user_preferences.dart';
 /// Destinations that can be pinned between Home and You on the mobile bottom
 /// navbar. The names are the wire format of [UserPreferences.bottomNavbarTabs],
 /// so renaming one breaks every synced profile that holds it.
-enum BottomNavTab { search, libraries, favorites, genres, liveTv, discover, folders }
+enum BottomNavTab { search, libraries, favorites, genres, liveTv, discover, folders, streaming }
 
 const int kMaxPinnedBottomNavTabs = 3;
 
@@ -11,6 +11,7 @@ const int kMaxPinnedBottomNavTabs = 3;
 const List<BottomNavTab> _autoOrder = [
   BottomNavTab.search,
   BottomNavTab.libraries,
+  BottomNavTab.streaming,
   BottomNavTab.favorites,
   BottomNavTab.liveTv,
   BottomNavTab.discover,
@@ -94,6 +95,7 @@ class BottomNavTabGates {
         BottomNavTab.liveTv => !kidsMode && showLiveTv,
         BottomNavTab.discover => !kidsMode && showSeerr && seerrAvailable,
         BottomNavTab.folders => folderView,
+        BottomNavTab.streaming => true,
       };
 
   /// The tabs the bar shows between Home and You. Automatic pins follow the

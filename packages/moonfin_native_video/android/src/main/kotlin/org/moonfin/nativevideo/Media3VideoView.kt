@@ -966,6 +966,12 @@ class Media3VideoView(
     private var currentContainer: String? = null
     private var currentIsLive = false
     private var currentIsPreview = false
+    // Bumped every time a source is prepared. Header events carry the
+    // generation captured when that load started, so a late callback from
+    // the previous channel is dropped.
+    private var streamHeaderGeneration = 0
+    private val streamHeaderTaskGeneration = HashMap<Long, Int>()
+    private var streamHeadersSentFor = 0
     // The host only ever plays audio, and starting there saves a decoder
     // rebuild on its first source.
     private var currentMediaType: String = if (isHeadlessHost) "audio" else "video"
@@ -1117,9 +1123,11 @@ class Media3VideoView(
         }
     }
 
-    private fun emitStreamHeaders(loadEventInfo: LoadEventInfo) {
+    private fun emitStreamHeaders(loadEventInfo: LoadEventInfo, generation: Int) {
+        if (generation != streamHeaderGeneration || streamHeadersSentFor == generation) return
         val headers = loadEventInfo.responseHeaders
         if (headers.isEmpty()) return
+        streamHeadersSentFor = generation
         var member = ""
         for ((key, values) in headers) {
             if (!key.equals("X-Mofin-Member", ignoreCase = true)) continue
@@ -1131,6 +1139,7 @@ class Media3VideoView(
                 "event" to "streamHeaders",
                 "sawHeaders" to true,
                 "member" to member,
+                "generation" to generation,
             ),
         )
     }
@@ -1468,12 +1477,40 @@ class Media3VideoView(
             )
         }
 
+        override fun onLoadStarted(
+            eventTime: AnalyticsListener.EventTime,
+            loadEventInfo: LoadEventInfo,
+            mediaLoadData: MediaLoadData,
+            retryCount: Int,
+        ) {
+            // Media3 1.10 calls this 4-arg overload. The deprecated 3-arg
+            // method is a no-op and never runs. A retry that belongs to a
+            // load we already dropped (the channel changed) must not pick up
+            // the new generation.
+            if (retryCount != 0 &&
+                !streamHeaderTaskGeneration.containsKey(loadEventInfo.loadTaskId)
+            ) {
+                return
+            }
+            streamHeaderTaskGeneration[loadEventInfo.loadTaskId] = streamHeaderGeneration
+        }
+
+        override fun onLoadCanceled(
+            eventTime: AnalyticsListener.EventTime,
+            loadEventInfo: LoadEventInfo,
+            mediaLoadData: MediaLoadData,
+        ) {
+            streamHeaderTaskGeneration.remove(loadEventInfo.loadTaskId)
+        }
+
         override fun onLoadCompleted(
             eventTime: AnalyticsListener.EventTime,
             loadEventInfo: LoadEventInfo,
             mediaLoadData: MediaLoadData,
         ) {
-            emitStreamHeaders(loadEventInfo)
+            val generation = streamHeaderTaskGeneration.remove(loadEventInfo.loadTaskId)
+                ?: return
+            emitStreamHeaders(loadEventInfo, generation)
         }
 
         override fun onAudioUnderrun(
@@ -4144,6 +4181,8 @@ class Media3VideoView(
     private fun prepareCurrentSource(startPositionMs: Long, playWhenReady: Boolean) {
         val url = currentUrl ?: return
         cancelPendingRetime()
+        streamHeaderGeneration += 1
+        streamHeaderTaskGeneration.clear()
 
         val mediaItemBuilder = MediaItem.Builder()
             .setUri(parseUri(url))

@@ -101,6 +101,11 @@ class Destinations {
   static const liveTvPlayer = '/live-tv/player';
   static const directIptv = '/live-tv/direct';
 
+  /// Subscriptions (Netflix, Disney+, Max, Prime Video). Not a Jellyfin library.
+  static const streaming = '/streaming';
+  static String streamingTitle(String mediaType, int id) =>
+      '/streaming/$mediaType/$id';
+
   // Playback
   static const videoPlayer = '/player/video';
   static const externalPlayer = '/player/external';

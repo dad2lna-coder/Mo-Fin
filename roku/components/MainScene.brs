@@ -34,6 +34,18 @@ sub init()
     m.resEpoch = 0
     m.resWaitEpoch = 0
     m.resLive = false
+    m.tmdbKey = readSetting("streamingTmdbKey", "")
+    m.streamCache = {}
+    m.streamEpoch = 0
+    m.streamRow = 0
+    m.streamCol = 0
+    m.streamOnSearch = false
+    m.streamQuery = ""
+    m.streamLoading = false
+    m.streamPayload = invalid
+    m.streamDetail = invalid
+    m.streamButton = 0
+    m.streamPick = invalid
 
     m.preview = m.top.findNode("preview")
     m.preview.captionMode = "On"
@@ -63,6 +75,7 @@ sub init()
     m.sidebar = m.top.findNode("sidebar")
     m.brand = m.top.findNode("brand")
     m.brandSub = m.top.findNode("brandSub")
+    m.streaming = m.top.findNode("streaming")
 
     m.smallFont = CreateObject("roSGNode", "Font")
     m.smallFont.uri = "font:SmallSystemFont"
@@ -89,6 +102,10 @@ function onKeyEvent(key as string, press as boolean) as boolean
     if m.mode = "settings" then return onSettingsKey(key)
     if m.mode = "recordings" then return onRecordingsKey(key)
     if m.mode = "player" then return onPlayerKey(key)
+    if m.mode = "streaming" or m.mode = "streamDetail" then
+        if m.mode = "streaming" and m.sideFocus then return onSidebarKey(key)
+        return onStreamingKey(key)
+    end if
     if m.sideFocus then return onSidebarKey(key)
     return onGridKey(key)
 end function
@@ -98,7 +115,14 @@ function onBack() as boolean
         closeDialog()
         return true
     end if
-    if m.mode = "player" or m.mode = "settings" or m.mode = "recordings" then
+    if m.mode = "streamDetail" then
+        m.mode = "streaming"
+        m.streamLoading = false
+        showPanels()
+        drawStreaming()
+        return true
+    end if
+    if m.mode = "streaming" or m.mode = "player" or m.mode = "settings" or m.mode = "recordings" then
         showGuide()
         return true
     end if
@@ -170,7 +194,7 @@ function onSettingsKey(key as string) as boolean
     if key = "up" then
         if m.settingsIndex > 0 then m.settingsIndex = m.settingsIndex - 1
     else if key = "down" then
-        if m.settingsIndex < 3 then m.settingsIndex = m.settingsIndex + 1
+        if m.settingsIndex < 4 then m.settingsIndex = m.settingsIndex + 1
     else if key = "OK" or key = "play" then
         activateSettings()
     else
@@ -241,6 +265,10 @@ sub activateSidebar()
         showPanels()
         drawRecordings()
         loadRecordings()
+        return
+    end if
+    if kind = "streaming" then
+        showStreaming()
         return
     end if
     if kind = "all" then
@@ -344,6 +372,8 @@ sub activateSettings()
     else if m.settingsIndex = 1 then
         openKeyboard("Bearer token", m.token, "token")
     else if m.settingsIndex = 2 then
+        openKeyboard("TMDB API key", m.tmdbKey, "tmdb")
+    else if m.settingsIndex = 3 then
         saveSettings()
         showGuide()
         loadGuide()
@@ -356,8 +386,10 @@ sub openKeyboard(title as string, value as string, which as string)
     dialog = CreateObject("roSGNode", "KeyboardDialog")
     dialog.title = title
     dialog.buttons = ["Save", "Cancel"]
+    if value = invalid then value = ""
     dialog.textEditBox.maxTextLength = 400
     dialog.textEditBox.text = value
+    if which = "tmdb" then dialog.textEditBox.secureMode = true
     dialog.observeField("buttonSelected", "onKeyboard")
     m.keyboard = dialog
     m.keyboardWhich = which
@@ -378,6 +410,20 @@ sub onKeyboard()
     if button <> 0 then return
     if which = "base" then m.baseUrl = text.Trim()
     if which = "token" then m.token = text.Trim()
+    if which = "tmdb" then
+        m.tmdbKey = text.Trim()
+        writeStreamingKey(m.tmdbKey)
+        drawSettings()
+        return
+    end if
+    if which = "streamSearch" then
+        m.streamQuery = text.Trim()
+        m.streamRow = 0
+        m.streamCol = 0
+        m.streamOnSearch = false
+        loadStreaming()
+        return
+    end if
     saveSettings()
     drawSettings()
 end sub
@@ -434,6 +480,9 @@ sub showPanels()
     m.recordingsPanel.visible = (m.mode = "recordings")
     m.playerHint.visible = (m.mode = "player")
     if m.playerBar <> invalid then m.playerBar.visible = (m.mode = "player")
+    if m.streaming <> invalid then
+        m.streaming.visible = (m.mode = "streaming" or m.mode = "streamDetail")
+    end if
 end sub
 
 sub loadGuide()
@@ -607,6 +656,7 @@ end sub
 
 sub onPreview()
     if m.mode = "player" or m.mode = "settings" or m.mode = "recordings" then return
+    if m.mode = "streaming" or m.mode = "streamDetail" then return
     channel = focusedChannel()
     if channel = invalid then return
     playUrl(channel.url, false)
@@ -965,8 +1015,8 @@ end sub
 
 sub drawSettings()
     showPanels()
-    rows = ["Base URL    " + shown(m.baseUrl, "default"), "Bearer token    " + shownSecret(m.token), "Reload guide", "Back"]
-    for i = 0 to 3
+    rows = ["Base URL    " + shown(m.baseUrl, "default"), "Bearer token    " + shownSecret(m.token), "TMDB API key    " + shownSecret(m.tmdbKey), "Reload guide", "Back"]
+    for i = 0 to 4
         node = m.top.findNode("settings" + i.ToStr())
         prefix = "  "
         if i = m.settingsIndex then prefix = "> "
@@ -1197,6 +1247,7 @@ function sideItems() as object
     for each group in m.groups
         items.Push(group)
     end for
+    items.Push("Streaming")
     items.Push("Recordings")
     items.Push("Settings")
     return items
@@ -1204,8 +1255,10 @@ end function
 
 function sideKind(index as integer) as string
     items = sideItems()
-    if index = items.Count() - 1 then return "settings"
-    if index = items.Count() - 2 then return "recordings"
+    last = items.Count() - 1
+    if index = last then return "settings"
+    if index = last - 1 then return "recordings"
+    if index = last - 2 then return "streaming"
     if index = 0 then return "all"
     return "group"
 end function
@@ -1420,6 +1473,14 @@ sub saveSettings()
     reg.Write("baseUrl", activeBase())
     if m.token = invalid then m.token = ""
     reg.Write("token", m.token)
+    reg.Flush()
+end sub
+
+sub writeStreamingKey(value as string)
+    reg = CreateObject("roRegistrySection", "mofin")
+    if reg = invalid then return
+    if value = invalid then value = ""
+    reg.Write("streamingTmdbKey", value)
     reg.Flush()
 end sub
 

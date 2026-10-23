@@ -153,6 +153,8 @@ class Media3PlayerBackend extends PlayerBackend
   final _streamHeadersSeen = StreamController<void>.broadcast();
   bool _sawStreamHeaders = false;
   String? _streamMember;
+  int _newestHeaderGeneration = 0;
+  int _headerGenerationFloor = 0;
 
   @override
   bool get isSubtitleLoading => _isSubtitleLoading;
@@ -1079,6 +1081,7 @@ class Media3PlayerBackend extends PlayerBackend
 
     _completed = false;
     _videoHeight = 0;
+    _headerGenerationFloor = _newestHeaderGeneration;
     _sawStreamHeaders = false;
     _streamMember = null;
     // The native ticker keeps reporting the previous item's frozen position
@@ -1774,6 +1777,11 @@ class Media3PlayerBackend extends PlayerBackend
 
   void _noteStreamHeaders(Map<String, dynamic> map) {
     if (map['sawHeaders'] != true) return;
+    final generation = _toInt(map['generation']);
+    if (generation <= _headerGenerationFloor) return;
+    if (generation > _newestHeaderGeneration) {
+      _newestHeaderGeneration = generation;
+    }
     final raw = map['member']?.toString().trim() ?? '';
     if (raw.isNotEmpty && (_streamMember == null || _streamMember!.isEmpty)) {
       _streamMember = raw;

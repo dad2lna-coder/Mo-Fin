@@ -427,6 +427,14 @@ bool looksLikeHls(String url) {
   return path.endsWith('.m3u8') || path.endsWith('.m3u');
 }
 
+/// Web playback cannot read response headers off a raw MPEG-TS stream, and
+/// the Range probe then sits until it times out. HLS playlists answer
+/// immediately, so only those are worth asking. Other platforms still probe.
+bool shouldProbeMofinMember({required bool isWeb, required String streamUrl}) {
+  if (!isWeb) return true;
+  return looksLikeHls(streamUrl);
+}
+
 DirectIptvSnapshot assembleSnapshot({
   required DirectIptvSource source,
   required String m3u,

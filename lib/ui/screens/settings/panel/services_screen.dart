@@ -85,6 +85,14 @@ class _ServicesScreenState extends State<_ServicesScreen> {
                 const DirectIptvSettingsScreen(),
               ),
             ),
+            _TvSettingsListTile(
+              leading: const Icon(Icons.subscriptions),
+              title: const Text('Streaming'),
+              subtitle: const Text('TMDB API key for Netflix, Disney+, Max, and Prime Video'),
+              onTap: () => context.pushSettingsScreen(
+                const StreamingSettingsScreen(),
+              ),
+            ),
             if (achievements.available)
               _TvSettingsListTile(
                 leading: const Icon(

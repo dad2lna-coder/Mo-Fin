@@ -81,6 +81,7 @@ bool bottomNavTabMatchesRoute(BottomNavTab tab, String route) {
     BottomNavTab.discover => under('/seerr'),
     BottomNavTab.folders =>
       route == Destinations.folderView || under('/folder'),
+    BottomNavTab.streaming => under(Destinations.streaming),
   };
 }
 

@@ -209,6 +209,7 @@ class MainActivity : AudioServiceActivity(), GamepadsCompatibleActivity {
         private const val DLNA_CHANNEL = "com.moonfin/native_dlna"
         private const val DLNA_EVENTS_CHANNEL = "com.moonfin/native_dlna_events"
         private const val EXTERNAL_PLAYER_CHANNEL = "moonfin/external_player"
+        private const val STREAMING_APPS_CHANNEL = "moonfin/streaming_apps"
         private const val ACTION_PLAY_PAUSE = "org.moonfin.androidtv.ACTION_PIP_PLAY_PAUSE"
         private const val DISMISS_DELAY_MS = 300L
         private const val PLATFORM_CHANNEL = "org.moonfin.androidtv/platform"
@@ -520,6 +521,19 @@ class MainActivity : AudioServiceActivity(), GamepadsCompatibleActivity {
                 "chooseAndLaunch" -> {
                     val args = call.arguments as? Map<*, *> ?: emptyMap<String, Any>()
                     chooseAndLaunchExternalPlayer(args, result)
+                }
+                else -> result.notImplemented()
+            }
+        }
+
+        MethodChannel(
+            flutterEngine.dartExecutor.binaryMessenger,
+            STREAMING_APPS_CHANNEL,
+        ).setMethodCallHandler { call, result ->
+            when (call.method) {
+                "launch" -> {
+                    val args = call.arguments as? Map<*, *> ?: emptyMap<String, Any>()
+                    result.success(launchStreamingApp(args))
                 }
                 else -> result.notImplemented()
             }
@@ -1787,6 +1801,50 @@ class MainActivity : AudioServiceActivity(), GamepadsCompatibleActivity {
         }
 
         startExternalPlayerProxy(launchIntent, result)
+    }
+
+    /**
+     * Opens one of the four subscription apps. A search URL is tried first
+     * when that app has a title deep link; otherwise the package's launch
+     * intent just opens the app. Nothing here plays the stream.
+     *
+     * Fire TV packages, in the order Dart sends them:
+     * Netflix `com.netflix.ninja` (phone build is `com.netflix.mediaclient`),
+     * Disney+ `com.disney.disneyplus`, Max `com.wbd.stream`,
+     * Prime Video `com.amazon.avod` (Appstore build is
+     * `com.amazon.avod.thirdpartyclient`).
+     */
+    private fun launchStreamingApp(args: Map<*, *>): String {
+        val packages = (args["packages"] as? List<*>)?.mapNotNull { it as? String }.orEmpty()
+        val searchUrl = args["searchUrl"] as? String
+        for (pkg in packages) {
+            if (packageManager.getLaunchIntentForPackage(pkg) == null) continue
+            if (!searchUrl.isNullOrBlank() && startStreamingView(pkg, searchUrl)) {
+                return "opened"
+            }
+            val launch = packageManager.getLaunchIntentForPackage(pkg) ?: continue
+            launch.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            try {
+                startActivity(launch)
+                return "opened"
+            } catch (_: ActivityNotFoundException) {
+            }
+        }
+        return "missing"
+    }
+
+    private fun startStreamingView(pkg: String, searchUrl: String): Boolean {
+        val view = Intent(Intent.ACTION_VIEW, Uri.parse(searchUrl)).apply {
+            setPackage(pkg)
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        }
+        if (view.resolveActivity(packageManager) == null) return false
+        return try {
+            startActivity(view)
+            true
+        } catch (_: ActivityNotFoundException) {
+            false
+        }
     }
 
     private fun chooseAndLaunchExternalPlayer(args: Map<*, *>, result: MethodChannel.Result) {

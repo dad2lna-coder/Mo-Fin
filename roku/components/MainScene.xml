@@ -1,6 +1,8 @@
 <?xml version="1.0" encoding="utf-8" ?>
 <component name="MainScene" extends="Scene">
     <script type="text/brightscript" uri="pkg:/components/http.brs" />
+    <script type="text/brightscript" uri="pkg:/components/streaming_util.brs" />
+    <script type="text/brightscript" uri="pkg:/components/streaming.brs" />
     <script type="text/brightscript" uri="pkg:/components/MainScene.brs" />
     <children>
         <Rectangle id="bg" width="1920" height="1080" color="0x071422FF" />
@@ -50,6 +52,13 @@
             <Label id="settings1" translation="[0, 140]" width="1100" height="52" font="font:MediumSystemFont" color="0xFFFFFFFF" />
             <Label id="settings2" translation="[0, 200]" width="1100" height="52" font="font:MediumSystemFont" color="0xFFFFFFFF" />
             <Label id="settings3" translation="[0, 260]" width="1100" height="52" font="font:MediumSystemFont" color="0xFFFFFFFF" />
+            <Label id="settings4" translation="[0, 320]" width="1100" height="52" font="font:MediumSystemFont" color="0xFFFFFFFF" />
+        </Group>
+
+        <Group id="streaming" visible="false" translation="[340, 36]">
+            <Label id="streamTitle" width="1400" height="52" text="Streaming" font="font:LargeBoldSystemFont" color="0xFFFFFFFF" />
+            <Label id="streamSub" translation="[0, 52]" width="1400" height="32" text="Netflix, Disney+, Max, and Prime Video in the US" font="font:SmallSystemFont" color="0x94A3B8FF" />
+            <Group id="streamBody" translation="[0, 100]" />
         </Group>
 
         <Group id="recordings" visible="false" translation="[360, 80]">

@@ -87,6 +87,7 @@ import '../../widgets/trickplay_settings_preview.dart';
 import '../../widgets/focus/request_initial_focus.dart';
 import '../home/home_view_model.dart';
 import '../livetv/direct_iptv_settings_screen.dart';
+import '../streaming/streaming_settings_screen.dart';
 import 'appearance_theme_screen.dart';
 import 'diagnostics_settings_screen.dart';
 import 'download_settings_screen.dart';
