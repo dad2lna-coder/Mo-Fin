@@ -83,7 +83,7 @@ android {
     flavorDimensions += "device"
     productFlavors {
         val baseAppId = "org.moonfin.androidtv"
-        val baseAppName = "Moonfin"
+        val baseAppName = "MoFin"
         // Optional application-id suffix for on-device testing, set through the
         // environment so an unset build is byte-identical to before:
         //   MOONFIN_TEST_ID_SUFFIX=.hwtest flutter build apk --flavor androidTv --debug
@@ -119,8 +119,7 @@ android {
             versionCode = androidTvVersionCode
             versionName = androidTvVersionName
             ndk { abiFilters += tvAbis }
-            manifestPlaceholders["appName"] =
-                if (testIdSuffix.isEmpty()) baseAppName else "Mo-Fin"
+            manifestPlaceholders["appName"] = baseAppName
             // Impeller off by default on TV: the GLES fallback stutters on
             // TV-box GPUs. MoonfinApplication turns it on for boxes where it
             // runs on Vulkan.

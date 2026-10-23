@@ -10,7 +10,7 @@ class AppLocalizationsEo extends AppLocalizations {
   AppLocalizationsEo([String locale = 'eo']) : super(locale);
 
   @override
-  String get appTitle => 'Moonfin';
+  String get appTitle => 'MoFin';
 
   @override
   String get animeMarkerFiller => 'Filler';

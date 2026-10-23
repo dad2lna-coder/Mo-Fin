@@ -10,7 +10,7 @@ class AppLocalizationsEn extends AppLocalizations {
   AppLocalizationsEn([String locale = 'en']) : super(locale);
 
   @override
-  String get appTitle => 'Moonfin';
+  String get appTitle => 'MoFin';
 
   @override
   String get animeMarkerFiller => 'Filler';
@@ -15133,7 +15133,7 @@ class AppLocalizationsEnGb extends AppLocalizationsEn {
   AppLocalizationsEnGb() : super('en_GB');
 
   @override
-  String get appTitle => 'Moonfin';
+  String get appTitle => 'MoFin';
 
   @override
   String get animeMarkerFiller => 'Filler';

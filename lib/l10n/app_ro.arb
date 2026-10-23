@@ -1,6 +1,6 @@
 {
     "@@locale": "ro",
-    "appTitle": "Moonfin",
+    "appTitle": "MoFin",
     "@appTitle": {
         "description": "The application title"
     },

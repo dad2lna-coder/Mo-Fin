@@ -2,7 +2,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_svg/flutter_svg.dart';
+import 'mofin_brand.dart';
 import 'package:get_it/get_it.dart';
 import 'package:moonfin_design/moonfin_design.dart';
 
@@ -342,8 +342,9 @@ class _TrickplaySettingsPreviewState extends State<TrickplaySettingsPreview> {
                 child: SizedBox(
                   width: logoSize,
                   height: logoSize,
-                  child: SvgPicture.asset(
-                    'assets/icons/moonfin_logo.svg',
+                  child: const MoFinBrand(
+                    wordmark: false,
+                    onDark: true,
                     fit: BoxFit.contain,
                   ),
                 ),

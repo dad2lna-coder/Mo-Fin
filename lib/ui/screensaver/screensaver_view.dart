@@ -7,6 +7,7 @@ import '../../preference/preference_constants.dart';
 import '../../preference/user_preferences.dart';
 import '../../util/artwork_timing.dart';
 import '../../util/clock_format.dart';
+import '../widgets/mofin_brand.dart';
 import '../widgets/offline_aware_image.dart';
 import '../widgets/playback/loading_animation_widget.dart';
 import 'bouncing_box.dart';
@@ -176,10 +177,7 @@ class _ScreensaverViewState extends State<ScreensaverView> {
         case ScreensaverComponent.none:
           return const SizedBox.shrink();
         case ScreensaverComponent.moonfinLogo:
-          return Image.asset(
-            'assets/images/logo_and_text.png',
-            fit: BoxFit.contain,
-          );
+          return const MoFinBrand(height: 140, onDark: true);
         case ScreensaverComponent.clock:
           return ScreensaverClock(
             opacity: 1 - (dim / 100) * 0.7,

@@ -2,7 +2,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
-import 'package:flutter_svg/flutter_svg.dart';
+import '../mofin_brand.dart';
 
 import '../../../preference/preference_constants.dart';
 
@@ -305,10 +305,10 @@ class _MoonfinLogoAnimationState extends State<MoonfinLogoAnimation>
           child: child,
         );
       },
-      child: SvgPicture.asset(
-        'assets/icons/moonfin_logo.svg',
+      child: MoFinBrand(
         width: widget.size,
         height: widget.size,
+        wordmark: false,
       ),
     );
   }

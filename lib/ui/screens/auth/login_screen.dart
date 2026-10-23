@@ -13,6 +13,7 @@ import 'package:server_core/server_core.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../../l10n/app_localizations.dart';
+import '../../widgets/mofin_brand.dart';
 import '../../util/error_message.dart';
 import '../../../auth/models/login_state.dart';
 import '../../../auth/models/server.dart';
@@ -753,7 +754,7 @@ class _LoginScreenState extends State<LoginScreen> {
         maxWidth: _quickConnectQrBeside ? 900 : 600,
         header: Padding(
           padding: const EdgeInsets.only(bottom: 24),
-          child: Image.asset('assets/images/logo_and_text.png', height: 64),
+          child: const MoFinBrand(height: 96),
         ),
         footer: AnimatedContainer(
           duration: const Duration(milliseconds: 180),

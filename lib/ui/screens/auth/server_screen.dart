@@ -16,6 +16,7 @@ import '../../../data/services/media_server_client_factory.dart';
 import '../../../data/services/pin_guard.dart';
 import '../../../data/services/server_pin_service.dart';
 import '../../../l10n/app_localizations.dart';
+import '../../widgets/mofin_brand.dart';
 import '../../../util/platform_detection.dart';
 import '../../navigation/destinations.dart';
 import '../../widgets/login_scaffold.dart';
@@ -278,7 +279,7 @@ class _ServerScreenState extends State<ServerScreen> {
     return LoginScaffold(
       header: Padding(
         padding: const EdgeInsets.only(bottom: 24),
-        child: Image.asset('assets/images/logo_and_text.png', height: 80),
+        child: const MoFinBrand(height: 112),
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,

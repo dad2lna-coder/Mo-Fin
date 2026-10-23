@@ -51,12 +51,20 @@ static void my_application_set_window_icon(GtkWindow* window) {
 #define MOONFIN_ENTRY_SIGNATURE            \
   "[Desktop Entry]\n"                      \
   "Type=Application\n"                     \
+  "Name=MoFin\n"                           \
+  "Comment=Jellyfin & Emby media client\n" \
+  "Exec=\""
+
+#define MOONFIN_ENTRY_SIGNATURE_LEGACY    \
+  "[Desktop Entry]\n"                      \
+  "Type=Application\n"                     \
   "Name=Moonfin\n"                         \
   "Comment=Jellyfin & Emby media client\n" \
   "Exec=\""
 
 static gboolean my_application_is_own_entry(const gchar* contents) {
-  return g_str_has_prefix(contents, MOONFIN_ENTRY_SIGNATURE);
+  return g_str_has_prefix(contents, MOONFIN_ENTRY_SIGNATURE) ||
+         g_str_has_prefix(contents, MOONFIN_ENTRY_SIGNATURE_LEGACY);
 }
 
 // Asks the desktop to reread the directory. Best effort, desktops without the
@@ -275,7 +283,7 @@ static void my_application_activate(GApplication* application) {
   GtkWindow* window =
       GTK_WINDOW(gtk_application_window_new(GTK_APPLICATION(application)));
 
-  gtk_window_set_title(window, "Moonfin");
+  gtk_window_set_title(window, "MoFin");
   my_application_install_desktop_entry();
   my_application_set_window_icon(window);
 

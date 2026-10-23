@@ -1,5 +1,5 @@
 name: moonfin
-description: "Moonfin - Jellyfin & Emby media client for mobile, tablet, and desktop"
+description: "MoFin - Jellyfin & Emby media client for mobile, tablet, and desktop"
 publish_to: 'none'
 version: 2.7.0+30000154
 
@@ -326,8 +326,8 @@ flutter:
 # The identity has to match Partner Center's Product identity page or the Store
 # rejects the upload.
 msix_config:
-  display_name: Moonfin
-  publisher_display_name: Moonfin
+  display_name: MoFin
+  publisher_display_name: MoFin
   identity_name: Moonfin.Moonfin
   publisher: CN=4E670673-D47F-4792-94F7-65B4918F6E4C
   logo_path: assets/icons/app_icon.png

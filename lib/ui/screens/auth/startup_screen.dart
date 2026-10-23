@@ -17,6 +17,7 @@ import '../../../preference/preference_constants.dart';
 import '../../navigation/destinations.dart';
 import '../../widgets/adaptive/adaptive_dialog.dart';
 import '../../widgets/overlay_sheet.dart';
+import '../../widgets/mofin_brand.dart';
 import '../../widgets/pin_entry_dialog.dart';
 import '../../widgets/focus/request_initial_focus.dart';
 
@@ -228,10 +229,7 @@ class _StartupScreenState extends State<StartupScreen>
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Image.asset(
-                  'assets/images/logo_and_text.png',
-                  height: _isLargeScreen ? 80 : 56,
-                ),
+                MoFinBrand(height: _isLargeScreen ? 120 : 88),
                 const SizedBox(height: 32),
                 SizedBox(
                   height: 24,

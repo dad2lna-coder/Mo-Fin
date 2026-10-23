@@ -9,6 +9,7 @@ import 'package:server_core/server_core.dart';
 import '../../../auth/repositories/emby_connect_repository.dart';
 import '../../../data/services/emby_connect_service.dart';
 import '../../../l10n/app_localizations.dart';
+import '../../widgets/mofin_brand.dart';
 import '../../util/error_message.dart';
 import '../../../preference/user_preferences.dart';
 import '../../../util/platform_detection.dart';
@@ -223,7 +224,7 @@ class _EmbyConnectScreenState extends State<EmbyConnectScreen> {
       maxWidth: 700,
       header: Padding(
         padding: const EdgeInsets.only(bottom: 24),
-        child: Image.asset('assets/images/logo_and_text.png', height: 80),
+        child: const MoFinBrand(height: 112),
       ),
       footer: AnimatedContainer(
         duration: const Duration(milliseconds: 180),
@@ -452,9 +453,8 @@ class _EmbyConnectScreenState extends State<EmbyConnectScreen> {
       children: [
         Text(
           l10n.selectAServer,
-          style: Theme.of(
-            context,
-          ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+          style: Theme.of(context).textTheme.titleMedium
+              ?.copyWith(fontWeight: FontWeight.bold),
         ),
         const SizedBox(height: 8),
         ..._servers.map(_buildServerTile),

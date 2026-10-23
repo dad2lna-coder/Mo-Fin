@@ -8,6 +8,7 @@ import '../../../l10n/app_localizations.dart';
 import '../../../preference/preference_constants.dart';
 import '../../../preference/user_preferences.dart';
 import '../../widgets/adaptive/adaptive_list_section.dart';
+import '../../widgets/mofin_brand.dart';
 import '../../widgets/focus/request_initial_focus.dart';
 import '../../widgets/settings/clean_settings_typography.dart';
 import '../../widgets/settings/multi_select_dialog.dart';
@@ -497,11 +498,10 @@ class _ScreensaverSettingsScreenState extends State<ScreensaverSettingsScreen> {
       case ScreensaverComponent.moonfinLogo:
         compWidth = 100 * scale;
         compHeight = 44 * scale;
-        componentWidget = Image.asset(
-          'assets/images/logo_and_text.png',
+        componentWidget = MoFinBrand(
           width: compWidth,
           height: compHeight,
-          fit: BoxFit.contain,
+          onDark: true,
         );
       case ScreensaverComponent.clock:
         compWidth = 80 * scale;

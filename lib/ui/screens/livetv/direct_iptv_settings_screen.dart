@@ -8,6 +8,7 @@ import '../../../direct_iptv/direct_iptv_catalog.dart';
 import '../../../direct_iptv/models.dart';
 import '../../../util/focus/dpad_keys.dart';
 import '../../widgets/adaptive/adaptive_dialog.dart';
+import '../../widgets/focus/dpad_focus_marker.dart';
 import '../../widgets/overlay_sheet.dart';
 import '../../widgets/settings/preference_tiles.dart';
 
@@ -80,10 +81,12 @@ class _DirectIptvSettingsScreenState extends State<DirectIptvSettingsScreen> {
     final sources = _catalog.sources;
     return Scaffold(
       appBar: AppBar(title: const Text('Direct IPTV')),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => unawaited(_edit(null)),
-        icon: const Icon(Icons.add),
-        label: const Text('Add source'),
+      floatingActionButton: DpadFocusMarker(
+        child: FloatingActionButton.extended(
+          onPressed: () => unawaited(_edit(null)),
+          icon: const Icon(Icons.add),
+          label: const Text('Add source'),
+        ),
       ),
       body: !_catalog.loaded
           ? const Center(child: CircularProgressIndicator())
@@ -107,25 +110,27 @@ class _DirectIptvSettingsScreenState extends State<DirectIptvSettingsScreen> {
                   if (count != null) '$count channels',
                   ?error,
                 ].join(' · ');
-                return ListTile(
-                  title: Text(source.name),
-                  subtitle: Text(subtitle),
-                  trailing: _catalog.isRefreshing(source.id)
-                      ? const SizedBox(
-                          width: 18,
-                          height: 18,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
-                      : IconButton(
-                          tooltip: 'Refresh',
-                          onPressed: source.enabled
-                              ? () => unawaited(
-                                  _catalog.refresh(source.id, force: true),
-                                )
-                              : null,
-                          icon: const Icon(Icons.refresh),
-                        ),
-                  onTap: () => unawaited(_edit(source)),
+                return DpadFocusMarker(
+                  child: ListTile(
+                    title: Text(source.name),
+                    subtitle: Text(subtitle),
+                    trailing: _catalog.isRefreshing(source.id)
+                        ? const SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : IconButton(
+                            tooltip: 'Refresh',
+                            onPressed: source.enabled
+                                ? () => unawaited(
+                                    _catalog.refresh(source.id, force: true),
+                                  )
+                                : null,
+                            icon: const Icon(Icons.refresh),
+                          ),
+                    onTap: () => unawaited(_edit(source)),
+                  ),
                 );
               },
             ),
@@ -307,7 +312,12 @@ class _DirectIptvEditorState extends State<_DirectIptvEditor> {
               _IptvFocusTile(
                 autofocus: kind == _kind,
                 title: Text(_kindLabel(kind)),
-                trailing: kind == _kind ? const Icon(Icons.check) : null,
+                trailing: kind == _kind
+                    ? Icon(
+                        Icons.check,
+                        color: Theme.of(ctx).colorScheme.primary,
+                      )
+                    : null,
                 onTap: () => Navigator.pop(ctx, kind),
               ),
           ],
@@ -674,63 +684,70 @@ class _IptvFocusTileState extends State<_IptvFocusTile> {
   @override
   Widget build(BuildContext context) {
     final focused = _focused;
+    final scheme = Theme.of(context).colorScheme;
     final titleStyle = Theme.of(context).textTheme.titleMedium
-        ?.copyWith(color: Colors.white, fontWeight: FontWeight.w600);
-    return Focus(
-      focusNode: _node,
-      autofocus: widget.autofocus,
-      descendantsAreFocusable: false,
-      onFocusChange: (next) {
-        if (!mounted || _focused == next) return;
-        setState(() => _focused = next);
-        if (next) {
-          Scrollable.ensureVisible(
-            context,
-            alignment: 0.35,
-            duration: const Duration(milliseconds: 120),
-          );
-        }
-      },
-      onKeyEvent: _onKey,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
-        child: Material(
-          color: focused ? const Color(0xFF1E3A5F) : Colors.transparent,
-          borderRadius: BorderRadius.circular(8),
-          child: InkWell(
-            onTap: widget.onTap == null ? null : _activate,
-            canRequestFocus: false,
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        DefaultTextStyle.merge(
-                          style: titleStyle,
-                          child: widget.title,
-                        ),
-                        if (widget.subtitle != null) ...[
-                          const SizedBox(height: 2),
+        ?.copyWith(color: scheme.onSurface, fontWeight: FontWeight.w600);
+    final subtitleColor = scheme.onSurface.withValues(alpha: 0.72);
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
+      child: DpadFocusFrame(
+        focused: focused,
+        child: Focus(
+          focusNode: _node,
+          autofocus: widget.autofocus,
+          descendantsAreFocusable: false,
+          onFocusChange: (next) {
+            if (!mounted || _focused == next) return;
+            setState(() => _focused = next);
+            if (next) {
+              Scrollable.ensureVisible(
+                context,
+                alignment: 0.35,
+                duration: const Duration(milliseconds: 120),
+              );
+            }
+          },
+          onKeyEvent: _onKey,
+          child: Material(
+            color: Colors.transparent,
+            child: InkWell(
+              onTap: widget.onTap == null ? null : _activate,
+              canRequestFocus: false,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 12,
+                ),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
                           DefaultTextStyle.merge(
-                            style: Theme.of(context).textTheme.bodyMedium
-                                ?.copyWith(color: Colors.white70),
-                            child: widget.subtitle!,
+                            style: titleStyle,
+                            child: widget.title,
                           ),
+                          if (widget.subtitle != null) ...[
+                            const SizedBox(height: 2),
+                            DefaultTextStyle.merge(
+                              style: Theme.of(context).textTheme.bodyMedium
+                                  ?.copyWith(color: subtitleColor),
+                              child: widget.subtitle!,
+                            ),
+                          ],
                         ],
-                      ],
+                      ),
                     ),
-                  ),
-                  if (widget.trailing != null) ...[
-                    const SizedBox(width: 12),
-                    IconTheme.merge(
-                      data: const IconThemeData(color: Colors.white, size: 28),
-                      child: widget.trailing!,
-                    ),
+                    if (widget.trailing != null) ...[
+                      const SizedBox(width: 12),
+                      IconTheme.merge(
+                        data: IconThemeData(color: scheme.primary, size: 28),
+                        child: widget.trailing!,
+                      ),
+                    ],
                   ],
-                ],
+                ),
               ),
             ),
           ),
@@ -823,15 +840,17 @@ class _IptvTextDialogState extends State<_IptvTextDialog> {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          TextField(
-            controller: _controller,
-            focusNode: _fieldFocus,
-            autofocus: true,
-            obscureText: widget.obscure,
-            keyboardType: widget.keyboardType,
-            textInputAction: TextInputAction.done,
-            onSubmitted: (_) => _submit(),
-            decoration: InputDecoration(hintText: widget.hint),
+          DpadFocusMarker(
+            child: TextField(
+              controller: _controller,
+              focusNode: _fieldFocus,
+              autofocus: true,
+              obscureText: widget.obscure,
+              keyboardType: widget.keyboardType,
+              textInputAction: TextInputAction.done,
+              onSubmitted: (_) => _submit(),
+              decoration: InputDecoration(hintText: widget.hint),
+            ),
           ),
           if (widget.helper != null) ...[
             const SizedBox(height: 8),
@@ -840,15 +859,19 @@ class _IptvTextDialogState extends State<_IptvTextDialog> {
         ],
       ),
       actions: [
-        adaptiveDialogAction(
-          focusNode: _cancelFocus,
-          onPressed: () => Navigator.of(context).pop(),
-          child: const Text('Cancel'),
+        DpadFocusMarker(
+          child: adaptiveDialogAction(
+            focusNode: _cancelFocus,
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Cancel'),
+          ),
         ),
-        adaptiveDialogAction(
-          focusNode: _saveFocus,
-          onPressed: _submit,
-          child: const Text('Save'),
+        DpadFocusMarker(
+          child: adaptiveDialogAction(
+            focusNode: _saveFocus,
+            onPressed: _submit,
+            child: const Text('Save'),
+          ),
         ),
       ],
     );

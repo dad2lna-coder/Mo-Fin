@@ -19,6 +19,7 @@ import '../../../auth/store/authentication_store.dart';
 import '../../../data/services/media_server_client_factory.dart';
 import '../../../auth/services/server_discovery_service.dart';
 import '../../../l10n/app_localizations.dart';
+import '../../widgets/mofin_brand.dart';
 import '../../../platform/web_runtime_config.dart';
 import '../../../preference/user_preferences.dart';
 import '../../../util/app_beta.dart';
@@ -489,7 +490,7 @@ class _ServerSelectScreenState extends State<ServerSelectScreen> {
     return LoginScaffold(
       header: Padding(
         padding: const EdgeInsets.only(bottom: 24),
-        child: Image.asset('assets/images/logo_and_text.png', height: 80),
+        child: const MoFinBrand(height: 112),
       ),
       footer: Padding(
         padding: const EdgeInsets.only(top: 16),

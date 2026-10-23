@@ -40,7 +40,7 @@ jobs:
             "defaultServerUrl": null,
             "discoveryProxyUrl": null,
             "enableWebRtcScan": true,
-            "brandingName": "Moonfin",
+            "brandingName": "MoFin",
             "pluginMode": false,
             "forcedServerUrl": null
           }

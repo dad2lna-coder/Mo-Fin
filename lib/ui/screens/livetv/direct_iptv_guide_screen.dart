@@ -2,7 +2,9 @@ import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
-import 'package:flutter_svg/flutter_svg.dart';
+
+import '../../widgets/mofin_brand.dart';
+
 import 'package:get_it/get_it.dart';
 import 'package:go_router/go_router.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -728,10 +730,11 @@ class _DirectIptvGuideScreenState extends State<DirectIptvGuideScreen> {
               padding: const EdgeInsets.fromLTRB(8, 4, 8, 8),
               child: Row(
                 children: [
-                  SvgPicture.asset(
-                    'assets/icons/moonfin_logo.svg',
+                  MoFinBrand(
                     width: compact ? 22 : 28,
                     height: compact ? 22 : 28,
+                    wordmark: false,
+                    onDark: true,
                   ),
                   const SizedBox(width: 8),
                   Expanded(

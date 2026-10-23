@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_svg/flutter_svg.dart';
 import 'package:go_router/go_router.dart';
 import 'package:moonfin_design/moonfin_design.dart';
 
 import '../../../l10n/app_localizations.dart';
+import '../../widgets/mofin_brand.dart';
 import '../../navigation/destinations.dart';
 import 'admin_nav.dart';
 import 'providers/admin_websocket_handler.dart';
@@ -594,15 +594,7 @@ class _ExitMark extends StatelessWidget {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  SvgPicture.asset(
-                    'assets/icons/moonfin_logo.svg',
-                    width: size,
-                    height: size,
-                    colorFilter: ColorFilter.mode(
-                      scheme.onSurface,
-                      BlendMode.srcIn,
-                    ),
-                  ),
+                  MoFinBrand(wordmark: false, width: size, height: size),
                   const SizedBox(height: 2),
                   Text(
                     l10n.exit,

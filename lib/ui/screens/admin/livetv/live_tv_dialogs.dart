@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:get_it/get_it.dart';
+import 'package:moonfin_design/moonfin_design.dart';
 import 'package:server_core/server_core.dart';
 
 import '../../../../l10n/app_localizations.dart';
 import '../../../util/error_message.dart';
 import '../widgets/admin_form_styles.dart';
 import '../widgets/filesystem_browser.dart';
+import '../../../widgets/focus/dpad_focus_marker.dart';
 
 /// A tuner's title: its friendly name, else its type.
 String liveTvTunerName(Map<String, dynamic> tuner, AppLocalizations l10n) {
@@ -42,9 +44,11 @@ Future<String?> pickServerPath(
         ),
       ),
       actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(ctx),
-          child: Text(l10n.cancel),
+        DpadFocusMarker(
+          child: TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: Text(l10n.cancel),
+          ),
         ),
       ],
     ),
@@ -70,8 +74,11 @@ class _FormFrame extends StatelessWidget {
     final body = Column(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: children,
+      children: [for (final child in children) DpadFocusMarker(child: child)],
     );
+    final markedActions = [
+      for (final action in actions) DpadFocusMarker(child: action),
+    ];
     if (MediaQuery.sizeOf(context).width < 600) {
       return Dialog.fullscreen(
         child: Scaffold(
@@ -86,7 +93,7 @@ class _FormFrame extends StatelessWidget {
               child: OverflowBar(
                 alignment: MainAxisAlignment.end,
                 spacing: 8,
-                children: actions,
+                children: markedActions,
               ),
             ),
           ),
@@ -96,7 +103,7 @@ class _FormFrame extends StatelessWidget {
     return AlertDialog(
       title: Text(title),
       content: SizedBox(width: 520, child: SingleChildScrollView(child: body)),
-      actions: actions,
+      actions: markedActions,
     );
   }
 }
@@ -112,16 +119,16 @@ Widget _errorText(BuildContext context, String? error) => error == null
       );
 
 Widget liveTvSpinner() => const SizedBox(
-      width: 16,
-      height: 16,
-      child: CircularProgressIndicator(strokeWidth: 2),
-    );
+  width: 16,
+  height: 16,
+  child: CircularProgressIndicator(strokeWidth: 2),
+);
 
 /// [list]'s maps, copied, or none when it isn't a list.
 List<Map<String, dynamic>> liveTvMaps(Object? list) => [
-      for (final e in (list as List? ?? const []).whereType<Map>())
-        Map<String, dynamic>.from(e),
-    ];
+  for (final e in (list as List? ?? const []).whereType<Map>())
+    Map<String, dynamic>.from(e),
+];
 
 /// A file or URL field with a browse button that lists server files.
 Widget _fileField(
@@ -151,6 +158,18 @@ Widget _fileField(
   );
 }
 
+/// The chosen value in a menu, kept visible apart from whichever row has focus.
+Widget liveTvSelectedLabel(String label, {required bool selected}) {
+  return Row(
+    children: [
+      Expanded(
+        child: Text(label, maxLines: 1, overflow: TextOverflow.ellipsis),
+      ),
+      if (selected) Icon(Icons.check, size: 18, color: AppColorScheme.accent),
+    ],
+  );
+}
+
 String? _orNull(TextEditingController c) =>
     c.text.trim().isEmpty ? null : c.text.trim();
 
@@ -166,8 +185,8 @@ Future<Map<String, dynamic>> _storedProvider(
 ) async {
   if (id.isNotEmpty) {
     final config = await api.getLiveTvConfiguration();
-    for (final p in (config['ListingProviders'] as List? ?? const [])
-        .whereType<Map>()) {
+    for (final p
+        in (config['ListingProviders'] as List? ?? const []).whereType<Map>()) {
       if (p['Id'] == id) return Map<String, dynamic>.from(p);
     }
   }
@@ -204,24 +223,24 @@ mixin _EnabledTuners<T extends StatefulWidget> on State<T> {
   }
 
   List<Widget> _tunerRows(AppLocalizations l10n) => [
-        adminSwitchRow(
-          title: l10n.adminEnableAllTuners,
-          value: _allTuners,
-          onChanged: (v) => setState(() => _allTuners = v),
+    adminSwitchRow(
+      title: l10n.adminEnableAllTuners,
+      value: _allTuners,
+      onChanged: (v) => setState(() => _allTuners = v),
+    ),
+    if (!_allTuners)
+      for (final t in tuners)
+        CheckboxListTile(
+          value: _enabledTuners.contains(t['Id'].toString()),
+          controlAffinity: ListTileControlAffinity.leading,
+          title: Text(liveTvTunerName(t, l10n)),
+          subtitle: _text(t, 'Url').isEmpty ? null : Text(_text(t, 'Url')),
+          onChanged: (v) => setState(() {
+            final id = t['Id'].toString();
+            v == true ? _enabledTuners.add(id) : _enabledTuners.remove(id);
+          }),
         ),
-        if (!_allTuners)
-          for (final t in tuners)
-            CheckboxListTile(
-              value: _enabledTuners.contains(t['Id'].toString()),
-              controlAffinity: ListTileControlAffinity.leading,
-              title: Text(liveTvTunerName(t, l10n)),
-              subtitle: _text(t, 'Url').isEmpty ? null : Text(_text(t, 'Url')),
-              onChanged: (v) => setState(() {
-                final id = t['Id'].toString();
-                v == true ? _enabledTuners.add(id) : _enabledTuners.remove(id);
-              }),
-            ),
-      ];
+  ];
 }
 
 /// Adds or edits a tuner host. Pops true once the server saved it.
@@ -252,13 +271,14 @@ class LiveTvTunerDialog extends StatefulWidget {
 
 class _LiveTvTunerDialogState extends State<LiveTvTunerDialog> {
   late final String _id = _text(widget.seed, 'Id');
-  late String _type =
-      widget.seed['Type']?.toString() ?? widget.types.first.$1;
+  late String _type = widget.seed['Type']?.toString() ?? widget.types.first.$1;
   late final _url = TextEditingController(text: _text(widget.seed, 'Url'));
-  late final _name =
-      TextEditingController(text: _text(widget.seed, 'FriendlyName'));
-  late final _userAgent =
-      TextEditingController(text: _text(widget.seed, 'UserAgent'));
+  late final _name = TextEditingController(
+    text: _text(widget.seed, 'FriendlyName'),
+  );
+  late final _userAgent = TextEditingController(
+    text: _text(widget.seed, 'UserAgent'),
+  );
   late final _count = TextEditingController(
     text: '${(widget.seed['TunerCount'] as num?)?.toInt() ?? 0}',
   );
@@ -332,10 +352,10 @@ class _LiveTvTunerDialogState extends State<LiveTvTunerDialog> {
     final isM3u = _type == 'm3u';
     final emby = widget.emby;
     Widget flag(String key, String title) => adminSwitchRow(
-          title: title,
-          value: _flags[key]!,
-          onChanged: (v) => setState(() => _flags[key] = v),
-        );
+      title: title,
+      value: _flags[key]!,
+      onChanged: (v) => setState(() => _flags[key] = v),
+    );
     return _FormFrame(
       title: _id.isEmpty ? l10n.adminLiveTvAddTuner : l10n.adminLiveTvEditTuner,
       actions: [
@@ -357,9 +377,15 @@ class _LiveTvTunerDialogState extends State<LiveTvTunerDialog> {
           decoration: adminInputDecoration(label: l10n.adminLiveTvTunerType),
           items: [
             for (final t in widget.types)
-              DropdownMenuItem(value: t.$1, child: Text(t.$2)),
+              DropdownMenuItem(
+                value: t.$1,
+                child: liveTvSelectedLabel(t.$2, selected: t.$1 == _type),
+              ),
             if (!widget.types.any((t) => t.$1 == _type))
-              DropdownMenuItem(value: _type, child: Text(_type)),
+              DropdownMenuItem(
+                value: _type,
+                child: liveTvSelectedLabel(_type, selected: true),
+              ),
           ],
           // A saved tuner's type can't change.
           onChanged: _id.isNotEmpty
@@ -466,10 +492,12 @@ class _LiveTvXmltvDialogState extends State<LiveTvXmltvDialog>
     with _EnabledTuners {
   late final String _id = _text(widget.seed, 'Id');
   late final _path = TextEditingController(text: _text(widget.seed, 'Path'));
-  late final _moviePrefix =
-      TextEditingController(text: _text(widget.seed, 'MoviePrefix'));
-  late final _userAgent =
-      TextEditingController(text: _text(widget.seed, 'UserAgent'));
+  late final _moviePrefix = TextEditingController(
+    text: _text(widget.seed, 'MoviePrefix'),
+  );
+  late final _userAgent = TextEditingController(
+    text: _text(widget.seed, 'UserAgent'),
+  );
   late final _categories = {
     for (final key in const [
       'MovieCategories',
@@ -537,9 +565,9 @@ class _LiveTvXmltvDialogState extends State<LiveTvXmltvDialog>
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
     Widget category(String key, String label, {String? helper}) => TextField(
-          controller: _categories[key],
-          decoration: adminInputDecoration(label: label, helper: helper),
-        );
+      controller: _categories[key],
+      decoration: adminInputDecoration(label: label, helper: helper),
+    );
     return _FormFrame(
       title: l10n.adminProviderXmltv,
       actions: [
@@ -617,16 +645,19 @@ class LiveTvSchedulesDirectDialog extends StatefulWidget {
 }
 
 class _LiveTvSchedulesDirectDialogState
-    extends State<LiveTvSchedulesDirectDialog> with _EnabledTuners {
+    extends State<LiveTvSchedulesDirectDialog>
+    with _EnabledTuners {
   late String _id = _text(widget.seed, 'Id');
-  late final _username =
-      TextEditingController(text: _text(widget.seed, 'Username'));
+  late final _username = TextEditingController(
+    text: _text(widget.seed, 'Username'),
+  );
   final _password = TextEditingController();
   late final _zip = TextEditingController(text: _text(widget.seed, 'ZipCode'));
   late String _country = _text(widget.seed, 'Country');
   late String _listingsId = _text(widget.seed, 'ListingsId');
   // A stored login lists lineups without a new sign in.
-  late bool _signedIn = widget.embyGuide ||
+  late bool _signedIn =
+      widget.embyGuide ||
       _text(widget.seed, 'Username').isNotEmpty &&
           _text(widget.seed, 'Password').isNotEmpty;
   List<Map<String, dynamic>> _countries = const [];
@@ -659,9 +690,9 @@ class _LiveTvSchedulesDirectDialogState
     try {
       final countries = widget.embyGuide
           ? [
-              for (final c in await GetIt.instance<MediaServerClient>()
-                  .adminSystemApi
-                  .getCountries())
+              for (final c
+                  in await GetIt.instance<MediaServerClient>().adminSystemApi
+                      .getCountries())
                 {
                   'shortName': c['ThreeLetterISORegionName'],
                   'fullName': c['DisplayName'],
@@ -721,18 +752,19 @@ class _LiveTvSchedulesDirectDialogState
       _error = null;
     });
     try {
-      final info = await _storedProvider(
-        widget.api,
-        _id,
-        const {'EnableAllTuners': true},
-      )
-        ..['Type'] = 'SchedulesDirect'
-        ..['Username'] = _username.text.trim()
-        // Plaintext on purpose: the server hashes it when it asks for a token.
-        ..['Password'] = _password.text;
+      final info =
+          await _storedProvider(widget.api, _id, const {
+              'EnableAllTuners': true,
+            })
+            ..['Type'] = 'SchedulesDirect'
+            ..['Username'] = _username.text.trim()
+            // Plaintext on purpose: the server hashes it when it asks for a token.
+            ..['Password'] = _password.text;
       if (_id.isNotEmpty) info['Id'] = _id;
-      final result =
-          await widget.api.addListingProvider(info, validateLogin: true);
+      final result = await widget.api.addListingProvider(
+        info,
+        validateLogin: true,
+      );
       if (!mounted) return;
       _password.clear();
       setState(() {
@@ -754,9 +786,11 @@ class _LiveTvSchedulesDirectDialogState
   Future<void> _save() async {
     final l10n = AppLocalizations.of(context);
     if (_listingsId.isEmpty) {
-      setState(() => _error = widget.embyGuide
-          ? l10n.adminLiveTvEmbyGuideSelectLineup
-          : l10n.adminLiveTvSdSelectLineup);
+      setState(
+        () => _error = widget.embyGuide
+            ? l10n.adminLiveTvEmbyGuideSelectLineup
+            : l10n.adminLiveTvSdSelectLineup,
+      );
       return;
     }
     setState(() {
@@ -790,9 +824,8 @@ class _LiveTvSchedulesDirectDialogState
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
-    final canSignIn = !_busy &&
-        _username.text.trim().isNotEmpty &&
-        _password.text.isNotEmpty;
+    final canSignIn =
+        !_busy && _username.text.trim().isNotEmpty && _password.text.isNotEmpty;
     final countryKnown =
         _country.isEmpty || _countries.any((c) => c['shortName'] == _country);
     return _FormFrame(
@@ -805,10 +838,7 @@ class _LiveTvSchedulesDirectDialogState
           child: Text(l10n.cancel),
         ),
         if (_signedIn)
-          FilledButton(
-            onPressed: _busy ? null : _save,
-            child: Text(l10n.save),
-          ),
+          FilledButton(onPressed: _busy ? null : _save, child: Text(l10n.save)),
       ],
       children: [
         if (!widget.embyGuide) ...[
@@ -847,15 +877,27 @@ class _LiveTvSchedulesDirectDialogState
             isExpanded: true,
             decoration: adminInputDecoration(label: l10n.adminSdCountry),
             items: [
-              DropdownMenuItem(value: '', child: Text(l10n.adminSdCountrySelect)),
+              DropdownMenuItem(
+                value: '',
+                child: liveTvSelectedLabel(
+                  l10n.adminSdCountrySelect,
+                  selected: _country.isEmpty,
+                ),
+              ),
               for (final c in _countries)
                 if (c['shortName']?.toString().isNotEmpty ?? false)
                   DropdownMenuItem(
                     value: c['shortName'].toString(),
-                    child: Text(c['fullName']?.toString() ?? ''),
+                    child: liveTvSelectedLabel(
+                      c['fullName']?.toString() ?? '',
+                      selected: c['shortName'].toString() == _country,
+                    ),
                   ),
               if (!countryKnown)
-                DropdownMenuItem(value: _country, child: Text(_country)),
+                DropdownMenuItem(
+                  value: _country,
+                  child: liveTvSelectedLabel(_country, selected: true),
+                ),
             ],
             onChanged: (v) {
               setState(() => _country = v ?? '');
@@ -888,7 +930,10 @@ class _LiveTvSchedulesDirectDialogState
                 for (final l in _lineups)
                   DropdownMenuItem(
                     value: l['Id']?.toString() ?? '',
-                    child: Text(l['Name']?.toString() ?? ''),
+                    child: liveTvSelectedLabel(
+                      l['Name']?.toString() ?? '',
+                      selected: (l['Id']?.toString() ?? '') == _listingsId,
+                    ),
                   ),
               ],
               onChanged: (v) => setState(() => _listingsId = v ?? ''),
@@ -924,8 +969,7 @@ class LiveTvChannelMapperDialog extends StatefulWidget {
       _LiveTvChannelMapperDialogState();
 }
 
-class _LiveTvChannelMapperDialogState
-    extends State<LiveTvChannelMapperDialog> {
+class _LiveTvChannelMapperDialogState extends State<LiveTvChannelMapperDialog> {
   bool _loading = true;
   List<Map<String, dynamic>> _channels = const [];
   List<Map<String, dynamic>> _providerChannels = const [];
@@ -980,9 +1024,10 @@ class _LiveTvChannelMapperDialogState
       for (final c in all)
         {
           'Id': c['ManagementId'],
-          'Name': [_text(c, 'ChannelNumber'), _text(c, 'Name')]
-              .where((t) => t.isNotEmpty)
-              .join(' '),
+          'Name': [
+            _text(c, 'ChannelNumber'),
+            _text(c, 'Name'),
+          ].where((t) => t.isNotEmpty).join(' '),
           if (c['ListingsProviderId'] == widget.providerId) ...{
             'ProviderChannelId': c['ListingsChannelId'],
             'ProviderChannelName': c['ListingsChannelName'],
@@ -1006,19 +1051,27 @@ class _LiveTvChannelMapperDialogState
             itemBuilder: (_, i) {
               final option = _providerChannels[i];
               final selected = _text(option, 'Id').toLowerCase() == current;
-              return ListTile(
-                title: Text(_text(option, 'Name')),
-                selected: selected,
-                trailing: selected ? const Icon(Icons.check) : null,
-                onTap: () => Navigator.pop(ctx, _text(option, 'Id')),
+              return DpadFocusMarker(
+                child: ListTile(
+                  title: Text(_text(option, 'Name')),
+                  trailing: selected
+                      ? Icon(
+                          Icons.check,
+                          color: Theme.of(ctx).colorScheme.primary,
+                        )
+                      : null,
+                  onTap: () => Navigator.pop(ctx, _text(option, 'Id')),
+                ),
               );
             },
           ),
         ),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: Text(l10n.cancel),
+          DpadFocusMarker(
+            child: TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: Text(l10n.cancel),
+            ),
           ),
         ],
       ),
@@ -1076,9 +1129,10 @@ class _LiveTvChannelMapperDialogState
             subtitle: _text(channel, 'ProviderChannelName').isEmpty
                 ? null
                 : Text(
-                    [_text(channel, 'ProviderChannelName'), _providerName]
-                        .where((t) => t.isNotEmpty)
-                        .join(' - '),
+                    [
+                      _text(channel, 'ProviderChannelName'),
+                      _providerName,
+                    ].where((t) => t.isNotEmpty).join(' - '),
                   ),
             trailing: _busyId == _text(channel, 'Id')
                 ? liveTvSpinner()
