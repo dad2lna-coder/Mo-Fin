@@ -1,0 +1,48 @@
+name: Mo-Fin Roku
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: mofin-roku
+  cancel-in-progress: true
+
+jobs:
+  channel:
+    name: Package Mo-Fin Roku channel
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Zip the channel
+        run: |
+          set -euo pipefail
+          # Side-load wants manifest at the root of the zip, not roku/manifest.
+          sed -i "s/^build_version=.*/build_version=${{ github.run_number }}/" roku/manifest
+          (
+            cd roku
+            zip -q -r -9 "$GITHUB_WORKSPACE/Mo-Fin-roku.zip" . -x README.md
+          )
+          unzip -l Mo-Fin-roku.zip | head
+
+      - name: Upload Roku artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Mo-Fin-roku
+          path: Mo-Fin-roku.zip
+          if-no-files-found: error
+
+      - name: Publish Mo-Fin-roku.zip to the latest release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if ! gh release view latest >/dev/null 2>&1; then
+            gh release create latest --title Mo-Fin --notes "Mo-Fin builds." --latest
+          fi
+          gh release upload latest Mo-Fin-roku.zip --clobber

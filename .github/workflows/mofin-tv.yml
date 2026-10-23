@@ -32,6 +32,40 @@ jobs:
         with:
           flutter-version: ${{ env.FLUTTER_VERSION }}
 
+      - name: Decode the release keystore
+        id: signing
+        env:
+          KEYSTORE_BASE64: ${{ secrets.MOFIN_TV_KEYSTORE_BASE64 }}
+          STORE_PASSWORD: ${{ secrets.MOFIN_TV_STORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.MOFIN_TV_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.MOFIN_TV_KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          if [ -z "${KEYSTORE_BASE64}" ] || [ -z "${STORE_PASSWORD}" ] || [ -z "${KEY_ALIAS}" ] || [ -z "${KEY_PASSWORD}" ]; then
+            echo "Release keystore secrets are missing. Falling back to debug signing."
+            echo "mode=debug" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          echo "${KEYSTORE_BASE64}" | base64 -d > android/app/release.keystore
+          python3 - <<'PY'
+          import os
+          from pathlib import Path
+          Path("android/keystore.properties").write_text(
+              "storePassword={}\nkeyPassword={}\nkeyAlias={}\nstoreType=PKCS12\n".format(
+                  os.environ["STORE_PASSWORD"],
+                  os.environ["KEY_PASSWORD"],
+                  os.environ["KEY_ALIAS"],
+              ),
+              encoding="utf-8",
+          )
+          PY
+          keytool -list -keystore android/app/release.keystore \
+            -storetype PKCS12 \
+            -storepass "${STORE_PASSWORD}" \
+            -alias "${KEY_ALIAS}" >/dev/null
+          echo "mode=release" >> "$GITHUB_OUTPUT"
+          echo "Signing with the fixed release keystore."
+
       - name: Build Android TV release APK
         run: MOONFIN_TEST_ID_SUFFIX=.captions flutter build apk --flavor androidTv --release --target-platform android-arm,android-arm64
 
@@ -55,6 +89,7 @@ jobs:
           fail_on_unmatched_files: true
           make_latest: 'true'
           body: |
-            Fire TV APK, debug-signed. Package `org.moonfin.androidtv.captions`.
+            Fire TV APK, ${{ steps.signing.outputs.mode }}-signed. Package `org.moonfin.androidtv.captions`.
+            versionCode is `android_tv_build_number` plus this workflow's run number (`${{ github.run_number }}`).
 
             Built from ${{ github.sha }}.

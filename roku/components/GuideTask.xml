@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<component name="GuideTask" extends="Task">
+    <interface>
+        <field id="baseUrl" type="string" />
+        <field id="token" type="string" />
+        <field id="payload" type="assocarray" />
+        <field id="error" type="string" />
+    </interface>
+    <script type="text/brightscript" uri="pkg:/components/http.brs" />
+    <script type="text/brightscript" uri="pkg:/components/GuideTask.brs" />
+</component>

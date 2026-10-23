@@ -157,6 +157,8 @@ class _DirectIptvEditorState extends State<_DirectIptvEditor> {
   late bool _enabled;
   late bool _captionsOn;
   String? _error;
+  final List<FocusNode> _rows = [];
+  int _rowCount = 0;
 
   @override
   void initState() {
@@ -181,6 +183,10 @@ class _DirectIptvEditorState extends State<_DirectIptvEditor> {
     _kind = source?.kind ?? DirectIptvKind.dispatcharr;
     _enabled = source?.enabled ?? true;
     _captionsOn = source?.captionsOnByDefault ?? true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || _rows.isEmpty) return;
+      _rows.first.requestFocus();
+    });
   }
 
   @override
@@ -195,6 +201,9 @@ class _DirectIptvEditorState extends State<_DirectIptvEditor> {
     _refreshMinutes.dispose();
     _subtitleLanguage.dispose();
     _audioLanguage.dispose();
+    for (final node in _rows) {
+      node.dispose();
+    }
     super.dispose();
   }
 
@@ -336,12 +345,9 @@ class _DirectIptvEditorState extends State<_DirectIptvEditor> {
   };
 
   String _epgHelper() => switch (_kind) {
-    DirectIptvKind.dispatcharr =>
-      'Blank uses /output/epg/. Some servers use /output/xmltv. Enter - to skip the guide.',
-    DirectIptvKind.pluto =>
-      'Blank uses the address above as the XMLTV guide. Channels play from jmp2.uk. Enter - to skip.',
-    DirectIptvKind.m3u =>
-      'Optional XMLTV path or URL. Blank skips the guide.',
+    DirectIptvKind.dispatcharr => 'Blank uses /output/epg/. Some servers use /output/xmltv. Enter - to skip the guide.',
+    DirectIptvKind.pluto => 'Blank uses the address above as the XMLTV guide. Channels play from jmp2.uk. Enter - to skip.',
+    DirectIptvKind.m3u => 'Optional XMLTV path or URL. Blank skips the guide.',
   };
 
   String _shownValue(String value, {bool secret = false}) {
@@ -350,174 +356,238 @@ class _DirectIptvEditorState extends State<_DirectIptvEditor> {
     return trimmed.isEmpty ? 'Not set' : trimmed;
   }
 
+  FocusNode _rowNode(int index, String label) {
+    if (index == _rows.length) {
+      _rows.add(FocusNode(debugLabel: 'iptv-row:$label'));
+    }
+    return _rows[index];
+  }
+
+  void _moveRow(int index, int delta) {
+    final next = index + delta;
+    if (next < 0 || next >= _rowCount || next >= _rows.length) return;
+    _rows[next].requestFocus();
+  }
+
+  Widget _row({
+    required int index,
+    required String label,
+    required Widget title,
+    Widget? subtitle,
+    Widget? trailing,
+    required VoidCallback onTap,
+  }) {
+    return _IptvFocusTile(
+      focusNode: _rowNode(index, label),
+      autofocus: index == 0,
+      captureArrows: true,
+      title: title,
+      subtitle: subtitle,
+      trailing: trailing,
+      onTap: onTap,
+      onUp: index == 0 ? null : () => _moveRow(index, -1),
+      onDown: index >= _rowCount - 1 ? null : () => _moveRow(index, 1),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    final remove = widget.existing != null;
+    _rowCount = remove ? 15 : 14;
     return Scaffold(
       appBar: AppBar(
         title: Text(widget.existing == null ? 'Add source' : 'Edit source'),
       ),
-      // No inline text fields. A focused TextField keeps the remote's arrows
-      // for the cursor, so D-pad down never reaches the next row. Each value
-      // is a tile; select opens a dialog, the same way TV settings edit text.
-      body: ListView(
+      // Every row is built, and Up/Down walks an explicit chain ending at
+      // Save. A lazy list never lays out Save, so directional focus stops
+      // on the last visible tile.
+      body: SingleChildScrollView(
         padding: const EdgeInsets.fromLTRB(4, 8, 4, 32),
-        children: [
-          _IptvFocusTile(
-            autofocus: true,
-            title: const Text('Name'),
-            subtitle: Text(_shownValue(_name.text)),
-            onTap: () => unawaited(_editText(controller: _name, title: 'Name')),
-          ),
-          _IptvFocusTile(
-            title: const Text('Type'),
-            subtitle: Text(_kindLabel(_kind)),
-            onTap: () => unawaited(_pickKind()),
-          ),
-          _IptvFocusTile(
-            title: Text(_addressLabel()),
-            subtitle: Text(_shownValue(_baseUrl.text)),
-            onTap: () => unawaited(
-              _editText(
-                controller: _baseUrl,
-                title: _addressLabel(),
-                hint: _addressHint(),
-                keyboardType: TextInputType.url,
+        child: Column(
+          children: [
+            _row(
+              index: 0,
+              label: 'Name',
+              title: const Text('Name'),
+              subtitle: Text(_shownValue(_name.text)),
+              onTap: () =>
+                  unawaited(_editText(controller: _name, title: 'Name')),
+            ),
+            _row(
+              index: 1,
+              label: 'Type',
+              title: const Text('Type'),
+              subtitle: Text(_kindLabel(_kind)),
+              onTap: () => unawaited(_pickKind()),
+            ),
+            _row(
+              index: 2,
+              label: 'Address',
+              title: Text(_addressLabel()),
+              subtitle: Text(_shownValue(_baseUrl.text)),
+              onTap: () => unawaited(
+                _editText(
+                  controller: _baseUrl,
+                  title: _addressLabel(),
+                  hint: _addressHint(),
+                  keyboardType: TextInputType.url,
+                ),
               ),
             ),
-          ),
-          _IptvFocusTile(
-            title: const Text('Username'),
-            subtitle: Text(_shownValue(_username.text)),
-            onTap: () => unawaited(
-              _editText(
-                controller: _username,
-                title: 'Username',
-                helper: 'Optional. Used when no token is set.',
+            _row(
+              index: 3,
+              label: 'Username',
+              title: const Text('Username'),
+              subtitle: Text(_shownValue(_username.text)),
+              onTap: () => unawaited(
+                _editText(
+                  controller: _username,
+                  title: 'Username',
+                  helper: 'Optional. Used when no token is set.',
+                ),
               ),
             ),
-          ),
-          _IptvFocusTile(
-            title: const Text('Password'),
-            subtitle: Text(_shownValue(_password.text, secret: true)),
-            onTap: () => unawaited(
-              _editText(
-                controller: _password,
-                title: 'Password',
-                obscure: true,
+            _row(
+              index: 4,
+              label: 'Password',
+              title: const Text('Password'),
+              subtitle: Text(_shownValue(_password.text, secret: true)),
+              onTap: () => unawaited(
+                _editText(
+                  controller: _password,
+                  title: 'Password',
+                  obscure: true,
+                ),
               ),
             ),
-          ),
-          _IptvFocusTile(
-            title: const Text('Token'),
-            subtitle: Text(_shownValue(_token.text, secret: true)),
-            onTap: () => unawaited(
-              _editText(
-                controller: _token,
-                title: 'Token',
-                obscure: true,
-                helper:
-                    'Optional. Sent as a bearer token instead of a password.',
+            _row(
+              index: 5,
+              label: 'Token',
+              title: const Text('Token'),
+              subtitle: Text(_shownValue(_token.text, secret: true)),
+              onTap: () => unawaited(
+                _editText(
+                  controller: _token,
+                  title: 'Token',
+                  obscure: true,
+                  helper:
+                      'Optional. Sent as a bearer token instead of a password.',
+                ),
               ),
             ),
-          ),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(28, 4, 28, 8),
-            child: Text(
-              'The password and token stay on this device with the other preferences. They are not encrypted.',
-              style: Theme.of(context).textTheme.bodySmall,
-            ),
-          ),
-          _IptvFocusTile(
-            title: const Text('M3U path'),
-            subtitle: Text(
-              _baseUrlSubtitle(_m3uPath.text, _m3uHelper()),
-            ),
-            onTap: () => unawaited(
-              _editText(
-                controller: _m3uPath,
-                title: 'M3U path',
-                helper: _m3uHelper(),
-              ),
-            ),
-          ),
-          _IptvFocusTile(
-            title: const Text('EPG path'),
-            subtitle: Text(
-              _baseUrlSubtitle(_epgPath.text, _epgHelper()),
-            ),
-            onTap: () => unawaited(
-              _editText(
-                controller: _epgPath,
-                title: 'EPG path',
-                helper: _epgHelper(),
-              ),
-            ),
-          ),
-          _IptvFocusTile(
-            title: const Text('Refresh every (minutes)'),
-            subtitle: Text(_shownValue(_refreshMinutes.text)),
-            onTap: () => unawaited(
-              _editText(
-                controller: _refreshMinutes,
-                title: 'Refresh every (minutes)',
-                keyboardType: TextInputType.number,
-              ),
-            ),
-          ),
-          _IptvFocusTile(
-            title: const Text('Preferred subtitle language'),
-            subtitle: Text(_shownValue(_subtitleLanguage.text)),
-            onTap: () => unawaited(
-              _editText(
-                controller: _subtitleLanguage,
-                title: 'Preferred subtitle language',
-                hint: 'en',
-              ),
-            ),
-          ),
-          _IptvFocusTile(
-            title: const Text('Preferred audio language'),
-            subtitle: Text(_shownValue(_audioLanguage.text)),
-            onTap: () => unawaited(
-              _editText(
-                controller: _audioLanguage,
-                title: 'Preferred audio language',
-                hint: 'en',
-              ),
-            ),
-          ),
-          _IptvFocusTile(
-            title: const Text('Captions on by default'),
-            subtitle: const Text(
-              'Selects the preferred language on direct channels. Pluto marks its WebVTT rendition off, so the player has to turn it on. CEA-608 is used when that is what the stream carries instead.',
-            ),
-            trailing: Icon(_captionsOn ? Icons.toggle_on : Icons.toggle_off),
-            onTap: () => setState(() => _captionsOn = !_captionsOn),
-          ),
-          _IptvFocusTile(
-            title: const Text('Enabled'),
-            subtitle: Text(_enabled ? 'On' : 'Off'),
-            trailing: Icon(_enabled ? Icons.toggle_on : Icons.toggle_off),
-            onTap: () => setState(() => _enabled = !_enabled),
-          ),
-          if (_error != null)
             Padding(
               padding: const EdgeInsets.fromLTRB(28, 4, 28, 8),
               child: Text(
-                _error!,
-                style: const TextStyle(color: Colors.redAccent),
+                'The password and token stay on this device with the other preferences. They are not encrypted.',
+                style: Theme.of(context).textTheme.bodySmall,
               ),
             ),
-          _IptvFocusTile(
-            title: const Text('Save'),
-            onTap: () => unawaited(_save()),
-          ),
-          if (widget.existing != null)
-            _IptvFocusTile(
-              title: const Text('Remove source'),
-              onTap: () => unawaited(_delete()),
+            _row(
+              index: 6,
+              label: 'M3U path',
+              title: const Text('M3U path'),
+              subtitle: Text(_baseUrlSubtitle(_m3uPath.text, _m3uHelper())),
+              onTap: () => unawaited(
+                _editText(
+                  controller: _m3uPath,
+                  title: 'M3U path',
+                  helper: _m3uHelper(),
+                ),
+              ),
             ),
-        ],
+            _row(
+              index: 7,
+              label: 'EPG path',
+              title: const Text('EPG path'),
+              subtitle: Text(_baseUrlSubtitle(_epgPath.text, _epgHelper())),
+              onTap: () => unawaited(
+                _editText(
+                  controller: _epgPath,
+                  title: 'EPG path',
+                  helper: _epgHelper(),
+                ),
+              ),
+            ),
+            _row(
+              index: 8,
+              label: 'Refresh every (minutes)',
+              title: const Text('Refresh every (minutes)'),
+              subtitle: Text(_shownValue(_refreshMinutes.text)),
+              onTap: () => unawaited(
+                _editText(
+                  controller: _refreshMinutes,
+                  title: 'Refresh every (minutes)',
+                  keyboardType: TextInputType.number,
+                ),
+              ),
+            ),
+            _row(
+              index: 9,
+              label: 'Preferred subtitle language',
+              title: const Text('Preferred subtitle language'),
+              subtitle: Text(_shownValue(_subtitleLanguage.text)),
+              onTap: () => unawaited(
+                _editText(
+                  controller: _subtitleLanguage,
+                  title: 'Preferred subtitle language',
+                  hint: 'en',
+                ),
+              ),
+            ),
+            _row(
+              index: 10,
+              label: 'Preferred audio language',
+              title: const Text('Preferred audio language'),
+              subtitle: Text(_shownValue(_audioLanguage.text)),
+              onTap: () => unawaited(
+                _editText(
+                  controller: _audioLanguage,
+                  title: 'Preferred audio language',
+                  hint: 'en',
+                ),
+              ),
+            ),
+            _row(
+              index: 11,
+              label: 'Captions on by default',
+              title: const Text('Captions on by default'),
+              subtitle: const Text(
+                'Selects the preferred language on direct channels. Pluto marks its WebVTT rendition off, so the player has to turn it on. CEA-608 is used when that is what the stream carries instead.',
+              ),
+              trailing: Icon(_captionsOn ? Icons.toggle_on : Icons.toggle_off),
+              onTap: () => setState(() => _captionsOn = !_captionsOn),
+            ),
+            _row(
+              index: 12,
+              label: 'Enabled',
+              title: const Text('Enabled'),
+              subtitle: Text(_enabled ? 'On' : 'Off'),
+              trailing: Icon(_enabled ? Icons.toggle_on : Icons.toggle_off),
+              onTap: () => setState(() => _enabled = !_enabled),
+            ),
+            if (_error != null)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(28, 4, 28, 8),
+                child: Text(
+                  _error!,
+                  style: const TextStyle(color: Colors.redAccent),
+                ),
+              ),
+            _row(
+              index: 13,
+              label: 'Save',
+              title: const Text('Save'),
+              onTap: () => unawaited(_save()),
+            ),
+            if (remove)
+              _row(
+                index: 14,
+                label: 'Remove source',
+                title: const Text('Remove source'),
+                onTap: () => unawaited(_delete()),
+              ),
+          ],
+        ),
       ),
     );
   }
@@ -529,21 +599,29 @@ class _DirectIptvEditorState extends State<_DirectIptvEditor> {
   }
 }
 
-/// One D-pad stop. Select runs [onTap]. Arrows move to the next tile because
-/// nothing here is a text field.
+/// One D-pad stop. [captureArrows] walks an explicit up/down chain so a row
+/// that is below the fold, including Save, is still reachable.
 class _IptvFocusTile extends StatefulWidget {
   final bool autofocus;
+  final bool captureArrows;
+  final FocusNode? focusNode;
   final Widget title;
   final Widget? subtitle;
   final Widget? trailing;
   final VoidCallback? onTap;
+  final VoidCallback? onUp;
+  final VoidCallback? onDown;
 
   const _IptvFocusTile({
     required this.title,
     this.subtitle,
     this.trailing,
     this.onTap,
+    this.onUp,
+    this.onDown,
+    this.focusNode,
     this.autofocus = false,
+    this.captureArrows = false,
   });
 
   @override
@@ -552,38 +630,110 @@ class _IptvFocusTile extends StatefulWidget {
 
 class _IptvFocusTileState extends State<_IptvFocusTile> {
   int _lastMicros = 0;
+  FocusNode? _owned;
+  bool _focused = false;
+
+  FocusNode get _node => widget.focusNode ?? (_owned ??= FocusNode());
+
+  @override
+  void dispose() {
+    _owned?.dispose();
+    super.dispose();
+  }
 
   void _activate() {
     final onTap = widget.onTap;
     if (onTap == null) return;
-    // Select can arrive as both the key handler and ListTile.onTap.
     final now = DateTime.now().microsecondsSinceEpoch;
-    if (now - _lastMicros < 50000) return;
+    if (now - _lastMicros < 250000) return;
     _lastMicros = now;
     onTap();
   }
 
+  KeyEventResult _onKey(FocusNode node, KeyEvent event) {
+    if (!event.isActionable) return KeyEventResult.ignored;
+    final key = event.logicalKey;
+    if (widget.captureArrows && (key.isUpKey || key.isDownKey)) {
+      if (key.isDownKey) {
+        widget.onDown?.call();
+      } else {
+        widget.onUp?.call();
+      }
+      return KeyEventResult.handled;
+    }
+    if (widget.captureArrows && (key.isLeftKey || key.isRightKey)) {
+      return KeyEventResult.handled;
+    }
+    if (event is KeyDownEvent && key.isSelectKey) {
+      _activate();
+      return KeyEventResult.handled;
+    }
+    return KeyEventResult.ignored;
+  }
+
   @override
   Widget build(BuildContext context) {
+    final focused = _focused;
+    final titleStyle = Theme.of(context).textTheme.titleMedium
+        ?.copyWith(color: Colors.white, fontWeight: FontWeight.w600);
     return Focus(
-      canRequestFocus: false,
-      skipTraversal: true,
-      onKeyEvent: (_, event) {
-        if (widget.onTap == null || !event.logicalKey.isSelectKey) {
-          return KeyEventResult.ignored;
+      focusNode: _node,
+      autofocus: widget.autofocus,
+      descendantsAreFocusable: false,
+      onFocusChange: (next) {
+        if (!mounted || _focused == next) return;
+        setState(() => _focused = next);
+        if (next) {
+          Scrollable.ensureVisible(
+            context,
+            alignment: 0.35,
+            duration: const Duration(milliseconds: 120),
+          );
         }
-        if (event is KeyDownEvent) _activate();
-        return KeyEventResult.handled;
       },
-      child: TvFocusHighlight(
-        builder: (context, _) => ListTile(
-          autofocus: widget.autofocus,
-          focusColor: Colors.transparent,
-          hoverColor: Colors.transparent,
-          title: widget.title,
-          subtitle: widget.subtitle,
-          trailing: widget.trailing,
-          onTap: widget.onTap == null ? null : _activate,
+      onKeyEvent: _onKey,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
+        child: Material(
+          color: focused ? const Color(0xFF1E3A5F) : Colors.transparent,
+          borderRadius: BorderRadius.circular(8),
+          child: InkWell(
+            onTap: widget.onTap == null ? null : _activate,
+            canRequestFocus: false,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        DefaultTextStyle.merge(
+                          style: titleStyle,
+                          child: widget.title,
+                        ),
+                        if (widget.subtitle != null) ...[
+                          const SizedBox(height: 2),
+                          DefaultTextStyle.merge(
+                            style: Theme.of(context).textTheme.bodyMedium
+                                ?.copyWith(color: Colors.white70),
+                            child: widget.subtitle!,
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                  if (widget.trailing != null) ...[
+                    const SizedBox(width: 12),
+                    IconTheme.merge(
+                      data: const IconThemeData(color: Colors.white, size: 28),
+                      child: widget.trailing!,
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ),
         ),
       ),
     );
@@ -614,40 +764,52 @@ class _IptvTextDialog extends StatefulWidget {
 class _IptvTextDialogState extends State<_IptvTextDialog> {
   late final TextEditingController _controller;
   late final FocusNode _fieldFocus;
+  late final FocusNode _cancelFocus;
+  late final FocusNode _saveFocus;
 
   @override
   void initState() {
     super.initState();
     _controller = TextEditingController(text: widget.initial);
+    _cancelFocus = FocusNode(
+      debugLabel: 'iptv-dialog:Cancel',
+      onKeyEvent: (_, event) =>
+          _moveDialog(event, up: _fieldFocus, down: _saveFocus),
+    );
+    _saveFocus = FocusNode(
+      debugLabel: 'iptv-dialog:Save',
+      onKeyEvent: (_, event) => _moveDialog(event, up: _cancelFocus),
+    );
     // The field's own text shortcuts sit above this node and would swallow
-    // arrows for the caret. Handling them here runs first, so up/down can
-    // reach Cancel and Save. Left/right still fall through to the caret.
+    // arrows for the caret. Handling them here runs first, so down reaches
+    // Cancel and then Save. Left/right still fall through to the caret.
     _fieldFocus = FocusNode(
       debugLabel: 'direct-iptv-text',
-      onKeyEvent: (node, event) {
-        final key = event.logicalKey;
-        final isArrow =
-            key == LogicalKeyboardKey.arrowDown ||
-            key == LogicalKeyboardKey.arrowUp;
-        if (!isArrow || (event is! KeyDownEvent && event is! KeyRepeatEvent)) {
-          return KeyEventResult.ignored;
-        }
-        if (event is KeyDownEvent) {
-          if (key == LogicalKeyboardKey.arrowDown) {
-            node.nextFocus();
-          } else {
-            node.previousFocus();
-          }
-        }
-        return KeyEventResult.handled;
-      },
+      onKeyEvent: (_, event) => _moveDialog(event, down: _cancelFocus),
     );
+  }
+
+  KeyEventResult _moveDialog(KeyEvent event, {FocusNode? up, FocusNode? down}) {
+    if (!event.isActionable) return KeyEventResult.ignored;
+    final key = event.logicalKey;
+    if (key.isDownKey && down != null) {
+      down.requestFocus();
+      return KeyEventResult.handled;
+    }
+    if (key.isUpKey && up != null) {
+      up.requestFocus();
+      return KeyEventResult.handled;
+    }
+    if (key.isUpKey || key.isDownKey) return KeyEventResult.handled;
+    return KeyEventResult.ignored;
   }
 
   @override
   void dispose() {
     _controller.dispose();
     _fieldFocus.dispose();
+    _cancelFocus.dispose();
+    _saveFocus.dispose();
     super.dispose();
   }
 
@@ -673,19 +835,18 @@ class _IptvTextDialogState extends State<_IptvTextDialog> {
           ),
           if (widget.helper != null) ...[
             const SizedBox(height: 8),
-            Text(
-              widget.helper!,
-              style: Theme.of(context).textTheme.bodySmall,
-            ),
+            Text(widget.helper!, style: Theme.of(context).textTheme.bodySmall),
           ],
         ],
       ),
       actions: [
         adaptiveDialogAction(
+          focusNode: _cancelFocus,
           onPressed: () => Navigator.of(context).pop(),
           child: const Text('Cancel'),
         ),
         adaptiveDialogAction(
+          focusNode: _saveFocus,
           onPressed: _submit,
           child: const Text('Save'),
         ),
@@ -693,4 +854,3 @@ class _IptvTextDialogState extends State<_IptvTextDialog> {
     );
   }
 }
-

@@ -2,27 +2,30 @@ import java.util.Properties
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 fun loadAndroidTvVersionCode(rootDir: File, fallback: Int): Int {
-    val pubspec = rootDir.resolve("../pubspec.yaml")
-    if (!pubspec.exists()) return fallback
-
-    val line = pubspec.readLines().firstOrNull {
-        it.trimStart().startsWith("android_tv_build_number:")
-    } ?: return fallback
-
-    val rawValue = line.substringAfter(":", "").trim()
-    return rawValue.toIntOrNull() ?: fallback
+    val pubspecCode = readPubspecInt(rootDir, "android_tv_build_number:", fallback)
+    // GitHub Actions sets this. Each Fire TV build must install over the last
+    // one, so the code is the pubspec number plus the workflow run.
+    val runNumber = System.getenv("GITHUB_RUN_NUMBER")?.trim()?.toIntOrNull()
+    if (runNumber != null && runNumber > 0) return pubspecCode + runNumber
+    return pubspecCode
 }
 
 fun loadAndroidTvVersionName(rootDir: File, fallback: String): String {
-    val pubspec = rootDir.resolve("../pubspec.yaml")
-    if (!pubspec.exists()) return fallback
-
-    val line = pubspec.readLines().firstOrNull {
-        it.trimStart().startsWith("android_tv_version:")
-    } ?: return fallback
-
-    val rawValue = line.substringAfter(":", "").trim()
+    val rawValue = readPubspecValue(rootDir, "android_tv_version:") ?: return fallback
     return rawValue.ifEmpty { fallback }
+}
+
+fun readPubspecInt(rootDir: File, prefix: String, fallback: Int): Int {
+    return readPubspecValue(rootDir, prefix)?.toIntOrNull() ?: fallback
+}
+
+fun readPubspecValue(rootDir: File, prefix: String): String? {
+    val pubspec = rootDir.resolve("../pubspec.yaml")
+    if (!pubspec.exists()) return null
+    val line = pubspec.readLines().firstOrNull {
+        it.trimStart().startsWith(prefix)
+    } ?: return null
+    return line.substringAfter(":", "").trim()
 }
 
 plugins {
