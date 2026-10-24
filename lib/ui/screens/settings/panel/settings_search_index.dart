@@ -1432,6 +1432,12 @@ List<_SettingsSearchEntry> _buildSettingsSearchIndex({
       subtitle: l10n.settingsLiveTvDirectSubtitle,
       keywords: ['live tv'],
     ),
+    quality.leaf(
+      'pref_guide_preview_video',
+      'Guide preview video',
+      subtitle: 'Muted picture of the focused channel in the live guide',
+      keywords: ['live tv', 'preview', 'guide'],
+    ),
     if (PlatformDetection.isAndroid)
       quality.leaf(
         'playback_engine_preference',

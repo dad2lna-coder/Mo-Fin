@@ -24,6 +24,7 @@ import '../../widgets/overlay_sheet.dart';
 import '../../widgets/focus/request_initial_focus.dart';
 import '../../../util/focus/dpad_keys.dart';
 import '../../../util/focus/key_event_utils.dart';
+import '../../../direct_iptv/guide_tmdb.dart';
 import '../../../preference/user_preferences.dart';
 import '../../../preference/preference_constants.dart';
 import '../../../util/clock_format.dart';
@@ -33,6 +34,7 @@ import 'epg/widgets/epg_filter_rail.dart';
 import 'epg/widgets/epg_hero_preview.dart';
 import 'epg/widgets/epg_now_next_card.dart';
 import 'epg/widgets/epg_program_cell.dart';
+import 'guide_tmdb_panel.dart';
 import 'guide/guide_cell.dart';
 import 'guide/guide_layout_profile.dart';
 import 'guide/guide_selection.dart';
@@ -1148,16 +1150,6 @@ class _LiveTvGuideScreenState extends State<LiveTvGuideScreen>
             _precacheGuideLogoUrl(url, layoutWidth: EpgHeroPreview.plateWidth);
           }
         }
-        final episodeTitle = preview?.episodeTitle;
-        final episodeSuffix =
-            episodeTitle != null &&
-                episodeTitle.isNotEmpty &&
-                episodeTitle != preview?.name
-            ? ' - $episodeTitle'
-            : '';
-        final seasonEpisodeSuffix = preview?.seasonEpisodeLabel != null
-            ? ' (${preview!.seasonEpisodeLabel})'
-            : '';
         final l10n = AppLocalizations.of(context);
         final badgeLabel = preview == null
             ? null
@@ -1166,23 +1158,85 @@ class _LiveTvGuideScreenState extends State<LiveTvGuideScreen>
             : preview.isRepeat
             ? l10n.guideRepeatBadge
             : null;
-        return EpgHeroPreview(
-          title: channel?.name ?? preview?.name ?? l10n.guideTimeline,
-          programTitle: channel == null ? null : preview?.name,
-          programSubtitle: '$episodeSuffix$seasonEpisodeSuffix',
-          channelLogoUrl: channelLogoUrl,
-          programImageUrl: programImageUrl,
-          timeLabel: preview == null
-              ? null
-              : '${_formatTime(preview.startDate)} - ${_formatTime(preview.endDate)}',
-          genreLabel: preview == null ? null : epgGenreFor(preview).label,
-          officialRating: preview?.officialRating,
-          communityRating: preview?.communityRating,
-          badgeLabel: badgeLabel,
-          synopsis: preview?.overview,
-          isLive: isLive,
-          apple: _apple,
-          compact: true,
+        final query = preview == null || preview.name.trim().isEmpty
+            ? null
+            : GuideQuery.resolve(
+                title: preview.name,
+                episodeTitle: preview.episodeTitle,
+                overview: preview.overview,
+                season: readGuideIndex(preview.rawData['ParentIndexNumber']),
+                episode: readGuideIndex(preview.rawData['IndexNumber']),
+              );
+        return GuideTmdbBinder(
+          query: query,
+          builder: (context, hit) {
+            final episodeTitle = preview?.episodeTitle;
+            final tmdbEpisode = hit?.episodeName;
+            final shownEpisode =
+                episodeTitle != null && episodeTitle.isNotEmpty
+                ? episodeTitle
+                : tmdbEpisode != null &&
+                      tmdbEpisode.isNotEmpty &&
+                      tmdbEpisode != preview?.name
+                ? tmdbEpisode
+                : null;
+            final episodeSuffix =
+                shownEpisode != null && shownEpisode != preview?.name
+                ? ' - $shownEpisode'
+                : '';
+            final seasonEpisodeSuffix = preview?.seasonEpisodeLabel != null
+                ? ' (${preview!.seasonEpisodeLabel})'
+                : '';
+            final tmdbImage = hit?.imageUrl;
+            final imageUrl =
+                tmdbImage != null && tmdbImage.isNotEmpty
+                ? tmdbImage
+                : programImageUrl;
+            if (imageUrl != null && imageUrl != programImageUrl) {
+              _precacheGuideLogoUrl(
+                imageUrl,
+                layoutWidth: EpgHeroPreview.plateWidth,
+              );
+            }
+            final epgGenre = preview == null
+                ? null
+                : epgGenreFor(preview).label;
+            final tmdbGenres = hit?.genres ?? const <String>[];
+            final genreBits = <String>[
+              if (hit?.year != null) '${hit!.year}',
+              if (tmdbGenres.isNotEmpty)
+                tmdbGenres.join(', ')
+              else if (epgGenre != null && epgGenre.isNotEmpty)
+                epgGenre,
+            ];
+            final overview = hit != null && hit.displayOverview.isNotEmpty
+                ? hit.displayOverview
+                : (preview?.overview ?? '');
+            final cast = hit?.cast ?? const <String>[];
+            final synopsis = overview.isEmpty
+                ? (cast.isEmpty ? null : cast.join(', '))
+                : cast.isEmpty
+                ? overview
+                : '$overview  ${cast.join(', ')}';
+            return EpgHeroPreview(
+              title: channel?.name ?? preview?.name ?? l10n.guideTimeline,
+              programTitle: channel == null ? null : preview?.name,
+              programSubtitle: '$episodeSuffix$seasonEpisodeSuffix',
+              channelLogoUrl: channelLogoUrl,
+              programImageUrl: imageUrl,
+              timeLabel: preview == null
+                  ? null
+                  : '${_formatTime(preview.startDate)} - ${_formatTime(preview.endDate)}',
+              genreLabel: genreBits.isEmpty ? null : genreBits.join(' · '),
+              officialRating: preview?.officialRating,
+              communityRating: hit?.rating ?? preview?.communityRating,
+              badgeLabel: badgeLabel,
+              synopsis: synopsis,
+              isLive: isLive,
+              apple: _apple,
+              compact: true,
+            );
+          },
         );
       },
     );

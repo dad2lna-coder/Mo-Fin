@@ -18,6 +18,7 @@ extension type _MoonfinHlsBridge._(JSObject _) implements JSObject {
     web.HTMLVideoElement video,
     JSString url,
     JSBoolean forceHls,
+    JSAny? headers,
   );
 
   external void destroy(JSAny? controller);
@@ -38,7 +39,8 @@ class DirectIptvPreviewPlayer extends StatefulWidget {
       _DirectIptvPreviewPlayerState();
 }
 
-class _DirectIptvPreviewPlayerState extends State<DirectIptvPreviewPlayer> {
+class _DirectIptvPreviewPlayerState extends State<DirectIptvPreviewPlayer>
+    with WidgetsBindingObserver {
   static final Set<String> _registered = <String>{};
   static final Map<String, _DirectIptvPreviewPlayerState> _owners =
       <String, _DirectIptvPreviewPlayerState>{};
@@ -52,6 +54,7 @@ class _DirectIptvPreviewPlayerState extends State<DirectIptvPreviewPlayer> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _viewType = 'moonfin-direct-preview-${++_nextId}';
     _owners[_viewType] = this;
     _video = web.HTMLVideoElement()
@@ -79,7 +82,34 @@ class _DirectIptvPreviewPlayerState extends State<DirectIptvPreviewPlayer> {
   @override
   void didUpdateWidget(covariant DirectIptvPreviewPlayer oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.streamUrl != widget.streamUrl) _applySource();
+    if (oldWidget.streamUrl != widget.streamUrl ||
+        !_sameHeaders(oldWidget.headers, widget.headers)) {
+      _applySource();
+    }
+  }
+
+  bool _sameHeaders(Map<String, String> a, Map<String, String> b) {
+    if (a.length != b.length) return false;
+    for (final entry in a.entries) {
+      if (b[entry.key] != entry.value) return false;
+    }
+    return true;
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.paused ||
+        state == AppLifecycleState.hidden ||
+        state == AppLifecycleState.detached) {
+      try {
+        _video.pause();
+      } catch (_) {}
+      return;
+    }
+    if (state == AppLifecycleState.resumed) {
+      _video.muted = true;
+      _video.play().toDart.catchError((Object _) => null);
+    }
   }
 
   _MoonfinHlsBridge? _bridge() {
@@ -115,7 +145,10 @@ class _DirectIptvPreviewPlayerState extends State<DirectIptvPreviewPlayer> {
     if (bridge != null) {
       try {
         if (bridge.canUseHlsJs(_video, url.toJS, forceHls.toJS).toDart) {
-          _hls = bridge.attach(_video, url.toJS, forceHls.toJS);
+          final headers = widget.headers.isEmpty
+              ? null
+              : widget.headers.jsify();
+          _hls = bridge.attach(_video, url.toJS, forceHls.toJS, headers);
           attached = _hls != null;
         }
       } catch (_) {
@@ -127,12 +160,23 @@ class _DirectIptvPreviewPlayerState extends State<DirectIptvPreviewPlayer> {
       _video.load();
     }
     _video.muted = true;
+    _silenceCaptions();
     _video.play().toDart.catchError((Object _) => null);
+  }
+
+  void _silenceCaptions() {
+    try {
+      final tracks = _video.textTracks;
+      for (var i = 0; i < tracks.length; i++) {
+        tracks[i].mode = 'disabled';
+      }
+    } catch (_) {}
   }
 
   @override
   void dispose() {
     _disposed = true;
+    WidgetsBinding.instance.removeObserver(this);
     try {
       _video.pause();
       _video.removeAttribute('src');

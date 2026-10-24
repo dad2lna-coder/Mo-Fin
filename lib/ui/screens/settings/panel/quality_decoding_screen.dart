@@ -51,6 +51,13 @@ class _QualityDecodingScreen extends StatelessWidget {
                 subtitle: l10n.settingsLiveTvDirectSubtitle,
                 icon: Icons.live_tv,
               ),
+              SwitchPreferenceTile(
+                preference: UserPreferences.guidePreviewVideo,
+                title: 'Guide preview video',
+                subtitle:
+                    'Muted picture of the focused channel in the live guide',
+                icon: Icons.live_tv,
+              ),
             ],
           ),
 

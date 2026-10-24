@@ -1,16 +1,23 @@
 import 'dart:async';
 
 import 'package:flutter/widgets.dart';
+import 'package:get_it/get_it.dart';
 import 'package:media_kit/media_kit.dart';
 import 'package:media_kit_video/media_kit_video.dart';
-import 'package:moonfin_native_video/moonfin_native_video.dart';
+import 'package:playback_core/playback_core.dart';
 
+import '../../../playback/media_kit_player_backend.dart';
 import '../../../util/platform_detection.dart';
+import 'guide_preview_handoff.dart';
 
-/// Small live picture for the guide. Apple builds do not ship libmpv, so
-/// those keep the logo. Fire TV draws through the same native surface as
-/// playback; phones and desktop use the texture widget. Full-screen playback
-/// still goes through the existing player.
+/// Small muted picture for the guide.
+///
+/// Phones, desktop, and Fire TV all draw through media_kit's texture.
+/// The native SurfaceView used for full-screen TV playback sits in its own
+/// window and stays blank inside this clip, which is why the Fire TV box
+/// used to freeze on the logo. Full-screen playback still uses its own
+/// player. Captions are left off here (`sid=no`); the player turns them
+/// back on when it opens the channel.
 class DirectIptvPreviewPlayer extends StatefulWidget {
   final String? streamUrl;
   final Map<String, String> headers;
@@ -26,55 +33,88 @@ class DirectIptvPreviewPlayer extends StatefulWidget {
       _DirectIptvPreviewPlayerState();
 }
 
-class _DirectIptvPreviewPlayerState extends State<DirectIptvPreviewPlayer> {
-  Player? _player;
+class _DirectIptvPreviewPlayerState extends State<DirectIptvPreviewPlayer>
+    with WidgetsBindingObserver {
+  Player? _owned;
   VideoController? _controller;
+  MediaKitPlayerBackend? _borrowed;
+  double? _savedVolume;
   int _token = 0;
   String? _opened;
+  bool _ready = false;
+  bool _held = false;
 
-  bool get _canPlay => !PlatformDetection.useApplePreviewPlayer;
+  /// Idle mpv backend, so OK can keep that stream. Android TV's backend has
+  /// no texture (it renders on a SurfaceView), and a busy player is left
+  /// alone. A borrowed player is remembered so leaving the guide does not
+  /// depend on playback having already started.
+  MediaKitPlayerBackend? get _idleShared {
+    if (PlatformDetection.useNativeVideoSurface) return null;
+    if (!GetIt.instance.isRegistered<MediaKitPlayerBackend>()) return null;
+    if (!GetIt.instance.isRegistered<PlayerBackend>()) return null;
+    final backend = GetIt.instance<MediaKitPlayerBackend>();
+    if (!identical(GetIt.instance<PlayerBackend>(), backend)) return null;
+    if (backend.videoController == null) return null;
+    if (GetIt.instance.isRegistered<PlaybackManager>() &&
+        GetIt.instance<PlaybackManager>().state.isPlaying) {
+      return null;
+    }
+    return backend;
+  }
 
-  void _tvProperty(NativePlayer platform, String key, String value) {
+  Player? get _player => _borrowed?.player ?? _owned;
+
+  void _property(Player player, String key, String value) {
+    final platform = player.platform;
+    if (platform is! NativePlayer) return;
     final dynamic target = platform;
-    unawaited(Future<void>.value(target.setProperty(key, value)));
+    unawaited(
+      Future<void>.value(
+        target.setProperty(key, value, waitForInitialization: false),
+      ),
+    );
   }
 
   @override
   void initState() {
     super.initState();
-    if (!_canPlay) return;
+    WidgetsBinding.instance.addObserver(this);
+    _ensurePlayer();
+    unawaited(_sync());
+  }
+
+  void _ensurePlayer() {
+    if (_borrowed != null || _owned != null) return;
+    final shared = _idleShared;
+    if (shared != null) {
+      _borrowed = shared;
+      _controller = shared.videoController;
+      _savedVolume = shared.player.state.volume;
+      return;
+    }
     MediaKit.ensureInitialized();
     final player = Player(
       configuration: const PlayerConfiguration(libass: false),
     );
-    _player = player;
-    if (PlatformDetection.useNativeVideoSurface) {
-      final platform = player.platform;
-      if (platform is NativePlayer) {
-        // The TV picture is a native surface, not a texture. open() waits
-        // until a controller claims the player, so mark it attached the
-        // same way the full-screen backend does.
-        platform.isVideoControllerAttached = true;
-        if (!platform.videoControllerCompleter.isCompleted) {
-          platform.videoControllerCompleter.complete();
-        }
-        _tvProperty(platform, 'vo', 'null');
-        _tvProperty(platform, 'hwdec', 'auto-copy');
-        _tvProperty(platform, 'vid', 'auto');
-        _tvProperty(platform, 'force-window', 'yes');
-        _tvProperty(platform, 'ao', 'audiotrack');
-      }
-    } else {
-      _controller = VideoController(
-        player,
-        configuration: VideoControllerConfiguration(
-          hwdec: PlatformDetection.isLinux ? 'auto-safe' : null,
-        ),
-      );
-    }
-    unawaited(player.setVolume(PlatformDetection.isTV ? 100 : 0));
+    _owned = player;
+    _controller = VideoController(
+      player,
+      configuration: VideoControllerConfiguration(hwdec: _hwdec),
+    );
+    unawaited(player.setVolume(0));
     unawaited(player.setPlaylistMode(PlaylistMode.none));
-    unawaited(_sync());
+    _property(player, 'mute', 'yes');
+    _property(player, 'sid', 'no');
+  }
+
+  String? get _hwdec {
+    if (PlatformDetection.isAndroid && PlatformDetection.isTV) {
+      // auto-copy puts frames in the Flutter texture. Plain `auto` can
+      // decode onto a SurfaceView the guide never shows.
+      return 'auto-copy';
+    }
+    if (PlatformDetection.isLinux) return 'auto-safe';
+    return null;
   }
 
   @override
@@ -82,6 +122,23 @@ class _DirectIptvPreviewPlayerState extends State<DirectIptvPreviewPlayer> {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.streamUrl != widget.streamUrl ||
         !_sameHeaders(oldWidget.headers, widget.headers)) {
+      unawaited(_sync());
+    }
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.paused ||
+        state == AppLifecycleState.hidden ||
+        state == AppLifecycleState.detached) {
+      _held = true;
+      unawaited(_stop());
+      return;
+    }
+    if (state == AppLifecycleState.resumed && _held) {
+      _held = false;
+      _opened = null;
+      _ready = false;
       unawaited(_sync());
     }
   }
@@ -94,53 +151,97 @@ class _DirectIptvPreviewPlayerState extends State<DirectIptvPreviewPlayer> {
     return true;
   }
 
+  Future<void> _stop() async {
+    final player = _player;
+    if (player == null) return;
+    _opened = null;
+    _ready = false;
+    try {
+      await player.stop();
+    } catch (_) {}
+  }
+
   Future<void> _sync() async {
+    if (_held) return;
+    _ensurePlayer();
     final player = _player;
     if (player == null) return;
     final token = ++_token;
     final url = widget.streamUrl;
     if (url == null || url.isEmpty) {
-      _opened = null;
-      try {
-        await player.stop();
-      } catch (_) {}
+      await _stop();
       return;
     }
     final signature = '$url\n${widget.headers}';
     if (_opened == signature) return;
     _opened = signature;
+    _ready = false;
+    _property(player, 'mute', 'yes');
+    _property(player, 'sid', 'no');
     try {
       final headers = widget.headers;
       await player.open(
         headers.isEmpty ? Media(url) : Media(url, httpHeaders: headers),
       );
+      if (token != _token) return;
+      _ready = true;
+      _property(player, 'mute', 'yes');
+      _property(player, 'sid', 'no');
     } catch (_) {
-      if (token == _token) _opened = null;
+      if (token == _token) {
+        _opened = null;
+        _ready = false;
+      }
     }
+  }
+
+  Future<void> _releaseOwned() async {
+    final player = _owned;
+    _owned = null;
+    _controller = null;
+    if (player == null) return;
+    try {
+      await player.dispose();
+    } catch (_) {}
+  }
+
+  Future<void> _releaseBorrowed(MediaKitPlayerBackend backend) async {
+    final player = backend.player;
+    _property(player, 'mute', 'no');
+    _property(player, 'sid', 'auto');
+    try {
+      await player.setVolume(_savedVolume ?? 100);
+    } catch (_) {}
+    try {
+      await player.stop();
+    } catch (_) {}
   }
 
   @override
   void dispose() {
     _token++;
-    final player = _player;
-    _player = null;
-    if (player != null) unawaited(player.dispose());
+    WidgetsBinding.instance.removeObserver(this);
+    final url = _opened?.split('\n').first;
+    final borrowed = _borrowed;
+    if (borrowed != null && _ready && GuidePreviewHandoff.armedFor(url)) {
+      GuidePreviewHandoff.present(
+        borrowed.player,
+        url!,
+        volume: _savedVolume ?? 100,
+      );
+    } else {
+      GuidePreviewHandoff.disarm();
+      if (borrowed != null) {
+        unawaited(_releaseBorrowed(borrowed));
+      } else {
+        unawaited(_releaseOwned());
+      }
+    }
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    final player = _player;
-    if (player == null) return const SizedBox.expand();
-    if (PlatformDetection.useNativeVideoSurface) {
-      return NativeVideoView(
-        player: player,
-        fill: const Color(0xFF000000),
-        videoOutput: 'gpu',
-        zoomMode: NativeVideoZoomMode.zoomToFill,
-        hardwareDecodingEnabled: true,
-      );
-    }
     final controller = _controller;
     if (controller == null) return const SizedBox.expand();
     return Video(

@@ -86,6 +86,18 @@ https://dispatch/stream/7.ts
     expect(source.copyWith(epgPath: '-').effectiveEpgPath, isEmpty);
   });
 
+  test('xmltv_ns episode-num is zero-based', () {
+    const xml =
+        '<tv><programme start="20261021120000 +0000" stop="20261021130000 +0000" channel="pluto-news">'
+        '<title>The Office</title>'
+        '<episode-num system="onscreen">S06E19</episode-num>'
+        '<episode-num system="xmltv_ns">5.18.</episode-num>'
+        '</programme></tv>';
+    final programme = parseXmltv(xml).single;
+    expect(programme.seasonNumber, 6);
+    expect(programme.episodeNumber, 19);
+  });
+
   test('a relative rendition resolves against the url after the redirect', () {
     const relative = 'subtitle/en/playlist.m3u8?s=1';
     const master =

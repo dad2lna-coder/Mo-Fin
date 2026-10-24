@@ -11,6 +11,7 @@ import 'package:playback_core/playback_core.dart';
 
 import '../preference/preference_constants.dart';
 import '../preference/user_preferences.dart';
+import '../ui/screens/livetv/guide_preview_handoff.dart';
 import '../util/auto_hdr_switcher.dart';
 import '../util/platform_detection.dart';
 import 'device_profile_builder.dart';
@@ -858,6 +859,9 @@ class MediaKitPlayerBackend extends PlayerBackend
       await _nativeSetProperty(native, 'sid', 'auto');
       await _nativeSetProperty(native, 'secondary-sid', 'no');
       await _nativeSetProperty(native, 'sub-visibility', 'yes');
+      // A guide preview mutes itself and turns captions off. Full playback
+      // always wants sound, and captions follow the source again below.
+      await _nativeSetProperty(native, 'mute', 'no');
       // PlayerConfiguration(libass: false) initializes mpv with sub-ass=no,
       // which strips ASS styling on desktop, so always turn it back on.
       await _nativeSetProperty(native, 'sub-ass', 'yes');
@@ -880,13 +884,25 @@ class MediaKitPlayerBackend extends PlayerBackend
     await _prepareNativeWindowForOpen(payload);
     if (!_ownsPlayback(generation)) return;
     await applyMpvClientCertificate(_player, media.uri);
-    try {
-      await _player.open(media, play: !openPaused);
-    } catch (_) {
-      if (_isLatestSubtitleSelection(subtitleGeneration)) {
-        _setSelectedExternalSubtitle(null);
+    final reusePreview = GuidePreviewHandoff.consume(_player, url);
+    final restoreVolume = GuidePreviewHandoff.takeRestoredVolume();
+    if (restoreVolume != null) {
+      await _player.setVolume(restoreVolume);
+    }
+    if (reusePreview && _player.platform is NativePlayer) {
+      final native = _player.platform as NativePlayer;
+      await _nativeSetProperty(native, 'mute', 'no');
+      await _nativeSetProperty(native, 'sid', 'auto');
+    }
+    if (!reusePreview) {
+      try {
+        await _player.open(media, play: !openPaused);
+      } catch (_) {
+        if (_isLatestSubtitleSelection(subtitleGeneration)) {
+          _setSelectedExternalSubtitle(null);
+        }
+        rethrow;
       }
-      rethrow;
     }
     if (!_ownsPlayback(generation)) return;
 

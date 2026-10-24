@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:flutter/foundation.dart' show kIsWeb;
 
+import 'guide_tmdb.dart';
 import 'models.dart';
 import 'mofin_report.dart';
 
@@ -144,6 +145,8 @@ class ParsedXmltvProgramme {
   final DateTime end;
   final String? overview;
   final String? episodeTitle;
+  final int? seasonNumber;
+  final int? episodeNumber;
   final List<String> categories;
 
   const ParsedXmltvProgramme({
@@ -153,6 +156,8 @@ class ParsedXmltvProgramme {
     required this.end,
     this.overview,
     this.episodeTitle,
+    this.seasonNumber,
+    this.episodeNumber,
     this.categories = const [],
   });
 }
@@ -303,6 +308,7 @@ class XmltvScan {
     if (!_inWindow(start, stop)) return;
     final title = _firstTag(inner, 'title') ?? '';
     if (title.isEmpty) return;
+    final numbering = _episodeNumbering(inner);
     programmes.add(
       ParsedXmltvProgramme(
         channelId: channel,
@@ -311,6 +317,8 @@ class XmltvScan {
         end: stop,
         overview: _firstTag(inner, 'desc'),
         episodeTitle: _firstTag(inner, 'sub-title'),
+        seasonNumber: numbering?.season,
+        episodeNumber: numbering?.episode,
         categories: _allTags(inner, 'category'),
       ),
     );
@@ -538,6 +546,8 @@ DirectIptvSnapshot assembleSnapshot({
         end: programme.end,
         overview: programme.overview,
         episodeTitle: programme.episodeTitle,
+        seasonNumber: programme.seasonNumber,
+        episodeNumber: programme.episodeNumber,
         categories: programme.categories,
       ),
     );
@@ -599,6 +609,8 @@ DirectIptvSnapshot _snapshotFromXmlChannels({
         end: programme.end,
         overview: programme.overview,
         episodeTitle: programme.episodeTitle,
+        seasonNumber: programme.seasonNumber,
+        episodeNumber: programme.episodeNumber,
         categories: programme.categories,
       ),
     );
@@ -730,6 +742,26 @@ String? _iconSrc(String inner) {
   ).firstMatch(inner);
   if (match == null) return null;
   return _blankToNull(_attributes(match.group(1) ?? '')['src']);
+}
+
+SeasonEpisode? _episodeNumbering(String inner) {
+  final matches = RegExp(
+    '<episode-num\\b([^>]*)>(.*?)</episode-num>',
+    caseSensitive: false,
+    dotAll: true,
+  ).allMatches(inner);
+  SeasonEpisode? fallback;
+  for (final match in matches) {
+    final system = _attributes(match.group(1) ?? '')['system'];
+    final value = _decodeXml(
+      (match.group(2) ?? '').replaceAll(RegExp(r'<[^>]+>'), ''),
+    ).trim();
+    final parsed = parseEpisodeNum(value, system: system);
+    if (parsed == null || !parsed.known) continue;
+    if ((system ?? '').toLowerCase() == 'xmltv_ns') return parsed;
+    fallback ??= parsed;
+  }
+  return fallback;
 }
 
 String? _firstTag(String inner, String tag) {

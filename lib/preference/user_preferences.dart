@@ -3233,6 +3233,14 @@ class UserPreferences extends ChangeNotifier {
     key: 'pref_live_direct',
     defaultValue: false,
   );
+
+  /// Muted picture in the live guide. On by default. Device-local: a TV
+  /// that cannot spare a decoder should be able to turn it off without
+  /// changing every other screen.
+  static final guidePreviewVideo = Preference(
+    key: 'pref_guide_preview_video',
+    defaultValue: true,
+  );
   static final syncPlayEnabled = Preference(
     key: 'pref_syncplay_enabled',
     defaultValue: false,

@@ -143,14 +143,27 @@
           }
           return !!window.Hls.isSupported();
         },
-        attach: function (video, url, forceHls) {
+        attach: function (video, url, forceHls, headers) {
           if (!this.canUseHlsJs(video, url, forceHls)) {
             return null;
           }
+          var headerNames = headers ? Object.keys(headers) : [];
           var hls = new window.Hls({
-            enableWorker: true,
+            // xhrSetup does not run inside the worker, so a Token or
+            // Authorization header has to be applied on the main thread.
+            enableWorker: headerNames.length === 0,
             lowLatencyMode: true,
-            backBufferLength: 90,
+            backBufferLength: 30,
+            xhrSetup: function (xhr) {
+              for (var i = 0; i < headerNames.length; i++) {
+                try {
+                  xhr.setRequestHeader(
+                    headerNames[i],
+                    String(headers[headerNames[i]]),
+                  );
+                } catch (e) {}
+              }
+            },
           });
           hls.loadSource(url);
           hls.attachMedia(video);

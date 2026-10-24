@@ -43,6 +43,9 @@ GuideProgram guideProgramFromDirect(DirectProgram program) {
       'EpisodeTitle': program.episodeTitle,
       'StartDate': program.start.toIso8601String(),
       'EndDate': program.end.toIso8601String(),
+      if (program.seasonNumber != null)
+        'ParentIndexNumber': program.seasonNumber,
+      if (program.episodeNumber != null) 'IndexNumber': program.episodeNumber,
       'MoonfinDirectSource': true,
     },
   );

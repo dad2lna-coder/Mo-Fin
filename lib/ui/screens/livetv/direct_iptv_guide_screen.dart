@@ -12,8 +12,10 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../../../direct_iptv/direct_guide.dart';
 import '../../../direct_iptv/direct_iptv_catalog.dart';
 import '../../../direct_iptv/direct_iptv_recordings.dart';
+import '../../../direct_iptv/guide_tmdb.dart';
 import '../../../direct_iptv/models.dart';
 import '../../../direct_iptv/playlist_parse.dart';
+import '../../../preference/user_preferences.dart';
 import '../../../util/focus/dpad_keys.dart';
 import '../../../util/focus/key_event_utils.dart';
 import '../../navigation/destinations.dart';
@@ -22,6 +24,8 @@ import 'direct_guide_source.dart';
 import 'direct_iptv_preview.dart';
 import 'direct_iptv_recordings_screen.dart';
 import 'direct_iptv_settings_screen.dart';
+import 'guide_preview_handoff.dart';
+import 'guide_tmdb_panel.dart';
 
 const _navy = Color(0xFF071422);
 const _navyRaised = Color(0xFF0C1A2E);
@@ -71,12 +75,20 @@ class _DirectIptvGuideScreenState extends State<DirectIptvGuideScreen> {
   String? _recordingsSourceId;
   String? _savedSourceId;
   bool _lastSourceLoaded = false;
+  UserPreferences? _prefs;
+
+  bool get _guidePreviewEnabled =>
+      _prefs?.get(UserPreferences.guidePreviewVideo) ?? true;
 
   @override
   void initState() {
     super.initState();
     _catalog = GetIt.instance<DirectIptvCatalog>();
     _catalog.addListener(_onCatalog);
+    if (GetIt.instance.isRegistered<UserPreferences>()) {
+      _prefs = GetIt.instance<UserPreferences>();
+      _prefs!.addListener(_schedulePreview);
+    }
     if (_catalog.loaded) _selectDefaultSource();
     unawaited(_loadLastSource());
     _clock = Timer.periodic(const Duration(seconds: 30), (_) {
@@ -97,6 +109,7 @@ class _DirectIptvGuideScreenState extends State<DirectIptvGuideScreen> {
   void dispose() {
     _clock?.cancel();
     _previewDebounce?.cancel();
+    _prefs?.removeListener(_schedulePreview);
     _catalog.removeListener(_onCatalog);
     _rowsScroll.dispose();
     _searchNode.dispose();
@@ -304,9 +317,17 @@ class _DirectIptvGuideScreenState extends State<DirectIptvGuideScreen> {
     final channel = _channelAt(_channels, _cursor.row);
     final id = channel?.id;
     _previewDebounce?.cancel();
-    if (_suspendPreview) return;
-    _previewDebounce = Timer(const Duration(milliseconds: 400), () {
-      if (!mounted || _suspendPreview) return;
+    if (_suspendPreview || !_guidePreviewEnabled) {
+      if (_previewUrl != null && mounted) {
+        setState(() {
+          _previewUrl = null;
+          _previewHeaders = const {};
+        });
+      }
+      return;
+    }
+    _previewDebounce = Timer(const Duration(milliseconds: 600), () {
+      if (!mounted || _suspendPreview || !_guidePreviewEnabled) return;
       final current = _channelAt(_channels, _cursor.row);
       if (current?.id != id) return;
       final source = _source;
@@ -357,6 +378,11 @@ class _DirectIptvGuideScreenState extends State<DirectIptvGuideScreen> {
   }
 
   Future<void> _play(DirectChannel channel) {
+    if (_guidePreviewEnabled &&
+        _previewUrl != null &&
+        _previewUrl == channel.streamUrl) {
+      GuidePreviewHandoff.arm(channel.streamUrl);
+    }
     return _suspendAndRun(() async {
       final source = _source;
       if (source == null) return;
@@ -1016,17 +1042,80 @@ class _DirectIptvGuideScreenState extends State<DirectIptvGuideScreen> {
             color: _accent,
           ),
         ),
-        if ((program?.overview ?? '').isNotEmpty) ...[
+        if ((program?.overview ?? '').isNotEmpty || program != null) ...[
           const SizedBox(height: 8),
-          Text(
-            program!.overview!,
-            maxLines: compact ? 2 : 3,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
-              color: Colors.white60,
-              fontSize: 13,
-              height: 1.3,
-            ),
+          GuideTmdbBinder(
+            query: program == null
+                ? null
+                : GuideQuery.resolve(
+                    title: program.title,
+                    episodeTitle: program.episodeTitle,
+                    overview: program.overview,
+                    season: program.seasonNumber,
+                    episode: program.episodeNumber,
+                  ),
+            builder: (context, hit) {
+              final overview = hit?.displayOverview.isNotEmpty == true
+                  ? hit!.displayOverview
+                  : (program?.overview ?? '');
+              final meta = hit?.metaLine ?? '';
+              final cast = hit?.cast ?? const <String>[];
+              final episodeName = hit?.episodeName;
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if (hit?.imageUrl != null)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 8),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(6),
+                        child: Image.network(
+                          hit!.imageUrl!,
+                          height: 72,
+                          width: hit.stillUrl != null ? 128 : 48,
+                          fit: BoxFit.cover,
+                          errorBuilder: (_, _, _) => const SizedBox.shrink(),
+                        ),
+                      ),
+                    ),
+                  if (episodeName != null &&
+                      episodeName.isNotEmpty &&
+                      episodeName != program?.title &&
+                      episodeName != program?.episodeTitle)
+                    Text(
+                      episodeName,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(color: Colors.white70, fontSize: 13),
+                    ),
+                  if (meta.isNotEmpty)
+                    Text(
+                      meta,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(color: Colors.white70, fontSize: 12),
+                    ),
+                  if (overview.isNotEmpty)
+                    Text(
+                      overview,
+                      maxLines: compact ? 2 : 3,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: Colors.white60,
+                        fontSize: 13,
+                        height: 1.3,
+                      ),
+                    ),
+                  if (cast.isNotEmpty)
+                    Text(
+                      cast.join(', '),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(color: Colors.white38, fontSize: 12),
+                    ),
+                ],
+              );
+            },
           ),
         ],
       ],

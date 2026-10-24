@@ -6,11 +6,11 @@ import 'package:get_it/get_it.dart';
 
 import '../../../direct_iptv/direct_iptv_catalog.dart';
 import '../../../direct_iptv/models.dart';
+import '../../../preference/user_preferences.dart';
 import '../../../util/focus/dpad_keys.dart';
 import '../../widgets/adaptive/adaptive_dialog.dart';
 import '../../widgets/focus/dpad_focus_marker.dart';
 import '../../widgets/overlay_sheet.dart';
-import '../../widgets/settings/preference_tiles.dart';
 
 /// Dispatcharr and raw M3U accounts. Credentials stay in on-device preferences.
 class DirectIptvSettingsScreen extends StatefulWidget {
@@ -90,50 +90,89 @@ class _DirectIptvSettingsScreenState extends State<DirectIptvSettingsScreen> {
       ),
       body: !_catalog.loaded
           ? const Center(child: CircularProgressIndicator())
-          : sources.isEmpty
-          ? const Center(
-              child: Text('No Dispatcharr, Pluto, or M3U sources yet'),
-            )
-          : ListView.builder(
-              itemCount: sources.length,
-              itemBuilder: (context, index) {
-                final source = sources[index];
-                final count = _catalog.snapshotFor(source.id)?.channels.length;
-                final error = _catalog.errorFor(source.id);
-                final subtitle = [
-                  source.kind == DirectIptvKind.dispatcharr
-                      ? 'Dispatcharr'
-                      : source.kind == DirectIptvKind.pluto
-                      ? 'Pluto TV'
-                      : 'M3U playlist',
-                  if (!source.enabled) 'Off',
-                  if (count != null) '$count channels',
-                  ?error,
-                ].join(' · ');
-                return DpadFocusMarker(
-                  child: ListTile(
-                    title: Text(source.name),
-                    subtitle: Text(subtitle),
-                    trailing: _catalog.isRefreshing(source.id)
-                        ? const SizedBox(
-                            width: 18,
-                            height: 18,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          )
-                        : IconButton(
-                            tooltip: 'Refresh',
-                            onPressed: source.enabled
-                                ? () => unawaited(
-                                    _catalog.refresh(source.id, force: true),
-                                  )
-                                : null,
-                            icon: const Icon(Icons.refresh),
-                          ),
-                    onTap: () => unawaited(_edit(source)),
-                  ),
-                );
-              },
+          : Column(
+              children: [
+                if (GetIt.instance.isRegistered<UserPreferences>())
+                  const _GuidePreviewSwitch(),
+                Expanded(child: _sourceList(sources)),
+              ],
             ),
+    );
+  }
+
+  Widget _sourceList(List<DirectIptvSource> sources) {
+    if (sources.isEmpty) {
+      return const Center(
+        child: Text('No Dispatcharr, Pluto, or M3U sources yet'),
+      );
+    }
+    return ListView.builder(
+      itemCount: sources.length,
+      itemBuilder: (context, index) => _sourceTile(sources[index]),
+    );
+  }
+
+  Widget _sourceTile(DirectIptvSource source) {
+    final count = _catalog.snapshotFor(source.id)?.channels.length;
+    final error = _catalog.errorFor(source.id);
+    final subtitle = [
+      source.kind == DirectIptvKind.dispatcharr
+          ? 'Dispatcharr'
+          : source.kind == DirectIptvKind.pluto
+          ? 'Pluto TV'
+          : 'M3U playlist',
+      if (!source.enabled) 'Off',
+      if (count != null) '$count channels',
+      ?error,
+    ].join(' · ');
+    return DpadFocusMarker(
+      child: ListTile(
+        title: Text(source.name),
+        subtitle: Text(subtitle),
+        trailing: _catalog.isRefreshing(source.id)
+            ? const SizedBox(
+                width: 18,
+                height: 18,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              )
+            : IconButton(
+                tooltip: 'Refresh',
+                onPressed: source.enabled
+                    ? () => unawaited(_catalog.refresh(source.id, force: true))
+                    : null,
+                icon: const Icon(Icons.refresh),
+              ),
+        onTap: () => unawaited(_edit(source)),
+      ),
+    );
+  }
+}
+
+class _GuidePreviewSwitch extends StatefulWidget {
+  const _GuidePreviewSwitch();
+
+  @override
+  State<_GuidePreviewSwitch> createState() => _GuidePreviewSwitchState();
+}
+
+class _GuidePreviewSwitchState extends State<_GuidePreviewSwitch> {
+  @override
+  Widget build(BuildContext context) {
+    final prefs = GetIt.instance<UserPreferences>();
+    final enabled = prefs.get(UserPreferences.guidePreviewVideo);
+    return DpadFocusMarker(
+      child: SwitchListTile(
+        secondary: const Icon(Icons.live_tv),
+        title: const Text('Guide preview video'),
+        subtitle: const Text(
+          'Muted picture of the focused channel in the live guide',
+        ),
+        value: enabled,
+        onChanged: (value) {
+          unawaited(prefs.set(UserPreferences.guidePreviewVideo, value));
+          setState(() {});
+        },
+      ),
     );
   }
 }

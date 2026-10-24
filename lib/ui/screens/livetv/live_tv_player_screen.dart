@@ -22,6 +22,7 @@ import '../../../data/viewmodels/live_tv_guide_view_model.dart';
 import '../../../direct_iptv/direct_guide.dart';
 import '../../../direct_iptv/direct_iptv_catalog.dart';
 import '../../../direct_iptv/direct_iptv_playback.dart';
+import '../../../direct_iptv/guide_tmdb.dart';
 import '../../../direct_iptv/models.dart';
 import '../../../direct_iptv/playlist_parse.dart';
 import '../../../direct_iptv/mofin_report.dart';
@@ -46,6 +47,7 @@ import '../../widgets/track_selector_dialog.dart';
 import '../../widgets/live_tv/channel_carousel_overlay.dart';
 import '../../widgets/live_tv/live_tv_recording_dialog.dart';
 import 'direct_channel_strip.dart';
+import 'guide_tmdb_panel.dart';
 import '../../widgets/emby_premiere_dialog.dart';
 import '../../util/error_message.dart';
 import 'channel_tune_observer.dart';
@@ -2485,6 +2487,17 @@ class _LiveTvPlayerScreenState extends State<LiveTvPlayerScreen>
     );
   }
 
+  GuideQuery? _tmdbQuery(GuideProgram? program) {
+    if (program == null || program.name.trim().isEmpty) return null;
+    return GuideQuery.resolve(
+      title: program.name,
+      episodeTitle: program.episodeTitle,
+      overview: program.overview,
+      season: readGuideIndex(program.rawData['ParentIndexNumber']),
+      episode: readGuideIndex(program.rawData['IndexNumber']),
+    );
+  }
+
   Widget _buildTopOverlay() {
     final padding = MediaQuery.of(context).padding;
     final channel = _currentChannel;
@@ -2541,31 +2554,110 @@ class _LiveTvPlayerScreenState extends State<LiveTvPlayerScreen>
               const SizedBox(width: AppSpacing.spaceMd),
             ],
             Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    channel.name,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: AppTypography.fontSizeLg,
-                      fontWeight: FontWeight.w600,
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  if (_currentProgram != null)
-                    Text(
-                      _currentProgram!.name,
-                      style: const TextStyle(
-                        color: Colors.white70,
-                        fontSize: AppTypography.fontSizeSm,
+              child: GuideTmdbBinder(
+                query: _tmdbQuery(_currentProgram),
+                builder: (context, hit) {
+                  final program = _currentProgram;
+                  final overview = hit != null && hit.displayOverview.isNotEmpty
+                      ? hit.displayOverview
+                      : (program?.overview ?? '');
+                  final episodeName = hit?.episodeName;
+                  final showEpisode =
+                      episodeName != null &&
+                      episodeName.isNotEmpty &&
+                      episodeName != program?.name &&
+                      episodeName != program?.episodeTitle;
+                  final meta = hit?.metaLine ?? '';
+                  final cast = hit?.cast ?? const <String>[];
+                  final imageUrl = hit?.imageUrl;
+                  return Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      if (imageUrl != null) ...[
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(4),
+                          child: Image.network(
+                            imageUrl,
+                            height: 64,
+                            width: hit?.stillUrl != null ? 112 : 44,
+                            fit: BoxFit.cover,
+                            errorBuilder: (_, _, _) => const SizedBox.shrink(),
+                          ),
+                        ),
+                        const SizedBox(width: AppSpacing.spaceSm),
+                      ],
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              channel.name,
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: AppTypography.fontSizeLg,
+                                fontWeight: FontWeight.w600,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            if (program != null)
+                              Text(
+                                program.name,
+                                style: const TextStyle(
+                                  color: Colors.white70,
+                                  fontSize: AppTypography.fontSizeSm,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            if (showEpisode)
+                              Text(
+                                episodeName!,
+                                style: const TextStyle(
+                                  color: Colors.white70,
+                                  fontSize: AppTypography.fontSizeSm,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            if (meta.isNotEmpty)
+                              Text(
+                                meta,
+                                style: const TextStyle(
+                                  color: Colors.white60,
+                                  fontSize: AppTypography.fontSizeSm,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            if (overview.isNotEmpty)
+                              Text(
+                                overview,
+                                style: const TextStyle(
+                                  color: Colors.white60,
+                                  fontSize: AppTypography.fontSizeSm,
+                                  height: 1.25,
+                                ),
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            if (cast.isNotEmpty)
+                              Text(
+                                cast.join(', '),
+                                style: const TextStyle(
+                                  color: Colors.white38,
+                                  fontSize: AppTypography.fontSizeSm,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                          ],
+                        ),
                       ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                ],
+                    ],
+                  );
+                },
               ),
             ),
             if (_currentProgram?.hasTimer == true)

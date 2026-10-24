@@ -294,6 +294,8 @@ class DirectProgram {
   final DateTime end;
   final String? overview;
   final String? episodeTitle;
+  final int? seasonNumber;
+  final int? episodeNumber;
   final List<String> categories;
 
   const DirectProgram({
@@ -304,6 +306,8 @@ class DirectProgram {
     required this.end,
     this.overview,
     this.episodeTitle,
+    this.seasonNumber,
+    this.episodeNumber,
     this.categories = const [],
   });
 
@@ -318,6 +322,8 @@ class DirectProgram {
     'end': end.toUtc().toIso8601String(),
     if (overview != null) 'overview': overview,
     if (episodeTitle != null) 'episodeTitle': episodeTitle,
+    if (seasonNumber != null) 'seasonNumber': seasonNumber,
+    if (episodeNumber != null) 'episodeNumber': episodeNumber,
     'categories': categories,
   };
 
@@ -330,6 +336,8 @@ class DirectProgram {
       end: DateTime.parse(json['end'].toString()).toLocal(),
       overview: json['overview']?.toString(),
       episodeTitle: json['episodeTitle']?.toString(),
+      seasonNumber: _asInt(json['seasonNumber']),
+      episodeNumber: _asInt(json['episodeNumber']),
       categories: (json['categories'] as List<dynamic>? ?? const [])
           .map((entry) => entry.toString())
           .toList(),
