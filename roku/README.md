@@ -7,23 +7,22 @@ Side-loadable SceneGraph channel. It is not the Flutter app. The zip on the
 
 1. On the Roku, press Home three times, then Up twice, then Right, Left, Right, Left, Right.
 2. Note the IP address, enable the installer, and set a developer password.
-3. Reboot if it asks.
+3. Reboot if requested.
 
 ## Side-load
 
 1. Download `Mo-Fin-roku.zip` from the `latest` release.
-2. On a computer, open `http://ROKU-IP` and sign in with `rokudev` and the developer password.
+2. On a computer, open `http://<roku-ip>` and sign in with `rokudev` and the developer password.
 3. Under Install, upload the zip. The **MoFin** channel appears at the end of the home screen.
 
-Or:
+Or via `curl`:
 
 ```bash
 curl -f -u rokudev:PASSWORD --anyauth \
   -F "mysubmit=Install" \
   -F "archive=@Mo-Fin-roku.zip" \
-  http://ROKU-IP/plugin_install
+  http://<roku-ip>/plugin_install
 ```
 
-The default source is `https://dad2lna.duckdns.org:8443/mofin/free/`
-(`playlist.m3u`, `guide.xml`, and `rec/`). Change it from Settings on the
-channel. The server certificate must be trusted by the Roku.
+An example channel source is `https://your-server/mofin/free/`
+(`playlist.m3u`, `guide.xml`, and `rec/`). Configure or change your channel source from Settings on the channel. The server certificate must be trusted by the Roku.
