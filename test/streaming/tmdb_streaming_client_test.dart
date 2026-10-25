@@ -236,7 +236,7 @@ void main() {
       await client.loadHome();
 
       final movie = calls.where(
-        (uri) => uri.path == '/3/discover/movie',
+        (uri) => uri.path == '/3/discover/movie' && uri.queryParameters.containsKey('with_watch_providers'),
       );
       final netflixMovie = movie.where(
         (uri) => uri.queryParameters['with_watch_providers'] == '4242',
