@@ -183,6 +183,9 @@ void main() {
               {'provider_id': 4242, 'provider_name': 'Netflix'},
             ]));
           }
+          if (path.endsWith('/movie/top_rated')) {
+            return ok({'results': []});
+          }
           if (path.endsWith('/search/multi')) {
             return ok({
               'results': [
@@ -401,5 +404,5 @@ TmdbFetch clientFetch() {
 }
 
 List<StreamingTitle> pageRow({required List<StreamingRow> pageRows}) {
-  return pageRows.firstWhere((row) => row.title == 'Netflix').titles;
+  return pageRows.firstWhere((row) => row.title.contains('Netflix')).titles;
 }
