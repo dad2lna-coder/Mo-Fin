@@ -1,7 +1,7 @@
 ' Streaming tab. Talks only to TMDB. The four Roku channels
 ' (Netflix 12, Disney+ 291097, Max 61322, Prime Video 13) deep link with
-' their own content id, not a title, and TMDB does not return that id.
-' Buttons stay hidden and the detail screen says which service has it.
+' their own channel ID. When a provider content ID is unavailable, launching
+' the channel opens the provider app.
 
 sub showStreaming()
     m.mode = "streaming"
@@ -371,8 +371,17 @@ function streamButtons() as object
 end function
 
 function rokuDeepLink(service as string, title as string) as object
-    ' A title is not a content id. Returning invalid hides the button.
-    return invalid
+    channelId = ""
+    if service = "netflix" then channelId = "12"
+    if service = "disney" then channelId = "291097"
+    if service = "max" then channelId = "61322"
+    if service = "prime" then channelId = "13"
+    if channelId = "" then return invalid
+    return {
+        channelId: channelId,
+        contentId: "",
+        mediaType: "movie"
+    }
 end function
 
 function servicesLine(item as object) as string

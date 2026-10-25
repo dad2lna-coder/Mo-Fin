@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:moonfin_design/moonfin_design.dart';
 
@@ -37,6 +38,7 @@ class _StreamingScreenState extends State<StreamingScreen> with RouteAware {
   StreamingPage? _page;
   bool _loading = true;
   bool _searching = false;
+  bool _showSearch = false;
 
   TmdbKeyStore get store => widget.store ?? _store;
 
@@ -73,6 +75,7 @@ class _StreamingScreenState extends State<StreamingScreen> with RouteAware {
 
   Future<void> _load() async {
     final key = await store.read();
+    final activeServices = await StreamingSubscriptionPreferences.readActiveServices();
     if (!mounted) return;
     final client = widget.clientFor?.call(key) ?? TmdbStreamingClient.forKey(key);
     _client = client;
@@ -86,13 +89,14 @@ class _StreamingScreenState extends State<StreamingScreen> with RouteAware {
     }
     setState(() => _loading = true);
     final query = _search.text.trim();
-    final page = query.isEmpty
-        ? await client.loadHome()
-        : await client.search(query);
+    final isSearchActive = _showSearch && query.isNotEmpty;
+    final page = isSearchActive
+        ? await client.search(query)
+        : await client.loadHome(enabledServices: activeServices);
     if (!mounted || !identical(_client, client)) return;
     setState(() {
       _loading = false;
-      _searching = query.isNotEmpty;
+      _searching = isSearchActive;
       _page = page;
     });
   }
@@ -100,6 +104,19 @@ class _StreamingScreenState extends State<StreamingScreen> with RouteAware {
   void _onSearchChanged(String value) {
     _debounce?.cancel();
     _debounce = Timer(const Duration(milliseconds: 350), _load);
+  }
+
+  void _toggleSearch() {
+    setState(() {
+      _showSearch = !_showSearch;
+      if (!_showSearch) {
+        _search.clear();
+        _searching = false;
+        _load();
+      } else {
+        _searchFocus.requestFocus();
+      }
+    });
   }
 
   @override
@@ -130,25 +147,54 @@ class _StreamingScreenState extends State<StreamingScreen> with RouteAware {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              'Streaming',
-              style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w800,
+            Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Streaming',
+                        style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                              color: Colors.white,
+                              fontWeight: FontWeight.w800,
+                            ),
+                      ),
+                      const SizedBox(height: 4),
+                      const Text(
+                        'Netflix, Disney+, Max, and Prime Video in the US',
+                        style: TextStyle(color: Colors.white70, fontSize: 13),
+                      ),
+                    ],
                   ),
+                ),
+                IconButton(
+                  icon: Icon(_showSearch ? Icons.close : Icons.search, color: Colors.white),
+                  tooltip: _showSearch ? 'Close search' : 'Search subscriptions',
+                  onPressed: _toggleSearch,
+                ),
+                IconButton(
+                  icon: const Icon(Icons.settings, color: Colors.white),
+                  tooltip: 'Streaming settings',
+                  onPressed: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute<void>(
+                        builder: (_) => StreamingSettingsScreen(store: store),
+                      ),
+                    );
+                  },
+                ),
+              ],
             ),
-            const SizedBox(height: 6),
-            const Text(
-              'Netflix, Disney+, Max, and Prime Video in the US',
-              style: TextStyle(color: Colors.white70),
-            ),
-            const SizedBox(height: 16),
-            LocalSearchField(
-              controller: _search,
-              focusNode: _searchFocus,
-              hint: 'Search your subscriptions',
-              onChanged: _onSearchChanged,
-            ),
+            if (_showSearch) ...[
+              const SizedBox(height: 12),
+              LocalSearchField(
+                controller: _search,
+                focusNode: _searchFocus,
+                hint: 'Search your subscriptions...',
+                onChanged: _onSearchChanged,
+              ),
+            ],
             const SizedBox(height: 16),
             Expanded(child: _content()),
           ],

@@ -55,6 +55,19 @@ extension StreamingServiceInfo on StreamingService {
           ],
       };
 
+  /// Direct title deep link URI for Android/Fire TV if provider content ID is available.
+  Uri? androidTitleUri(String providerTitleId) {
+    final cleanId = providerTitleId.trim();
+    if (cleanId.isEmpty) return null;
+    final url = switch (this) {
+      StreamingService.netflix => 'https://www.netflix.com/title/$cleanId',
+      StreamingService.disneyPlus => 'https://www.disneyplus.com/content/$cleanId',
+      StreamingService.max => 'https://play.max.com/video/watch/$cleanId',
+      StreamingService.primeVideo => 'https://watch.amazon.com/watch?gti=$cleanId',
+    };
+    return Uri.parse(url);
+  }
+
   /// VIEW intent the installed app can open on the title, or null when that
   /// app has no search deep link worth trying. Disney+ on Android TV only
   /// deep links by its own content id, so the launcher just opens the app.
@@ -70,6 +83,21 @@ extension StreamingServiceInfo on StreamingService {
     };
   }
 
+  /// Direct title universal web link URI if provider title ID is available, falling back to working web search/home.
+  Uri webUri({String? providerTitleId, required String title}) {
+    final cleanId = providerTitleId?.trim() ?? '';
+    if (cleanId.isNotEmpty) {
+      final directUrl = switch (this) {
+        StreamingService.netflix => 'https://www.netflix.com/title/$cleanId',
+        StreamingService.disneyPlus => 'https://www.disneyplus.com/content/$cleanId',
+        StreamingService.max => 'https://play.max.com/video/watch/$cleanId',
+        StreamingService.primeVideo => 'https://www.primevideo.com/detail/$cleanId',
+      };
+      return Uri.parse(directUrl);
+    }
+    return webSearchUri(title);
+  }
+
   /// Website search opened in a new tab. These are not played inside Mo-Fin.
   Uri webSearchUri(String title) {
     final query = Uri.encodeQueryComponent(title.trim());
@@ -82,6 +110,30 @@ extension StreamingServiceInfo on StreamingService {
         'https://www.amazon.com/gp/video/search/?phrase=$query',
     };
     return Uri.parse(url);
+  }
+
+  /// User-friendly watch button label based on whether a direct title ID is available.
+  String watchButtonText({String? providerTitleId, required String title}) {
+    final cleanId = providerTitleId?.trim() ?? '';
+    if (cleanId.isNotEmpty) {
+      return 'Play on $label';
+    }
+    if (androidSearchUrl(title) != null) {
+      return 'Search on $label';
+    }
+    return 'Open $label';
+  }
+
+  /// Informational subtitle for watch buttons when direct link ID is not available.
+  String? watchButtonSubtitle({String? providerTitleId, required String title}) {
+    final cleanId = providerTitleId?.trim() ?? '';
+    if (cleanId.isNotEmpty) {
+      return null;
+    }
+    if (androidSearchUrl(title) != null) {
+      return 'Direct title link unavailable - opens search';
+    }
+    return 'Direct title link unavailable - opens app home';
   }
 }
 
