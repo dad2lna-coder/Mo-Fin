@@ -45,6 +45,65 @@ String streamingErrorText(Object error) {
 
 typedef TmdbFetch = Future<TmdbFetchResult> Function(Uri uri);
 
+class StreamingSource {
+  final StreamingService service;
+  final String? nativeId;
+  final String? webUrl;
+
+  const StreamingSource({
+    required this.service,
+    this.nativeId,
+    this.webUrl,
+  });
+}
+
+class StreamingProviderClient {
+  final String apiKey;
+  final http.Client _client;
+
+  StreamingProviderClient({
+    required this.apiKey,
+    http.Client? client,
+  })  : _client = client ?? http.Client();
+
+  bool get hasKey => apiKey.trim().isNotEmpty;
+
+  Future<List<StreamingSource>> fetchSources(String mediaType, int tmdbId) async {
+    final trimmedKey = apiKey.trim();
+    if (trimmedKey.isEmpty || tmdbId <= 0) return const [];
+    try {
+      final prefix = mediaType == 'tv' ? 'tv' : 'movie';
+      final uri = Uri.https('api.watchmode.com', '/v1/title/$prefix-$tmdbId/sources/', {
+        'apiKey': trimmedKey,
+        'regions': 'US',
+      });
+      final response = await _client.get(uri);
+      if (response.statusCode < 200 || response.statusCode >= 300) return const [];
+      final decoded = jsonDecode(response.body);
+      if (decoded is! List) return const [];
+      final sources = <StreamingSource>[];
+      for (final item in decoded) {
+        if (item is! Map) continue;
+        final name = item['name']?.toString() ?? '';
+        final service = streamingServiceForProviderName(name);
+        if (service == null) continue;
+        final webUrl = item['web_url']?.toString();
+        final nativeId = item['source_id']?.toString() ?? item['source_title_id']?.toString();
+        sources.add(
+          StreamingSource(
+            service: service,
+            nativeId: nativeId,
+            webUrl: webUrl,
+          ),
+        );
+      }
+      return sources;
+    } catch (_) {
+      return const [];
+    }
+  }
+}
+
 class StreamingCastMember {
   final String name;
   final String? character;
@@ -74,6 +133,7 @@ class StreamingTitle {
   final int? seasons;
   final List<StreamingService> services;
   final Map<StreamingService, String> providerTitleIds;
+  final Map<StreamingService, String> providerUrls;
   final List<StreamingCastMember> cast;
   final String? youtubeTrailerKey;
 
@@ -90,6 +150,7 @@ class StreamingTitle {
     this.seasons,
     this.services = const [],
     this.providerTitleIds = const {},
+    this.providerUrls = const {},
     this.cast = const [],
     this.youtubeTrailerKey,
   });
@@ -246,41 +307,53 @@ class TmdbStreamingClient {
     }
     try {
       final ids = await _providerIds();
-      final trending = await _trending(ids);
+      final active = enabledServices.isEmpty ? kStreamingServices : enabledServices;
+
+      // Execute row loads concurrently for high responsiveness
+      final results = await Future.wait([
+        _trending(ids),
+        for (final service in active) _discoverService(service, ids),
+        _newThisWeek(ids, active),
+        _topRated(ids, active),
+        _genreRow(28, 'Action', ids, active),
+        _genreRow(35, 'Comedy', ids, active),
+      ]);
+
+      final trending = results[0];
       final rows = <StreamingRow>[
         StreamingRow(title: 'Trending', titles: trending),
       ];
-      final active = enabledServices.isEmpty ? kStreamingServices : enabledServices;
+
+      var idx = 1;
       for (final service in active) {
-        final titles = await _discoverService(service, ids);
-        if (titles.isEmpty &&
-            ids.movie[service] == null &&
-            ids.tv[service] == null) {
-          continue;
+        final titles = results[idx++];
+        if (titles.isNotEmpty ||
+            ids.movie[service] != null ||
+            ids.tv[service] != null) {
+          rows.add(StreamingRow(
+            title: 'Popular on ${service.label}',
+            service: service,
+            titles: titles,
+          ));
         }
-        rows.add(StreamingRow(
-          title: 'Popular on ${service.label}',
-          service: service,
-          titles: titles,
-        ));
       }
 
-      final newThisWeek = await _newThisWeek(ids);
+      final newThisWeek = results[idx++];
       if (newThisWeek.isNotEmpty) {
         rows.add(StreamingRow(title: 'New This Week', titles: newThisWeek));
       }
 
-      final topRated = await _topRated(ids);
+      final topRated = results[idx++];
       if (topRated.isNotEmpty) {
         rows.add(StreamingRow(title: 'Top Rated', titles: topRated));
       }
 
-      final actionTitles = await _genreRow(28, 'Action', ids);
+      final actionTitles = results[idx++];
       if (actionTitles.isNotEmpty) {
         rows.add(StreamingRow(title: 'Action', titles: actionTitles));
       }
 
-      final comedyTitles = await _genreRow(35, 'Comedy', ids);
+      final comedyTitles = results[idx++];
       if (comedyTitles.isNotEmpty) {
         rows.add(StreamingRow(title: 'Comedy', titles: comedyTitles));
       }
@@ -332,13 +405,14 @@ class TmdbStreamingClient {
   Future<StreamingTitle?> details({
     required String mediaType,
     required int id,
+    String? providerApiKey,
   }) async {
     if (!hasKey || (mediaType != 'movie' && mediaType != 'tv') || id <= 0) {
       return null;
     }
     final ids = await _providerIds();
     final path = mediaType == 'tv' ? '/tv/$id' : '/movie/$id';
-    final json = await _get(path, {'language': 'en-US', 'append_to_response': 'credits,videos,external_ids'});
+    final json = await _get(path, {'language': 'en-US', 'append_to_response': 'credits,videos'});
     if (json is! Map) return null;
     final services = await _servicesFor(mediaType, id, ids);
 
@@ -371,14 +445,19 @@ class TmdbStreamingClient {
       }
     }
 
-    final extIds = json['external_ids'] as Map?;
-    final imdbId = extIds?['imdb_id']?.toString() ?? json['imdb_id']?.toString();
     final providerTitleIds = <StreamingService, String>{};
-    for (final service in services) {
-      if (imdbId != null && imdbId.isNotEmpty) {
-        providerTitleIds[service] = imdbId;
-      } else {
-        providerTitleIds[service] = '$id';
+    final providerUrls = <StreamingService, String>{};
+
+    if (providerApiKey != null && providerApiKey.trim().isNotEmpty) {
+      final pClient = StreamingProviderClient(apiKey: providerApiKey);
+      final pSources = await pClient.fetchSources(mediaType, id);
+      for (final source in pSources) {
+        if (source.nativeId != null && source.nativeId!.isNotEmpty) {
+          providerTitleIds[source.service] = source.nativeId!;
+        }
+        if (source.webUrl != null && source.webUrl!.isNotEmpty) {
+          providerUrls[source.service] = source.webUrl!;
+        }
       }
     }
 
@@ -387,6 +466,7 @@ class TmdbStreamingClient {
       mediaType,
       services: services,
       providerTitleIds: providerTitleIds,
+      providerUrls: providerUrls,
       overview: json['overview']?.toString(),
       rating: _double(json['vote_average']),
       runtimeMinutes: _int(json['runtime']),
@@ -414,63 +494,104 @@ class TmdbStreamingClient {
     });
   }
 
-  Future<List<StreamingTitle>> _newThisWeek(_ProviderIds ids) async {
-    final json = await _get('/discover/movie', {
-      'watch_region': _region,
-      'with_watch_monetization_types': 'flatrate',
-      'sort_by': 'primary_release_date.desc',
-      'language': 'en-US',
-    });
-    final pending = <_PendingTitle>[];
-    for (final raw in _list(json, 'results')) {
-      if (raw is! Map) continue;
-      final id = _int(raw['id']);
-      if (id == null) continue;
-      pending.add(_PendingTitle(raw, 'movie', id));
+  String _providerQueryParam(_ProviderIds ids, String mediaType, List<StreamingService> services) {
+    final matchedIds = <int>[];
+    for (final s in services) {
+      final pId = ids.idFor(s, mediaType);
+      if (pId != null) matchedIds.add(pId);
     }
-    return _mapPool(pending, (item) async {
-      final services = await _servicesFor(item.type, item.id, ids);
-      if (services.isEmpty) return null;
-      return _titleFrom(item.raw, item.type, services: services);
-    });
+    return matchedIds.join('|');
   }
 
-  Future<List<StreamingTitle>> _topRated(_ProviderIds ids) async {
-    final json = await _get('/movie/top_rated', {'language': 'en-US'});
-    final pending = <_PendingTitle>[];
-    for (final raw in _list(json, 'results')) {
-      if (raw is! Map) continue;
-      final id = _int(raw['id']);
-      if (id == null) continue;
-      pending.add(_PendingTitle(raw, 'movie', id));
+  Future<List<StreamingTitle>> _newThisWeek(_ProviderIds ids, List<StreamingService> enabledServices) async {
+    final now = DateTime.now();
+    final weekAgo = now.subtract(const Duration(days: 7));
+    final startDate = '${weekAgo.year}-${weekAgo.month.toString().padLeft(2, '0')}-${weekAgo.day.toString().padLeft(2, '0')}';
+    final endDate = '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
+
+    final found = <String, StreamingTitle>{};
+    for (final type in const ['movie', 'tv']) {
+      final providerIdsParam = _providerQueryParam(ids, type, enabledServices);
+      final queryMap = <String, String>{
+        'watch_region': _region,
+        'with_watch_monetization_types': 'flatrate',
+        'language': 'en-US',
+      };
+      if (providerIdsParam.isNotEmpty) {
+        queryMap['with_watch_providers'] = providerIdsParam;
+      }
+      if (type == 'movie') {
+        queryMap['primary_release_date.gte'] = startDate;
+        queryMap['primary_release_date.lte'] = endDate;
+      } else {
+        queryMap['first_air_date.gte'] = startDate;
+        queryMap['first_air_date.lte'] = endDate;
+      }
+
+      final json = await _get('/discover/$type', queryMap);
+      for (final raw in _list(json, 'results')) {
+        if (raw is! Map) continue;
+        final id = _int(raw['id']);
+        if (id == null) continue;
+        final title = _titleFrom(raw, type, services: enabledServices);
+        found['$type:$id'] = title;
+      }
     }
-    return _mapPool(pending, (item) async {
-      final services = await _servicesFor(item.type, item.id, ids);
-      if (services.isEmpty) return null;
-      return _titleFrom(item.raw, item.type, services: services);
-    });
+    return found.values.toList();
   }
 
-  Future<List<StreamingTitle>> _genreRow(int genreId, String genreName, _ProviderIds ids) async {
-    final json = await _get('/discover/movie', {
-      'with_genres': '$genreId',
-      'watch_region': _region,
-      'with_watch_monetization_types': 'flatrate',
-      'sort_by': 'popularity.desc',
-      'language': 'en-US',
-    });
-    final pending = <_PendingTitle>[];
-    for (final raw in _list(json, 'results')) {
-      if (raw is! Map) continue;
-      final id = _int(raw['id']);
-      if (id == null) continue;
-      pending.add(_PendingTitle(raw, 'movie', id));
+  Future<List<StreamingTitle>> _topRated(_ProviderIds ids, List<StreamingService> enabledServices) async {
+    final found = <String, StreamingTitle>{};
+    for (final type in const ['movie', 'tv']) {
+      final providerIdsParam = _providerQueryParam(ids, type, enabledServices);
+      final queryMap = <String, String>{
+        'watch_region': _region,
+        'with_watch_monetization_types': 'flatrate',
+        'sort_by': 'vote_average.desc',
+        'vote_count.gte': '200',
+        'language': 'en-US',
+      };
+      if (providerIdsParam.isNotEmpty) {
+        queryMap['with_watch_providers'] = providerIdsParam;
+      }
+
+      final json = await _get('/discover/$type', queryMap);
+      for (final raw in _list(json, 'results')) {
+        if (raw is! Map) continue;
+        final id = _int(raw['id']);
+        if (id == null) continue;
+        final title = _titleFrom(raw, type, services: enabledServices);
+        found['$type:$id'] = title;
+      }
     }
-    return _mapPool(pending, (item) async {
-      final services = await _servicesFor(item.type, item.id, ids);
-      if (services.isEmpty) return null;
-      return _titleFrom(item.raw, item.type, services: services);
-    });
+    return found.values.toList();
+  }
+
+  Future<List<StreamingTitle>> _genreRow(int genreId, String genreName, _ProviderIds ids, List<StreamingService> enabledServices) async {
+    final found = <String, StreamingTitle>{};
+    for (final type in const ['movie', 'tv']) {
+      final providerIdsParam = _providerQueryParam(ids, type, enabledServices);
+      final queryMap = <String, String>{
+        'with_genres': '$genreId',
+        'watch_region': _region,
+        'with_watch_monetization_types': 'flatrate',
+        'sort_by': 'popularity.desc',
+        'language': 'en-US',
+      };
+      if (providerIdsParam.isNotEmpty) {
+        queryMap['with_watch_providers'] = providerIdsParam;
+      }
+
+      final json = await _get('/discover/$type', queryMap);
+      for (final raw in _list(json, 'results')) {
+        if (raw is! Map) continue;
+        final id = _int(raw['id']);
+        if (id == null) continue;
+        final title = _titleFrom(raw, type, services: enabledServices);
+        found['$type:$id'] = title;
+      }
+    }
+    return found.values.toList();
   }
 
   Future<List<StreamingTitle>> _discoverService(
@@ -489,20 +610,12 @@ class TmdbStreamingClient {
         'include_adult': 'false',
         'language': 'en-US',
       });
-      final pending = <_PendingTitle>[];
       for (final raw in _list(json, 'results')) {
         if (raw is! Map) continue;
         final id = _int(raw['id']);
         if (id == null) continue;
-        pending.add(_PendingTitle(raw, type, id));
-      }
-      final titles = await _mapPool(pending, (item) async {
-        final services = await _servicesFor(item.type, item.id, ids);
-        if (!services.contains(service)) return null;
-        return _titleFrom(item.raw, item.type, services: services);
-      });
-      for (final title in titles) {
-        found['${title.mediaType}:${title.id}'] = title;
+        final title = _titleFrom(raw, type, services: [service]);
+        found['$type:$id'] = title;
       }
     }
     final titles = found.values.toList();
@@ -629,6 +742,7 @@ class TmdbStreamingClient {
     String mediaType, {
     required List<StreamingService> services,
     Map<StreamingService, String> providerTitleIds = const {},
+    Map<StreamingService, String> providerUrls = const {},
     String? overview,
     double? rating,
     int? runtimeMinutes,
@@ -644,12 +758,6 @@ class TmdbStreamingClient {
         : raw['release_date']?.toString();
 
     final id = _int(raw['id']) ?? 0;
-    final effectiveTitleIds = Map<StreamingService, String>.from(providerTitleIds);
-    for (final service in services) {
-      if (!effectiveTitleIds.containsKey(service)) {
-        effectiveTitleIds[service] = '$id';
-      }
-    }
 
     return StreamingTitle(
       id: id,
@@ -663,7 +771,8 @@ class TmdbStreamingClient {
       runtimeMinutes: runtimeMinutes,
       seasons: seasons,
       services: services,
-      providerTitleIds: effectiveTitleIds,
+      providerTitleIds: providerTitleIds,
+      providerUrls: providerUrls,
       cast: cast,
       youtubeTrailerKey: youtubeTrailerKey,
     );

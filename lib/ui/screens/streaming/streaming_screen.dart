@@ -114,9 +114,20 @@ class _StreamingScreenState extends State<StreamingScreen> with RouteAware {
         _searching = false;
         _load();
       } else {
-        _searchFocus.requestFocus();
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) _searchFocus.requestFocus();
+        });
       }
     });
+  }
+
+  Future<void> _openSettings() async {
+    await Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => StreamingSettingsScreen(store: store),
+      ),
+    );
+    _load();
   }
 
   @override
@@ -176,13 +187,7 @@ class _StreamingScreenState extends State<StreamingScreen> with RouteAware {
                 IconButton(
                   icon: const Icon(Icons.settings, color: Colors.white),
                   tooltip: 'Streaming settings',
-                  onPressed: () {
-                    Navigator.of(context).push(
-                      MaterialPageRoute<void>(
-                        builder: (_) => StreamingSettingsScreen(store: store),
-                      ),
-                    );
-                  },
+                  onPressed: _openSettings,
                 ),
               ],
             ),
@@ -213,13 +218,7 @@ class _StreamingScreenState extends State<StreamingScreen> with RouteAware {
       return Center(
         child: TextButton(
           autofocus: true,
-          onPressed: () {
-            Navigator.of(context).push(
-              MaterialPageRoute<void>(
-                builder: (_) => StreamingSettingsScreen(store: store),
-              ),
-            );
-          },
+          onPressed: _openSettings,
           child: const Text(
             kStreamingMissingKeyMessage,
             style: TextStyle(fontSize: 20),

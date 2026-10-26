@@ -66,7 +66,7 @@ class _StreamingDetailScreenState extends State<StreamingDetailScreen> {
       );
       AggregatedItem? jMatch;
       if (title != null) {
-        jMatch = await _findJellyfinMatch(title.title, widget.mediaType);
+        jMatch = await _findJellyfinMatch(title, widget.mediaType);
       }
       if (!mounted) return;
       setState(() {
@@ -84,11 +84,12 @@ class _StreamingDetailScreenState extends State<StreamingDetailScreen> {
     }
   }
 
-  Future<AggregatedItem?> _findJellyfinMatch(String name, String mediaType) async {
+  Future<AggregatedItem?> _findJellyfinMatch(StreamingTitle title, String mediaType) async {
     if (!GetIt.instance.isRegistered<SearchRepository>()) return null;
     try {
       final repo = GetIt.instance<SearchRepository>();
       final itemType = mediaType == 'tv' ? 'Series' : 'Movie';
+      final name = title.title;
       final results = await repo.search(
         name,
         includeItemTypes: [itemType],
@@ -97,6 +98,12 @@ class _StreamingDetailScreenState extends State<StreamingDetailScreen> {
       for (final item in results) {
         final itemName = item.rawData['Name']?.toString().toLowerCase();
         if (itemName == name.toLowerCase()) {
+          if (title.year != null && item.rawData['ProductionYear'] != null) {
+            final pYear = int.tryParse(item.rawData['ProductionYear'].toString());
+            if (pYear != null && (pYear - title.year!).abs() > 1) {
+              continue;
+            }
+          }
           return item;
         }
       }
@@ -293,6 +300,7 @@ class _StreamingDetailScreenState extends State<StreamingDetailScreen> {
                       service: title.services[i],
                       title: title.title,
                       providerTitleId: title.providerTitleIds[title.services[i]],
+                      providerUrl: title.providerUrls[title.services[i]],
                       autofocus: _jellyfinMatch == null && i == 0,
                       onPressed: () {
                         (widget.launcher ?? StreamingLauncher()).open(
@@ -300,6 +308,7 @@ class _StreamingDetailScreenState extends State<StreamingDetailScreen> {
                           service: title.services[i],
                           title: title.title,
                           providerTitleId: title.providerTitleIds[title.services[i]],
+                          providerUrl: title.providerUrls[title.services[i]],
                         );
                       },
                     ),
@@ -381,6 +390,7 @@ class _WatchButton extends StatefulWidget {
     required this.service,
     required this.title,
     this.providerTitleId,
+    this.providerUrl,
     required this.autofocus,
     required this.onPressed,
   });
@@ -388,6 +398,7 @@ class _WatchButton extends StatefulWidget {
   final StreamingService service;
   final String title;
   final String? providerTitleId;
+  final String? providerUrl;
   final bool autofocus;
   final VoidCallback onPressed;
 
@@ -409,10 +420,12 @@ class _WatchButtonState extends State<_WatchButton> {
   Widget build(BuildContext context) {
     final label = widget.service.watchButtonText(
       providerTitleId: widget.providerTitleId,
+      providerUrl: widget.providerUrl,
       title: widget.title,
     );
     final subtitle = widget.service.watchButtonSubtitle(
       providerTitleId: widget.providerTitleId,
+      providerUrl: widget.providerUrl,
       title: widget.title,
     );
 

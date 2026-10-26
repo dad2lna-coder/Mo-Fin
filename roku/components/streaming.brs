@@ -351,7 +351,7 @@ sub drawStreamDetail(body as object)
             color = "0x93C5FDFF"
             body.appendChild(makeRect(240, y - 4, 520, 48, "0x1E4B8CFF"))
         end if
-        body.appendChild(makeLabel(prefix + "Watch on " + buttons[i].label, 250, y, 500, 40, color))
+        body.appendChild(makeLabel(prefix + buttons[i].btnLabel, 250, y, 500, 40, color))
         y = y + 56
     end for
 end sub
@@ -362,15 +362,26 @@ function streamButtons() as object
     if item = invalid or item.serviceIds = invalid then return buttons
     for each service in streamingServices()
         if hasService(item.serviceIds, service.id) = false then continue for
-        link = rokuDeepLink(service.id, item.title)
+        contentId = ""
+        mediaType = "movie"
+        if item.mediaType <> invalid and item.mediaType <> "" then mediaType = item.mediaType
+        if item.providerTitleIds <> invalid and item.providerTitleIds[service.id] <> invalid then
+            contentId = item.providerTitleIds[service.id]
+        end if
+        link = rokuDeepLink(service.id, item.title, contentId, mediaType)
         if link = invalid then continue for
         link.label = service.label
+        if contentId <> "" then
+            link.btnLabel = "Play on " + service.label
+        else
+            link.btnLabel = "Open " + service.label
+        end if
         buttons.Push(link)
     end for
     return buttons
 end function
 
-function rokuDeepLink(service as string, title as string) as object
+function rokuDeepLink(service as string, title as string, contentId as string, mediaType as string) as object
     channelId = ""
     if service = "netflix" then channelId = "12"
     if service = "disney" then channelId = "291097"
@@ -379,8 +390,8 @@ function rokuDeepLink(service as string, title as string) as object
     if channelId = "" then return invalid
     return {
         channelId: channelId,
-        contentId: "",
-        mediaType: "movie"
+        contentId: contentId,
+        mediaType: mediaType
     }
 end function
 

@@ -45,11 +45,11 @@ void main() {
 
       // Direct title link
       final titleUri = service.androidTitleUri('abc-123-disney');
-      expect(titleUri?.toString(), 'https://www.disneyplus.com/content/abc-123-disney');
+      expect(titleUri?.toString(), 'https://www.disneyplus.com/browse/entity-abc-123-disney');
 
       // Web direct title
       final webUri = service.webUri(providerTitleId: 'abc-123-disney', title: 'The Mandalorian');
-      expect(webUri.toString(), 'https://www.disneyplus.com/content/abc-123-disney');
+      expect(webUri.toString(), 'https://www.disneyplus.com/browse/entity-abc-123-disney');
 
       // Disney+ on Android TV has no search intent
       expect(service.androidSearchUrl('The Mandalorian'), isNull);

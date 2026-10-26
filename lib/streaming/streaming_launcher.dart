@@ -18,19 +18,25 @@ class StreamingLauncher {
     required StreamingService service,
     required String title,
     String? providerTitleId,
+    String? providerUrl,
   }) async {
     if (PlatformDetection.isAndroid) {
       final installed = await _launchAndroid(
         service,
         title: title,
         providerTitleId: providerTitleId,
+        providerUrl: providerUrl,
       );
       if (!installed && context.mounted) {
         _toast(context, "${service.label} isn't installed");
       }
       return;
     }
-    final uri = service.webUri(providerTitleId: providerTitleId, title: title);
+    final uri = service.webUri(
+      providerTitleId: providerTitleId,
+      providerUrl: providerUrl,
+      title: title,
+    );
     final opened = await launchUrl(
       uri,
       mode: PlatformDetection.isWeb
@@ -47,12 +53,13 @@ class StreamingLauncher {
     StreamingService service, {
     required String title,
     String? providerTitleId,
+    String? providerUrl,
   }) async {
     try {
-      final cleanId = providerTitleId?.trim() ?? '';
-      final titleUrl = cleanId.isNotEmpty
-          ? service.androidTitleUri(cleanId)?.toString()
-          : null;
+      final titleUrl = service.androidTitleUri(
+        providerTitleId,
+        providerUrl: providerUrl,
+      )?.toString();
       final result = await _channel.invokeMethod<String>('launch', {
         'packages': service.androidPackages,
         'titleUrl': titleUrl,

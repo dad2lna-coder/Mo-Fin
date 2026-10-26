@@ -37,6 +37,37 @@ class TmdbKeyStore {
   }
 }
 
+class StreamingProviderKeyStore {
+  StreamingProviderKeyStore({FlutterSecureStorage? storage})
+      : _storage = storage ??
+            const FlutterSecureStorage(
+              mOptions: MacOsOptions(usesDataProtectionKeychain: false),
+            );
+
+  static const storageKey = 'mofin_streaming_provider_api_key';
+
+  final FlutterSecureStorage _storage;
+
+  Future<String> read() async {
+    try {
+      return (await _storage.read(key: storageKey))?.trim() ?? '';
+    } catch (_) {
+      return '';
+    }
+  }
+
+  Future<void> write(String value) async {
+    final trimmed = value.trim();
+    try {
+      if (trimmed.isEmpty) {
+        await _storage.delete(key: storageKey);
+        return;
+      }
+      await _storage.write(key: storageKey, value: trimmed);
+    } catch (_) {}
+  }
+}
+
 class StreamingSubscriptionPreferences {
   static const _prefKey = 'mofin_streaming_active_services';
 
