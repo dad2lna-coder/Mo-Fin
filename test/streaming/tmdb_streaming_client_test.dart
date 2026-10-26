@@ -2,6 +2,8 @@ import 'dart:convert';
 
 import 'package:clock/clock.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:http/http.dart' as http;
+import 'package:http/testing.dart' as http_testing;
 import 'package:moonfin/streaming/streaming_service.dart';
 import 'package:moonfin/streaming/tmdb_streaming_client.dart';
 
@@ -39,6 +41,62 @@ void main() {
       ]) {
         expect(streamingServiceForProviderName(rejected), isNull, reason: rejected);
       }
+    });
+  });
+
+  group('StreamingProviderClient fetchSources', () {
+    test('filters sub/free sources and maps provider aliases correctly', () async {
+      final mockClient = http_testing.MockClient((request) async {
+        expect(request.url.host, 'api.watchmode.com');
+        expect(request.url.queryParameters['apiKey'], 'wm-key');
+        return http.Response(
+          jsonEncode([
+            {
+              'type': 'rent',
+              'name': 'Disney Plus',
+              'web_url': 'https://disneyplus.com/rent',
+            },
+            {
+              'type': 'buy',
+              'name': 'Amazon Prime Video',
+              'web_url': 'https://primevideo.com/buy',
+            },
+            {
+              'type': 'sub',
+              'name': 'Disney+',
+              'source_title_id': 'disney-123',
+              'web_url': 'https://disneyplus.com/title/123',
+            },
+            {
+              'type': 'sub',
+              'name': 'HBO Max',
+              'source_title_id': 'max-456',
+              'web_url': 'https://play.max.com/title/456',
+            },
+            {
+              'type': 'sub',
+              'name': 'Prime Video',
+              'source_title_id': 'prime-789',
+              'web_url': 'https://primevideo.com/title/789',
+            },
+          ]),
+          200,
+        );
+      });
+
+      final providerClient = StreamingProviderClient(apiKey: 'wm-key', client: mockClient);
+      final sources = await providerClient.fetchSources('movie', 100);
+
+      expect(sources.length, 3);
+      final disney = sources.firstWhere((s) => s.service == StreamingService.disneyPlus);
+      expect(disney.nativeId, 'disney-123');
+      expect(disney.webUrl, 'https://disneyplus.com/title/123');
+
+      final max = sources.firstWhere((s) => s.service == StreamingService.max);
+      expect(max.nativeId, 'max-456');
+
+      final prime = sources.firstWhere((s) => s.service == StreamingService.primeVideo);
+      expect(prime.nativeId, 'prime-789');
     });
   });
 
@@ -183,6 +241,16 @@ void main() {
               {'provider_id': 4242, 'provider_name': 'Netflix'},
             ]));
           }
+          if (path.endsWith('/movie/1')) {
+            return ok({
+              'id': 1,
+              'title': 'On Netflix',
+              'release_date': '2024-05-02',
+            });
+          }
+          if (path.endsWith('/movie/top_rated')) {
+            return ok({'results': []});
+          }
           if (path.endsWith('/search/multi')) {
             return ok({
               'results': [
@@ -205,6 +273,18 @@ void main() {
           return ok({'results': []});
         },
       );
+    });
+
+    test('details passes providerApiKey and populates details correctly', () async {
+      final title = await client.details(
+        mediaType: 'movie',
+        id: 1,
+        providerApiKey: 'wm-key',
+      );
+
+      expect(title, isNotNull);
+      expect(title?.id, 1);
+      expect(title?.title, 'On Netflix');
     });
 
     test('trending keeps only flatrate titles on the four services', () async {
@@ -233,7 +313,7 @@ void main() {
       await client.loadHome();
 
       final movie = calls.where(
-        (uri) => uri.path == '/3/discover/movie',
+        (uri) => uri.path == '/3/discover/movie' && uri.queryParameters.containsKey('with_watch_providers'),
       );
       final netflixMovie = movie.where(
         (uri) => uri.queryParameters['with_watch_providers'] == '4242',
@@ -401,5 +481,5 @@ TmdbFetch clientFetch() {
 }
 
 List<StreamingTitle> pageRow({required List<StreamingRow> pageRows}) {
-  return pageRows.firstWhere((row) => row.title == 'Netflix').titles;
+  return pageRows.firstWhere((row) => row.title.contains('Netflix')).titles;
 }

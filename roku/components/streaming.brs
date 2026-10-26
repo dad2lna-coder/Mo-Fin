@@ -1,7 +1,7 @@
 ' Streaming tab. Talks only to TMDB. The four Roku channels
 ' (Netflix 12, Disney+ 291097, Max 61322, Prime Video 13) deep link with
-' their own content id, not a title, and TMDB does not return that id.
-' Buttons stay hidden and the detail screen says which service has it.
+' their own channel ID. When a provider content ID is unavailable, launching
+' the channel opens the provider app.
 
 sub showStreaming()
     m.mode = "streaming"
@@ -351,7 +351,7 @@ sub drawStreamDetail(body as object)
             color = "0x93C5FDFF"
             body.appendChild(makeRect(240, y - 4, 520, 48, "0x1E4B8CFF"))
         end if
-        body.appendChild(makeLabel(prefix + "Watch on " + buttons[i].label, 250, y, 500, 40, color))
+        body.appendChild(makeLabel(prefix + buttons[i].btnLabel, 250, y, 500, 40, color))
         y = y + 56
     end for
 end sub
@@ -362,17 +362,41 @@ function streamButtons() as object
     if item = invalid or item.serviceIds = invalid then return buttons
     for each service in streamingServices()
         if hasService(item.serviceIds, service.id) = false then continue for
-        link = rokuDeepLink(service.id, item.title)
+        contentId = ""
+        mediaType = "movie"
+        if item.mediaType <> invalid and item.mediaType <> "" then mediaType = item.mediaType
+        if item.providerTitleIds <> invalid and item.providerTitleIds[service.id] <> invalid then
+            contentId = item.providerTitleIds[service.id]
+        end if
+        link = rokuDeepLink(service.id, item.title, contentId, mediaType)
         if link = invalid then continue for
         link.label = service.label
+        if contentId <> "" then
+            link.btnLabel = "Play on " + service.label
+        else
+            link.btnLabel = "Open " + service.label
+        end if
         buttons.Push(link)
     end for
     return buttons
 end function
 
-function rokuDeepLink(service as string, title as string) as object
-    ' A title is not a content id. Returning invalid hides the button.
-    return invalid
+function rokuDeepLink(service as string, title as string, contentId as string, mediaType as string) as object
+    channelId = ""
+    if service = "netflix" then channelId = "12"
+    if service = "disney" then channelId = "291097"
+    if service = "max" then channelId = "61322"
+    if service = "prime" then channelId = "13"
+    if channelId = "" then return invalid
+
+    ecpMediaType = mediaType
+    if ecpMediaType = "tv" then ecpMediaType = "series"
+
+    return {
+        channelId: channelId,
+        contentId: contentId,
+        mediaType: ecpMediaType
+    }
 end function
 
 function servicesLine(item as object) as string

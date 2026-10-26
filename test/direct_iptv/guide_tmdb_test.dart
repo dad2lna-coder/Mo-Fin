@@ -314,7 +314,7 @@ void main() {
         },
       );
       final pending = [
-        for (var i = 0; i < 6)
+        for (var i = 0; i < 6; i++)
           lookup.lookup(GuideQuery.resolve(title: 'Show $i')),
       ];
       await _until(() => waiting.length >= 4 && active == 4);

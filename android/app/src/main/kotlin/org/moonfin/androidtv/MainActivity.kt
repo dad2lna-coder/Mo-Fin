@@ -1818,8 +1818,12 @@ class MainActivity : AudioServiceActivity(), GamepadsCompatibleActivity {
     private fun launchStreamingApp(args: Map<*, *>): String {
         val packages = (args["packages"] as? List<*>)?.mapNotNull { it as? String }.orEmpty()
         val searchUrl = args["searchUrl"] as? String
+        val titleUrl = args["titleUrl"] as? String
         for (pkg in packages) {
             val launch = streamingLaunchIntent(pkg) ?: continue
+            if (!titleUrl.isNullOrBlank() && startStreamingView(pkg, titleUrl)) {
+                return "opened"
+            }
             if (!searchUrl.isNullOrBlank() && startStreamingView(pkg, searchUrl)) {
                 return "opened"
             }

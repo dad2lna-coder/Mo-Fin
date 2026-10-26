@@ -32,12 +32,12 @@ extension StreamingServiceInfo on StreamingService {
 
   /// Fire TV package first, then the Android package when it differs.
   ///
-  /// Netflix on Fire TV is `com.netflix.ninja` (the phone app is
-  /// `com.netflix.mediaclient`). Disney+ is `com.disney.disneyplus` on both.
-  /// Max on Fire TV is `com.wbd.stream`; older sticks still have
-  /// `com.hbo.hbonow`. Prime Video on Fire TV is `com.amazon.firebat`.
-  /// `com.amazon.avod` is the older Fire OS package, and
-  /// `com.amazon.avod.thirdpartyclient` is the Appstore build.
+  /// Fire TV packages, in the order Dart sends them:
+  /// Netflix `com.netflix.ninja` (phone build is `com.netflix.mediaclient`),
+  /// Disney+ `com.disney.disneyplus`. Max is `com.wbd.stream`, then the
+  /// older `com.hbo.hbonow`. Prime Video on Fire TV is `com.amazon.firebat`,
+  /// then `com.amazon.avod`, then the Appstore package
+  /// `com.amazon.avod.thirdpartyclient`.
   List<String> get androidPackages => switch (this) {
         StreamingService.netflix => const [
             'com.netflix.ninja',
@@ -55,11 +55,27 @@ extension StreamingServiceInfo on StreamingService {
           ],
       };
 
+  /// Direct title deep link URI for Android/Fire TV if provider content ID or URL is available.
+  Uri? androidTitleUri(String? providerTitleId, {String? providerUrl}) {
+    if (providerUrl != null && providerUrl.trim().isNotEmpty) {
+      return Uri.parse(providerUrl.trim());
+    }
+    final cleanId = providerTitleId?.trim() ?? '';
+    if (cleanId.isEmpty) return null;
+    final url = switch (this) {
+      StreamingService.netflix => 'https://www.netflix.com/title/$cleanId',
+      StreamingService.disneyPlus => 'https://www.disneyplus.com/browse/entity-$cleanId',
+      StreamingService.max => 'https://play.max.com/video/watch/$cleanId',
+      StreamingService.primeVideo => 'https://watch.amazon.com/watch?gti=$cleanId',
+    };
+    return Uri.parse(url);
+  }
+
   /// VIEW intent the installed app can open on the title, or null when that
   /// app has no search deep link worth trying. Disney+ on Android TV only
   /// deep links by its own content id, so the launcher just opens the app.
   String? androidSearchUrl(String title) {
-    final query = Uri.encodeQueryComponent(title.trim());
+    final query = Uri.encodeComponent(title.trim());
     if (query.isEmpty) return null;
     return switch (this) {
       StreamingService.netflix => 'https://www.netflix.com/search?q=$query',
@@ -70,9 +86,27 @@ extension StreamingServiceInfo on StreamingService {
     };
   }
 
+  /// Direct title universal web link URI if provider title ID/URL is available, falling back to working web search/home.
+  Uri webUri({String? providerTitleId, String? providerUrl, required String title}) {
+    if (providerUrl != null && providerUrl.trim().isNotEmpty) {
+      return Uri.parse(providerUrl.trim());
+    }
+    final cleanId = providerTitleId?.trim() ?? '';
+    if (cleanId.isNotEmpty) {
+      final directUrl = switch (this) {
+        StreamingService.netflix => 'https://www.netflix.com/title/$cleanId',
+        StreamingService.disneyPlus => 'https://www.disneyplus.com/browse/entity-$cleanId',
+        StreamingService.max => 'https://play.max.com/video/watch/$cleanId',
+        StreamingService.primeVideo => 'https://www.primevideo.com/detail/$cleanId',
+      };
+      return Uri.parse(directUrl);
+    }
+    return webSearchUri(title);
+  }
+
   /// Website search opened in a new tab. These are not played inside Mo-Fin.
   Uri webSearchUri(String title) {
-    final query = Uri.encodeQueryComponent(title.trim());
+    final query = Uri.encodeComponent(title.trim());
     final url = switch (this) {
       StreamingService.netflix => 'https://www.netflix.com/search?q=$query',
       StreamingService.disneyPlus =>
@@ -83,11 +117,35 @@ extension StreamingServiceInfo on StreamingService {
     };
     return Uri.parse(url);
   }
+
+  /// User-friendly watch button label based on whether a direct title ID/URL is available.
+  String watchButtonText({String? providerTitleId, String? providerUrl, required String title}) {
+    final cleanId = providerTitleId?.trim() ?? '';
+    final cleanUrl = providerUrl?.trim() ?? '';
+    if (cleanId.isNotEmpty || cleanUrl.isNotEmpty) {
+      return 'Play on $label';
+    }
+    if (androidSearchUrl(title) != null) {
+      return 'Search on $label';
+    }
+    return 'Open $label';
+  }
+
+  /// Informational subtitle for watch buttons when direct link ID/URL is not available.
+  String? watchButtonSubtitle({String? providerTitleId, String? providerUrl, required String title}) {
+    final cleanId = providerTitleId?.trim() ?? '';
+    final cleanUrl = providerUrl?.trim() ?? '';
+    if (cleanId.isNotEmpty || cleanUrl.isNotEmpty) {
+      return null;
+    }
+    if (androidSearchUrl(title) != null) {
+      return 'Direct title link unavailable - opens search';
+    }
+    return 'Direct title link unavailable - opens app home';
+  }
 }
 
-/// Exact TMDB `provider_name` values for the four subscriptions. Ad tiers
-/// and "Amazon Channel" add-ons share the brand but are different providers,
-/// so a substring match would let them in.
+/// Exact TMDB `provider_name` values for the four subscriptions.
 StreamingService? streamingServiceForProviderName(String providerName) {
   return switch (providerName.trim().toLowerCase()) {
     'netflix' => StreamingService.netflix,
