@@ -47,6 +47,24 @@ void main() {
   };
   const sizes = {false: Size(844, 390), true: Size(390, 844)};
 
+  test('Amiga fire is button A, second fire is B, and the right stick is the mouse', () {
+    final layout = touchPadLayoutFor('amiga');
+    final fire = layout.controls.firstWhere((c) => c.label == 'A');
+    final second = layout.controls.firstWhere((c) => c.label == 'B');
+    final mouse = layout.controls.firstWhere((c) => c.label == 'Mouse');
+    expect(fire.kind, TouchControlKind.button);
+    expect(fire.mask, 1 << RetroPadId.b);
+    expect(second.mask, 1 << RetroPadId.a);
+    expect(mouse.kind, TouchControlKind.stick);
+    expect(mouse.rightStick, isTrue);
+    expect(mouse.digital, isFalse);
+    expect(
+      layout.controls.any(
+        (c) => c.label == 'LMB' && c.mask == 1 << RetroPadId.l2,
+      ),
+      isTrue,
+    );
+  });
   test('RetroPadId uses libretro names, unlike RetroPadButton', () {
     expect(RetroPadId.b, 0);
     expect(RetroPadId.a, 8);

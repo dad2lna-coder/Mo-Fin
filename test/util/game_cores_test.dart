@@ -127,6 +127,7 @@ void main() {
         'psp': 'ppsspp',
         'nds': 'melonds',
         'arcade': 'fbneo',
+        'amiga': 'puae',
       };
 
       for (final entry in expected.entries) {
@@ -142,6 +143,108 @@ void main() {
       expect(isArcadeFamilyCore('arcade'), isTrue);
       expect(isArcadeFamilyCore('mame'), isTrue);
       expect(isArcadeFamilyCore('nes'), isFalse);
+      expect(isArcadeFamilyCore('amiga'), isFalse);
+    });
+
+    test('PUAE is not bundled on Apple', () {
+      final puae = gameCoreCatalog.singleWhere((core) => core.coreId == 'puae');
+      expect(puae.bundledOnApple, isFalse);
+      expect(puae.bundledOnMacOS, isFalse);
+      expect(appleBundledCores.contains('puae'), isFalse);
+      expect(macosBundledCores.contains('puae'), isFalse);
+      expect(
+        _defaultFetchCores('ios/game_host/fetch_cores.sh').contains('puae'),
+        isFalse,
+      );
+      expect(
+        _defaultFetchCores('macos/game_host/fetch_cores.sh').contains('puae'),
+        isFalse,
+      );
+    });
+
+    test('Amiga does not change any other system mapping', () {
+      expect(libretroCoreId('nes'), 'fceumm');
+      expect(libretroCoreId('mame'), isNull);
+      expect(isArcadeFamilyCore('amiga'), isFalse);
+    });
+
+    test('Amiga rom names are the disk and playlist extensions only', () {
+      expect(isAmigaRomFileName('game.adf'), isTrue);
+      expect(isAmigaRomFileName('disk.hdf'), isTrue);
+      expect(isAmigaRomFileName('WHD/Game.LHA'), isTrue);
+      expect(isAmigaRomFileName(r'disks\game.ipf'), isTrue);
+      expect(isAmigaRomFileName('set.m3u'), isTrue);
+      expect(isAmigaRomFileName('readme.txt'), isFalse);
+      expect(isAmigaRomFileName('game.zip'), isFalse);
+      expect(isAmigaRomFileName('game.nes'), isFalse);
+    });
+
+    test('kickstart preference is A1200 then A500 then kick.rom then other kick files', () {
+      GameBios bios(String id, String fileName) =>
+          GameBios(id: id, fileName: fileName, sizeBytes: 1);
+
+      expect(
+        amigaKickstartBios([
+          bios('a500', 'kick34005.A500'),
+          bios('a1200', 'kick40068.A1200'),
+        ])?.id,
+        'a1200',
+      );
+      expect(
+        amigaKickstartBios([bios('a500', 'kick34005.A500')])?.id,
+        'a500',
+      );
+      expect(amigaKickstartBios([bios('rom', 'kick.rom')])?.id, 'rom');
+      expect(
+        amigaKickstartBios([bios('old', 'kick33180.A500')])?.id,
+        'old',
+      );
+      expect(amigaKickstartBios([bios('ini', 'scummvm.ini')]), isNull);
+      expect(amigaKickstartBios(const []), isNull);
+    });
+
+    test('emulatorJsBiosId keeps the first bios for every core except Amiga', () {
+      GameBios bios(String id, String fileName) =>
+          GameBios(id: id, fileName: fileName, sizeBytes: 1);
+
+      expect(
+        emulatorJsBiosId('psx', [
+          bios('psx', 'scph1001.bin'),
+          bios('kick', 'kick.rom'),
+        ]),
+        'psx',
+      );
+      expect(emulatorJsBiosId('nes', const []), isNull);
+      expect(
+        emulatorJsBiosId('amiga', [bios('psx', 'scph1001.bin')]),
+        isNull,
+      );
+      expect(
+        emulatorJsBiosId('amiga', [bios('kick', 'kick.rom')]),
+        'kick',
+      );
+    });
+
+    test('game system list name only rewrites a bare Amiga id', () {
+      expect(
+        gameSystemListName(id: 'amiga', name: ''),
+        'Commodore Amiga',
+      );
+      expect(
+        gameSystemListName(id: 'amiga', name: 'amiga'),
+        'Commodore Amiga',
+      );
+      expect(
+        gameSystemListName(id: 'amiga', name: 'Commodore Amiga'),
+        'Commodore Amiga',
+      );
+      expect(
+        gameSystemListName(id: 'atari2600', name: 'Atari 2600'),
+        'Atari 2600',
+      );
+      expect(gameSystemListName(id: 'nes', name: 'nes'), 'nes');
+      expect(isAmigaSystemId('Commodore Amiga'), isTrue);
+      expect(isAmigaSystemId('nes'), isFalse);
     });
 
     // FBNeo's license asks that frontends not redistribute the core, and the
@@ -482,6 +585,20 @@ void _coreOptionDefaultsTests() {
         })!['melonds_touch_mode'],
         'Mouse',
       );
+    });
+
+    test('PUAE uses the right stick as the mouse unless the user chose otherwise', () {
+      expect(
+        withCoreOptionDefaults('puae', null)!['puae_analogmouse'],
+        'right',
+      );
+      expect(
+        withCoreOptionDefaults('puae', {
+          'puae_analogmouse': 'both',
+        })!['puae_analogmouse'],
+        'both',
+      );
+      expect(withCoreOptionDefaults('snes9x', null), isNull);
     });
 
     test('Windows defaults N64 to the software renderer', () {

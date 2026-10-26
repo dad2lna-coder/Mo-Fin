@@ -621,6 +621,49 @@ TouchPadLayout touchPadLayoutFor(
         _tab(TouchCluster.shoulderRight, 'R', RetroPadId.r, vbGrey),
       ]);
       pills.addAll([_pill('SELECT', sel), _pill('START', start)]);
+    case 'amiga':
+      // PUAE reads libretro B as fire 1 and libretro A as fire 2. Those are
+      // the A and B buttons on a gamepad (see NativeMappingTables). The right
+      // stick is the mouse; L2 and R2 are the mouse buttons.
+      faceCenterOnDpad = false;
+      L.add(_cross(TouchCluster.left, 0, tall ? -8 : -20, 148));
+      F.add(
+        _stick(
+          TouchCluster.right,
+          'Mouse',
+          tall ? 8 : 36,
+          tall ? 78 : 48,
+          40,
+          rightStick: true,
+        ),
+      );
+      F.add(
+        _btn(
+          TouchCluster.right,
+          'A',
+          _bit(b),
+          const Color(0xFFE23B2F),
+          tall ? -62 : -72,
+          tall ? -36 : -62,
+          30,
+        ),
+      );
+      F.add(
+        _btn(
+          TouchCluster.right,
+          'B',
+          _bit(a),
+          const Color(0xFF3B6FE2),
+          tall ? 62 : 72,
+          tall ? -108 : -118,
+          22,
+        ),
+      );
+      sh.addAll([
+        _tab(TouchCluster.shoulderLeft, 'LMB', RetroPadId.l2, grey),
+        _tab(TouchCluster.shoulderRight, 'RMB', RetroPadId.r2, grey),
+      ]);
+      pills.add(_pill('KEY', sel));
     default:
       // An unknown system gets the SNES shell, which has every common RetroPad
       // button.

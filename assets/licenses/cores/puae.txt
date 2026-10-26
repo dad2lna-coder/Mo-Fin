@@ -1,0 +1,4 @@
+PUAE libretro core - licensed under the GNU General Public License v2.0
+
+PUAE is a libretro port of PUAE / WinUAE. The core is licensed under
+GPL-2.0. Source: https://github.com/libretro/libretro-uae

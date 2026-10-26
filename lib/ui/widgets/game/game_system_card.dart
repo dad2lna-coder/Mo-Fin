@@ -6,11 +6,13 @@ import 'package:server_core/server_core.dart';
 import '../../../data/services/retro_artwork/retro_artwork_activity_gate.dart';
 import '../../../data/services/retro_artwork/retro_artwork_transport.dart';
 import '../../../l10n/app_localizations.dart';
+import '../../../util/game_cores.dart';
 import '../../../util/game_library.dart';
 import '../../../util/focus/dpad_keys.dart';
 import '../../../util/platform_detection.dart';
 import '../media_card.dart';
 import 'game_card_focus_frame.dart';
+import 'amiga_system_mark.dart';
 import 'retro_artwork_image.dart';
 
 /// A focusable, artwork-backed platform tile used at the root of a retro-game
@@ -63,6 +65,14 @@ class _GameSystemCardState extends State<GameSystemCard> {
         : AppLocalizations.of(context).itemCountLabel(widget.gameCount!);
     final active = _hovered || _focused;
     final borders = ThemeRegistry.active.borders;
+    final systemLabel = gameSystemListName(
+      id: widget.system.id,
+      name: widget.system.name,
+    );
+    final amiga =
+        isAmigaSystemId(widget.system.id) ||
+        isAmigaSystemId(widget.system.core) ||
+        isAmigaSystemId(widget.system.name);
 
     final card = GameCardFocusFrame(
       active: active,
@@ -112,11 +122,13 @@ class _GameSystemCardState extends State<GameSystemCard> {
                         color: Colors.black.withValues(alpha: 0.34),
                         borderRadius: AppRadius.circular(12),
                       ),
-                      child: const Icon(
-                        Icons.sports_esports,
-                        color: Colors.white,
-                        size: 28,
-                      ),
+                      child: amiga
+                          ? const AmigaSystemMark()
+                          : const Icon(
+                              Icons.sports_esports,
+                              color: Colors.white,
+                              size: 28,
+                            ),
                     ),
                     const SizedBox(width: 14),
                     Expanded(
@@ -125,7 +137,7 @@ class _GameSystemCardState extends State<GameSystemCard> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            widget.system.name,
+                            systemLabel,
                             maxLines: 2,
                             overflow: TextOverflow.ellipsis,
                             style: const TextStyle(
@@ -169,8 +181,8 @@ class _GameSystemCardState extends State<GameSystemCard> {
     );
 
     final semanticLabel = countLabel == null
-        ? widget.system.name
-        : '${widget.system.name}, $countLabel';
+        ? systemLabel
+        : '$systemLabel, $countLabel';
 
     return Semantics(
       button: true,

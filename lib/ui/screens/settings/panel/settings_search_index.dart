@@ -1805,7 +1805,7 @@ List<_SettingsSearchEntry> _buildSettingsSearchIndex({
         'pref_use_native_emulator',
         l10n.useNativeEmulator,
         subtitle: l10n.useNativeEmulatorSubtitle,
-        keywords: ['games', 'retroarch'],
+        keywords: ['games', 'retroarch', 'amiga', 'commodore'],
       ),
     if (usesOnScreenControls)
       playback.leaf(
@@ -1815,7 +1815,7 @@ List<_SettingsSearchEntry> _buildSettingsSearchIndex({
         keywords: ['rotate', 'landscape', 'portrait', 'games'],
       ),
     if (supportsCoreDownloads && usesNativeGameBackend)
-      emulatorCores.screen(keywords: ['retroarch', 'games', 'systems']),
+      emulatorCores.screen(keywords: ['retroarch', 'games', 'systems', 'amiga', 'commodore', 'puae', 'kickstart']),
     if (usesNativeGameBackend)
       downloadedGames.screen(keywords: ['roms', 'storage']),
 

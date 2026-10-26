@@ -12,6 +12,7 @@ import '../../widgets/adaptive/adaptive_list_section.dart';
 import '../../widgets/focus/focusable_button.dart';
 import '../../widgets/focus/request_initial_focus.dart';
 import 'emulator_core_settings_screen.dart';
+import '../../widgets/game/amiga_system_mark.dart';
 import '../../widgets/settings/clean_settings_typography.dart';
 import '../../widgets/settings/preference_tiles.dart';
 import 'settings_app_bar.dart';
@@ -166,12 +167,20 @@ class _EmulatorCoresScreenState extends State<EmulatorCoresScreen> {
                         strokeWidth: 2,
                       ),
                     )
-                  : Icon(
-                      Icons.videogame_asset,
-                      color: focused
-                          ? AppColors.black.withValues(alpha: 0.54)
-                          : null,
-                    ),
+                  : core.coreId == 'puae'
+                      ? AmigaSystemMark(
+                          size: 24,
+                          color: focused
+                              ? AppColors.black.withValues(alpha: 0.54)
+                              : (IconTheme.of(context).color ??
+                                  AppColorScheme.onSurface),
+                        )
+                      : Icon(
+                          Icons.videogame_asset,
+                          color: focused
+                              ? AppColors.black.withValues(alpha: 0.54)
+                              : null,
+                        ),
               title: Text(
                 core.system,
                 style: TextStyle(

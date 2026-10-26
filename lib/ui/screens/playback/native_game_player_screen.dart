@@ -1059,6 +1059,7 @@ class _NativeGamePlayerScreenState extends State<NativeGamePlayerScreen>
         romFile,
         cacheDir,
         preserveArchive: isArcadeFamilyCore(widget.core),
+        amigaSet: widget.core == 'amiga',
       );
       if (contentPath == null) {
         _releaseGameplayArtworkBlock();
@@ -1262,6 +1263,7 @@ class _NativeGamePlayerScreenState extends State<NativeGamePlayerScreen>
     File file,
     Directory cacheDir, {
     bool preserveArchive = false,
+    bool amigaSet = false,
   }) async {
     if (preserveArchive) return file.path;
 
@@ -1280,6 +1282,14 @@ class _NativeGamePlayerScreenState extends State<NativeGamePlayerScreen>
     final input = InputFileStream(file.path);
     try {
       final archive = ZipDecoder().decodeStream(input);
+      if (amigaSet) {
+        final boot = await _extractAmigaMembers(archive, cacheDir);
+        if (boot != null) {
+          await marker.writeAsString(boot);
+          return boot;
+        }
+        if (_error != null) return null;
+      }
       ArchiveFile? best;
       for (final entry in archive) {
         if (!entry.isFile) continue;
@@ -1312,6 +1322,50 @@ class _NativeGamePlayerScreenState extends State<NativeGamePlayerScreen>
     } finally {
       await input.close();
     }
+  }
+
+  /// Unpacks every Amiga image in [archive]. A playlist boots ahead of the
+  /// largest disk so a multi-disk set stays together. Returns null when the
+  /// zip has no Amiga members, so the caller keeps the usual largest-file
+  /// path used by every other system.
+  Future<String?> _extractAmigaMembers(
+    Archive archive,
+    Directory cacheDir,
+  ) async {
+    final members = [
+      for (final entry in archive)
+        if (entry.isFile && isAmigaRomFileName(entry.name)) entry,
+    ];
+    if (members.isEmpty) return null;
+
+    String? playlist;
+    ArchiveFile? largest;
+    String? largestPath;
+    for (final entry in members) {
+      final String entryName;
+      try {
+        entryName = sanitizeDownloadFileName(
+          entry.name.split(RegExp(r'[/\\]')).last,
+        );
+      } on FormatException {
+        _setFatalError(
+          'The downloaded archive contains an unusable file name.',
+        );
+        return null;
+      }
+      final outPath = p.join(cacheDir.path, entryName);
+      final output = OutputFileStream(outPath);
+      entry.writeContent(output);
+      await output.close();
+      if (playlist == null && entryName.toLowerCase().endsWith('.m3u')) {
+        playlist = outPath;
+      }
+      if (largest == null || entry.size > largest.size) {
+        largest = entry;
+        largestPath = outPath;
+      }
+    }
+    return playlist ?? largestPath;
   }
 
   static Future<List<int>> _readSignature(File file) async {

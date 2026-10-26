@@ -237,6 +237,15 @@ const List<GameCore> gameCoreCatalog = [
     emulatorJsSystemCores: {'vb'},
     bundledOnMacOS: true,
   ),
+  // Not bundled on Apple. Android, Fire TV, Windows, and Linux download it
+  // from the libretro buildbot under the plain id, the same way as the
+  // other cores. macOS stays on EmulatorJS for this system.
+  GameCore(
+    coreId: 'puae',
+    system: 'Commodore Amiga',
+    approxSizeMb: 6,
+    emulatorJsSystemCores: {'amiga'},
+  ),
 ];
 
 /// The cores offered in the download manager. Kept as a named view for its
@@ -409,6 +418,9 @@ const Map<String, Map<String, String>> coreOptionDefaults = {
   // The core's default is a relative mouse, which the touch pad can't drive.
   // Touch reads the pointer the pad sends for the lower screen.
   'melonds': {'melonds_touch_mode': 'Touch'},
+  // Right analog is the mouse. Left at the core default ("both") would turn
+  // the left stick into a mouse as well, so the joystick stays on the d-pad.
+  'puae': {'puae_analogmouse': 'right'},
 };
 
 /// Windows-only additions to [coreOptionDefaults].
@@ -480,6 +492,73 @@ Future<void> writeCoreSettings(
 /// The libretro core id for an EmulatorJS core name, or null if there's no
 /// mapping for it.
 String? libretroCoreId(String core) => _libretroCores[core];
+
+/// Disk, hardfile, WHDLoad, and playlist names PUAE and EmulatorJS accept.
+/// A .zip is a container for these, not a member itself.
+const Set<String> amigaRomExtensions = {'.adf', '.hdf', '.lha', '.ipf', '.m3u'};
+
+/// True when [name] (a path or a bare file name) is an Amiga image PUAE can
+/// boot. Matching is on the extension only, so other systems are untouched.
+bool isAmigaRomFileName(String name) {
+  final base = name.split(RegExp(r'[/\\]')).last;
+  final dot = base.lastIndexOf('.');
+  if (dot <= 0) return false;
+  return amigaRomExtensions.contains(base.substring(dot).toLowerCase());
+}
+
+/// Kickstart images, most capable first. Anything else is left unset so PUAE
+/// boots its built-in AROS ROM.
+const List<String> _amigaKickstartNames = [
+  'kick40068.a1200',
+  'kick34005.a500',
+  'kick.rom',
+];
+
+/// The Kickstart [bios] the server provided for an Amiga system folder, or
+/// null when none of the files is a kickstart. An A1200 3.1 image wins, then
+/// an A500 1.3 image, then `kick.rom`, then any other `kick*` file.
+GameBios? amigaKickstartBios(Iterable<GameBios> bios) {
+  final files = bios.toList(growable: false);
+  if (files.isEmpty) return null;
+  String key(GameBios file) => file.fileName.trim().toLowerCase();
+  for (final wanted in _amigaKickstartNames) {
+    for (final file in files) {
+      if (key(file) == wanted) return file;
+    }
+  }
+  for (final file in files) {
+    if (key(file).startsWith('kick')) return file;
+  }
+  return null;
+}
+
+/// BIOS query id for the EmulatorJS player. Amiga passes a kickstart only;
+/// every other core keeps the first BIOS the server listed.
+String? emulatorJsBiosId(String core, List<GameBios> bios) {
+  if (core == 'amiga') return amigaKickstartBios(bios)?.id;
+  if (bios.isEmpty) return null;
+  return bios.first.id;
+}
+
+/// True for the Commodore Amiga system id or its bare name. Folder names the
+/// server already spelled out ("Commodore Amiga") match too.
+bool isAmigaSystemId(String value) {
+  final normalized = value.trim().toLowerCase().replaceAll(
+    RegExp(r'[^a-z0-9]'),
+    '',
+  );
+  return normalized == 'amiga' || normalized == 'commodoreamiga';
+}
+
+/// Label for a system tile. Commodore Amiga is filled in when the server only
+/// sent the id. Every other name is returned unchanged.
+String gameSystemListName({required String id, required String name}) {
+  final trimmed = name.trim();
+  if (isAmigaSystemId(id) || isAmigaSystemId(trimmed)) {
+    if (trimmed.isEmpty || isAmigaSystemId(trimmed)) return 'Commodore Amiga';
+  }
+  return trimmed.isEmpty ? id : trimmed;
+}
 
 /// Whether the native backend on this platform can play the given system. The
 /// bundled Apple targets only run their fixed set. macOS, Android, and desktop

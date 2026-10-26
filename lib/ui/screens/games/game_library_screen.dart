@@ -12,6 +12,7 @@ import '../../../data/services/retro_artwork/retro_artwork_cache.dart';
 import '../../../data/services/retro_artwork/retro_artwork_transport.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../../preference/user_preferences.dart';
+import '../../../util/game_cores.dart';
 import '../../../util/focus/dpad_keys.dart';
 import '../../../util/focus/grid_focus_node_mixin.dart';
 import '../../../util/platform_detection.dart';
@@ -235,6 +236,10 @@ class _GameLibraryScreenState extends State<GameLibraryScreen>
           itemCount: _systems.length,
           itemBuilder: (context, index) {
             final system = _systems[index];
+            final systemLabel = gameSystemListName(
+              id: system.id,
+              name: system.name,
+            );
             return GameSystemCard(
               system: system,
               gameCount: system.gameCount,
@@ -266,7 +271,7 @@ class _GameLibraryScreenState extends State<GameLibraryScreen>
                 Destinations.gameSystemOf(
                   widget.libraryId,
                   system.id,
-                  systemName: system.name,
+                  systemName: systemLabel,
                 ),
               ),
             );

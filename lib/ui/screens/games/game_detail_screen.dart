@@ -375,7 +375,7 @@ class _GameDetailScreenState extends State<GameDetailScreen> with RouteAware {
       );
       return;
     }
-    final biosId = game.bios.isNotEmpty ? game.bios.first.id : null;
+    final biosId = emulatorJsBiosId(game.core, game.bios);
     context.push(
       Destinations.gamePlayerOf(
         widget.libraryId,
