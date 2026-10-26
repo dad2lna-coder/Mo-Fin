@@ -24,6 +24,7 @@ class RetroArtworkImage extends StatefulWidget {
     this.fillBehind = false,
     this.settleDelay = defaultSettleDelay,
     this.onLoadFinished,
+    this.onIntrinsicAspect,
     this.errorBuilder,
   });
 
@@ -46,6 +47,11 @@ class RetroArtworkImage extends StatefulWidget {
   /// Paints a blurred copy of the same decoded image behind contained art.
   final bool fillBehind;
   final VoidCallback? onLoadFinished;
+
+  /// Width / height of the decoded image. Fired once, after the frame that
+  /// produced it, so a parent can record the shape without setState-during-build.
+  /// Servers that omit artwork dimensions (plugin 2.x) use this instead.
+  final ValueChanged<double>? onIntrinsicAspect;
   final Widget Function(BuildContext context, Object error)? errorBuilder;
 
   @override
@@ -57,6 +63,8 @@ class _RetroArtworkImageState extends State<RetroArtworkImage> {
   RetroArtworkActivityPermit? _providerPermit;
   RetroArtworkActivityPermit? _decodePermit;
   ImageProvider? _decodedProvider;
+  ImageStream? _aspectStream;
+  ImageStreamListener? _aspectListener;
   Object? _error;
   int _epoch = 0;
   bool _rebuildQueued = false;
@@ -173,6 +181,37 @@ class _RetroArtworkImageState extends State<RetroArtworkImage> {
     setState(() {
       _decodedProvider = provider;
     });
+    _watchAspect(provider);
+  }
+
+  void _watchAspect(ImageProvider provider) {
+    _stopWatchingAspect();
+    if (widget.onIntrinsicAspect == null) return;
+    final stream = provider.resolve(const ImageConfiguration());
+    final listener = ImageStreamListener((info, _) {
+      final width = info.image.width;
+      final height = info.image.height;
+      _stopWatchingAspect();
+      if (width <= 0 || height <= 0 || !mounted) return;
+      final aspect = width / height;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        widget.onIntrinsicAspect?.call(aspect);
+      });
+    }, onError: (_, _) => _stopWatchingAspect());
+    _aspectStream = stream;
+    _aspectListener = listener;
+    stream.addListener(listener);
+  }
+
+  void _stopWatchingAspect() {
+    final listener = _aspectListener;
+    final stream = _aspectStream;
+    if (listener != null && stream != null) {
+      stream.removeListener(listener);
+    }
+    _aspectListener = null;
+    _aspectStream = null;
   }
 
   bool _isCurrent(int epoch, RetroArtworkActivityPermit permit) =>
@@ -208,6 +247,7 @@ class _RetroArtworkImageState extends State<RetroArtworkImage> {
     if (provider != null) {
       PaintingBinding.instance.imageCache.evict(provider);
     }
+    _stopWatchingAspect();
     if (notify) _scheduleRebuild();
   }
 
@@ -247,6 +287,7 @@ class _RetroArtworkImageState extends State<RetroArtworkImage> {
   void dispose() {
     _settleTimer?.cancel();
     widget.activityGate.removeListener(_onGateChanged);
+    _stopWatchingAspect();
     _cancelAndEvict('Artwork widget was disposed', notify: false);
     super.dispose();
   }
@@ -278,28 +319,49 @@ class _RetroArtworkImageState extends State<RetroArtworkImage> {
       },
     );
     if (!widget.fillBehind) return image;
+    return RetroArtworkBackdrop(
+      backdrop: Image(
+        image: provider,
+        fit: BoxFit.cover,
+        filterQuality: FilterQuality.low,
+      ),
+      child: image,
+    );
+  }
+}
+
+/// Blurred cover copy behind contained art, so a landscape box in a portrait
+/// cell (or the reverse) stays whole instead of being cropped.
+class RetroArtworkBackdrop extends StatelessWidget {
+  const RetroArtworkBackdrop({
+    super.key,
+    required this.backdrop,
+    required this.child,
+  });
+
+  final Widget backdrop;
+  final Widget child;
+
+  static const double blurSigma = 12;
+
+  @override
+  Widget build(BuildContext context) {
     return Stack(
       fit: StackFit.expand,
       children: [
         ClipRect(
           child: ImageFiltered(
             imageFilter: ImageFilter.blur(
-              sigmaX: _fillBlurSigma,
-              sigmaY: _fillBlurSigma,
+              sigmaX: blurSigma,
+              sigmaY: blurSigma,
               tileMode: TileMode.decal,
             ),
-            child: Image(
-              image: provider,
-              fit: BoxFit.cover,
-              filterQuality: FilterQuality.low,
-            ),
+            child: backdrop,
           ),
         ),
         const ColoredBox(color: Color(0x73000000)),
-        image,
+        child,
       ],
     );
   }
-
-  static const double _fillBlurSigma = 12;
 }

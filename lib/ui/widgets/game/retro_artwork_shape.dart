@@ -37,6 +37,18 @@ abstract final class RetroArtworkShape {
     final difference = aspectRatio / cellAspectRatio;
     return difference < 0.95 || difference > 1.05;
   }
+
+  /// Contain (don't crop) when the cell shape or the art shape is unknown, or
+  /// when the two disagree enough to leave a gap. [shapeAspect] is the aspect
+  /// of the cell actually being painted.
+  static bool shouldContain({
+    required double? cellAspect,
+    required double? artAspect,
+    required double shapeAspect,
+  }) =>
+      cellAspect == null ||
+      artAspect == null ||
+      needsFill(artAspect, shapeAspect);
 }
 
 @immutable

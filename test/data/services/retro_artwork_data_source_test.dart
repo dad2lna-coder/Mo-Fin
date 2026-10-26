@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
@@ -393,35 +394,31 @@ void main() {
     },
   );
 
-  test(
-    'legacy suppresses 404s for the screen and retries transient failures on re-entry',
-    () async {
-      when(
-        () => gamesApi.thumbUrl(
-          libraryId: any(named: 'libraryId'),
-          gameId: any(named: 'gameId'),
-          kind: any(named: 'kind'),
-        ),
-      ).thenReturn('https://server.example/thumb');
-      final adapter = LegacyArtworkAdapter(gamesApi: gamesApi);
-      await adapter.refreshSystem(libraryId: 'retro', systemId: 'nes');
+  test('legacy suppresses 404s for the screen and retries transient failures on re-entry', () async {
+    when(
+      () => gamesApi.thumbUrl(
+        libraryId: any(named: 'libraryId'),
+        gameId: any(named: 'gameId'),
+        kind: any(named: 'kind'),
+      ),
+    ).thenReturn('https://server.example/thumb');
+    final adapter = LegacyArtworkAdapter(gamesApi: gamesApi);
+    await adapter.refreshSystem(libraryId: 'retro', systemId: 'nes');
 
-      adapter.reportImageFailure('missing', statusCode: 404);
-      adapter.reportImageFailure('unstable', statusCode: 503);
-      expect(adapter.imageFor('missing'), isNull);
-      expect(adapter.imageFor('unstable'), isNull);
-      adapter.onRouteReentered();
-      expect(adapter.imageFor('missing'), isNull);
-      expect(adapter.imageFor('unstable'), isNotNull);
-    },
-  );
+    adapter.reportImageFailure('missing', statusCode: 404);
+    adapter.reportImageFailure('unstable', statusCode: 503);
+    expect(adapter.imageFor('missing'), isNull);
+    expect(adapter.imageFor('unstable'), isNull);
+    adapter.onRouteReentered();
+    expect(adapter.imageFor('missing'), isNull);
+    expect(adapter.imageFor('unstable'), isNotNull);
+  });
 
   test(
     'app resume retries transient failures on active factory adapters',
     () async {
-      when(
-        () => gamesApi.getArtworkCapabilities(),
-      ).thenAnswer((_) async => null);
+      when(() => gamesApi.getArtworkCapabilities())
+          .thenAnswer((_) async => null);
       when(
         () => gamesApi.thumbUrl(
           libraryId: any(named: 'libraryId'),
@@ -444,6 +441,106 @@ void main() {
       expect(adapter.imageFor('unstable'), isNotNull);
     },
   );
+
+  test('decoded box art fills in sizes the server left out', () async {
+    _stubManifestFor(
+      gamesApi,
+      libraryId: 'retro',
+      systemId: 'snes',
+      manifest: GameArtworkManifest(
+        generation: 'g1',
+        entries: [
+          for (final id in ['a', 'b'])
+            GameArtworkManifestEntry(
+              gameId: id,
+              artwork: {
+                'boxart': GameArtworkDescriptor(
+                  state: 'thumbnailReady',
+                  revision: 'v1',
+                  url: '/art/$id',
+                ),
+              },
+            ),
+        ],
+      ),
+    );
+    final adapter = _buildAdapter(gamesApi, activityGate, transport);
+    addTearDown(adapter.dispose);
+    await adapter.refreshSystem(libraryId: 'retro', systemId: 'snes');
+    expect(adapter.snapshot?.medianBoxartAspectRatio, isNull);
+
+    adapter.reportDecodedBoxartAspect('a', 512 / 357);
+    await Future<void>.delayed(Duration.zero);
+    expect(adapter.snapshot?.aspectRatioFor('a'), isNull);
+
+    adapter.reportDecodedBoxartAspect('b', 512 / 374);
+    await Future<void>.delayed(Duration.zero);
+    expect(adapter.snapshot?.aspectRatioFor('a'), closeTo(512 / 357, 0.001));
+    expect(adapter.snapshot?.aspectRatioFor('b'), closeTo(512 / 374, 0.001));
+    expect(
+      adapter.snapshot?.medianBoxartAspectRatio,
+      closeTo(((512 / 357) + (512 / 374)) / 2, 0.001),
+    );
+  });
+
+  test('a missing thumbnail falls back to the ROM folder poster', () async {
+    final rom = '/roms/snes/3x3 Eyes/3x3 Eyes (Japan).smc';
+    final gameId = base64Url.encode(utf8.encode(rom)).replaceAll('=', '');
+    final readyId = base64Url
+        .encode(utf8.encode('/roms/snes/Kick Back/Kick Back.sfc'))
+        .replaceAll('=', '');
+    _stubManifestFor(
+      gamesApi,
+      libraryId: 'retro',
+      systemId: 'snes',
+      manifest: GameArtworkManifest(
+        generation: 'g1',
+        entries: [
+          GameArtworkManifestEntry(
+            gameId: gameId,
+            artwork: {'boxart': const GameArtworkDescriptor(state: 'missing')},
+          ),
+          GameArtworkManifestEntry(
+            gameId: readyId,
+            artwork: {
+              'boxart': const GameArtworkDescriptor(
+                state: 'thumbnailReady',
+                revision: 'v1',
+                url: '/art/kick',
+              ),
+            },
+          ),
+        ],
+      ),
+    );
+    final adapter = _buildAdapter(
+      gamesApi,
+      activityGate,
+      transport,
+      folderCovers: (_) async => const [
+        RomFolderCover(
+          path: '/roms/snes/3x3 Eyes',
+          name: '3x3 Eyes',
+          imageUrl: 'https://server.example/Items/eyes/Images/Primary',
+          aspectRatio: 680 / 1000,
+        ),
+      ],
+    );
+    addTearDown(adapter.dispose);
+    await adapter.refreshSystem(libraryId: 'retro', systemId: 'snes');
+    await adapter.considerFolderCovers([gameId, readyId]);
+
+    expect(
+      adapter.imageFor(gameId)?.legacyUrl,
+      'https://server.example/Items/eyes/Images/Primary',
+    );
+    expect(adapter.folderTitleFor(gameId), '3x3 Eyes');
+    expect(adapter.snapshot?.aspectRatioFor(gameId), closeTo(0.68, 0.001));
+    expect(adapter.imageFor(readyId)?.legacyUrl, isNull);
+    expect(adapter.imageFor(readyId)?.source?.uri.toString(), '/art/kick');
+    // A portrait stand-in must not reshape the system's box-art grid.
+    expect(adapter.snapshot?.medianBoxartAspectRatio, isNull);
+  });
 }
 
 /// Stubs [GamesApi.getArtworkManifest] for a specific library/system pair.
@@ -485,6 +582,7 @@ ManifestArtworkAdapter _buildAdapter(
   RetroArtworkTransport transport, {
   Duration imageRetryBackoff = const Duration(milliseconds: 750),
   Duration priorityDebounce = const Duration(milliseconds: 180),
+  Future<List<RomFolderCover>> Function(String libraryId)? folderCovers,
 }) {
   return ManifestArtworkAdapter(
     gamesApi: gamesApi,
@@ -494,5 +592,6 @@ ManifestArtworkAdapter _buildAdapter(
     supportsPriorityHints: true,
     imageRetryBackoff: imageRetryBackoff,
     priorityDebounce: priorityDebounce,
+    folderCovers: folderCovers,
   );
 }

@@ -11,6 +11,7 @@ import '../../../util/platform_detection.dart';
 import '../bounded_network_image.dart';
 import '../media_card.dart';
 import 'game_card_focus_frame.dart';
+import 'retro_artwork_image.dart';
 import 'retro_artwork_shape.dart';
 
 /// A box-art card for one game, with a seeded color + controller-icon fallback
@@ -51,6 +52,8 @@ class GamePosterCard extends StatefulWidget {
     this.cacheManager,
     this.artwork,
     this.onArtworkError,
+    this.imageFit = BoxFit.cover,
+    this.fillBehind = false,
   });
 
   final String? imageUrl;
@@ -85,6 +88,12 @@ class GamePosterCard extends StatefulWidget {
   /// When present it replaces the legacy cache-manager URL path entirely.
   final Widget? artwork;
   final ValueChanged<Object>? onArtworkError;
+
+  /// Fit for the legacy URL path. Protocol-2 [artwork] owns its own fit.
+  final BoxFit imageFit;
+
+  /// Blurred cover behind a contained legacy image. Ignored when [artwork] is set.
+  final bool fillBehind;
 
   @override
   State<GamePosterCard> createState() => _GamePosterCardState();
@@ -173,11 +182,29 @@ class _GamePosterCardState extends State<GamePosterCard> {
         child: GestureDetector(
           behavior: HitTestBehavior.opaque,
           onTap: widget.onTap,
-          child: RepaintBoundary(
-            child: _buildCard(context, active, scale),
-          ),
+          child: RepaintBoundary(child: _buildCard(context, active, scale)),
         ),
       ),
+    );
+  }
+
+  Widget _legacyArtwork(String url) {
+    Widget image(BoxFit fit) => BoundedNetworkImage(
+      imageUrl: url,
+      cacheManager: widget.cacheManager ?? gameArtworkCacheManager,
+      fit: fit,
+      maxWidth: 1024,
+      onLoadFinished: widget.onArtworkLoadFinished,
+      // The fallback underneath remains visible on error.
+      errorBuilder: (_, _, error) {
+        widget.onArtworkError?.call(error);
+        return const SizedBox.shrink();
+      },
+    );
+    if (!widget.fillBehind) return image(widget.imageFit);
+    return RetroArtworkBackdrop(
+      backdrop: image(BoxFit.cover),
+      child: image(BoxFit.contain),
     );
   }
 
@@ -225,19 +252,7 @@ class _GamePosterCardState extends State<GamePosterCard> {
                       if (widget.artwork != null)
                         widget.artwork!
                       else
-                        BoundedNetworkImage(
-                          imageUrl: url!,
-                          cacheManager:
-                              widget.cacheManager ?? gameArtworkCacheManager,
-                          fit: BoxFit.cover,
-                          maxWidth: 1024,
-                          onLoadFinished: widget.onArtworkLoadFinished,
-                          // The fallback underneath remains visible on error.
-                          errorBuilder: (_, _, error) {
-                            widget.onArtworkError?.call(error);
-                            return const SizedBox.shrink();
-                          },
-                        ),
+                        _legacyArtwork(url!),
                     ],
                   ),
           ),

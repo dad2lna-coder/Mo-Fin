@@ -8,6 +8,7 @@ import 'package:server_core/server_core.dart';
 
 import '../../../preference/user_preferences.dart';
 import '../../../util/game_artwork_cache.dart';
+import '../../../util/game_library.dart';
 import '../../../util/platform_detection.dart';
 import '../bounded_network_image.dart';
 import '../media_card.dart';
@@ -112,11 +113,16 @@ class GamePosterRail extends StatelessWidget {
               );
               final cell = RetroArtworkShape.cellFor(artAspect);
               final width = cardWidth * cell.width;
-              final containArt =
-                  artAspect != null &&
-                  RetroArtworkShape.needsFill(artAspect, cell.aspectRatio);
+              final containArt = RetroArtworkShape.shouldContain(
+                cellAspect: artAspect,
+                artAspect: artAspect,
+                shapeAspect: cell.aspectRatio,
+              );
+              final learnAspect = artworkDataSource?.reportsDimensions == false;
               return GamePosterCard(
                 imageUrl: reference?.legacyUrl,
+                imageFit: containArt ? BoxFit.contain : BoxFit.cover,
+                fillBehind: containArt && source == null,
                 artwork: source == null || transport == null || gate == null
                     ? null
                     : RetroArtworkImage(
@@ -131,6 +137,10 @@ class GamePosterRail extends StatelessWidget {
                         ),
                         fit: containArt ? BoxFit.contain : BoxFit.cover,
                         fillBehind: containArt,
+                        onIntrinsicAspect: learnAspect
+                            ? (aspect) => artworkDataSource
+                                  ?.reportDecodedBoxartAspect(game.id, aspect)
+                            : null,
                         onLoadFinished: () => artworkDataSource
                             ?.reportImageLoaded(game.id, role: 'boxart'),
                         errorBuilder: (_, error) {
@@ -142,7 +152,11 @@ class GamePosterRail extends StatelessWidget {
                           return const SizedBox.shrink();
                         },
                       ),
-                title: game.title,
+                title: preferGameFolderTitle(
+                  title: game.title,
+                  fileName: game.fileName,
+                  folderTitle: artworkDataSource?.folderTitleFor(game.id),
+                ),
                 fileName: game.fileName,
                 seed: game.id,
                 width: width,

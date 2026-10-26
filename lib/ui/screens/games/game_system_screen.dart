@@ -133,6 +133,9 @@ class _GameSystemScreenState extends State<GameSystemScreen>
   // Fixed for the visit once adopted; null is the portrait cell.
   double? _gridCellAspect;
   bool _gridCellAspectLocked = false;
+  // A server that omits dimensions must not keep a stored shape. This latches
+  // only after decoded art (or a descriptor that still carried a size) adopts one.
+  bool _learnedGridCellAspect = false;
   int? _focusedGridIndex;
   double _lastGridTopPadding = _gridTopPadding;
   ModalRoute<dynamic>? _observedRoute;
@@ -173,6 +176,9 @@ class _GameSystemScreenState extends State<GameSystemScreen>
     if (mounted) {
       setState(_adoptGridCellAspect);
       _scheduleArtworkPriority();
+      unawaited(
+        dataSource.considerFolderCovers(_browse.games.map((game) => game.id)),
+      );
     }
   }
 
@@ -186,11 +192,8 @@ class _GameSystemScreenState extends State<GameSystemScreen>
     final dataSource = _retroArtworkDataSource;
     if (dataSource == null) return;
     final before = _gridCellAspect;
-    if (!dataSource.reportsDimensions) {
-      _gridCellAspect = null;
-      _gridCellAspectLocked = true;
-    } else {
-      final median = dataSource.snapshot?.medianBoxartAspectRatio;
+    final median = dataSource.snapshot?.medianBoxartAspectRatio;
+    if (dataSource.reportsDimensions) {
       if (median == null) return;
       if (!_gridCellAspectLocked) {
         _gridCellAspect = median;
@@ -199,6 +202,17 @@ class _GameSystemScreenState extends State<GameSystemScreen>
       final stored = _prefs.gameGridCellAspect(_artworkScope);
       if (stored == null || (stored - median).abs() > 0.01) {
         unawaited(_prefs.setGameGridCellAspect(_artworkScope, median));
+      }
+    } else if (!_learnedGridCellAspect) {
+      // Plugin 2.x sends no sizes. Ignore a stored shape and stay on the
+      // portrait cell until decoded images report one.
+      _gridCellAspectLocked = false;
+      if (median == null) {
+        _gridCellAspect = null;
+      } else {
+        _gridCellAspect = median;
+        _gridCellAspectLocked = true;
+        _learnedGridCellAspect = true;
       }
     }
     if (before != _gridCellAspect) _keepFocusedGameAfterReshape();
@@ -691,7 +705,7 @@ class _GameSystemScreenState extends State<GameSystemScreen>
                   : _browse.gameDetails[_browse.hudGame!.id],
               displayTitle: _browse.hudGame == null
                   ? null
-                  : _browse.displayTitles[_browse.hudGame!.id],
+                  : _hudTitle(_browse.hudGame!),
             ),
           ],
           SizedBox(height: showDetails ? 2 : 8),
@@ -825,10 +839,14 @@ class _GameSystemScreenState extends State<GameSystemScreen>
     // top, leaving topPadding above it for the focus zoom.
     final firstVisibleRow = ((current - 0.5) / rowStride).ceil();
     final firstCutOffRow =
-        ((current + position.viewportDimension + 0.5 - topPadding - cardHeight) /
-                    rowStride)
-                .floor() +
-            1;
+        ((current +
+                    position.viewportDimension +
+                    0.5 -
+                    topPadding -
+                    cardHeight) /
+                rowStride)
+            .floor() +
+        1;
     final fullRows = firstCutOffRow - firstVisibleRow;
     final rows = fullRows < 1 ? 1 : fullRows;
     final lastRow = (itemCount - 1) ~/ crossAxisCount;
@@ -1018,9 +1036,8 @@ class _GameSystemScreenState extends State<GameSystemScreen>
           next < pending.length) {
         final (gameId, url) = pending[next++];
         try {
-          await gameArtworkCacheManagerForScope(
-            _artworkScope,
-          ).getSingleFile(url);
+          await gameArtworkCacheManagerForScope(_artworkScope)
+              .getSingleFile(url);
           dataSource.reportImageLoaded(gameId);
         } catch (error) {
           dataSource.reportImageFailure(
@@ -1037,6 +1054,19 @@ class _GameSystemScreenState extends State<GameSystemScreen>
     await Future.wait(<Future<void>>[
       for (var index = 0; index < workerCount; index++) worker(),
     ]);
+  }
+
+  String _hudTitle(GameSummary game) {
+    final raw = preferGameFolderTitle(
+      title: game.title,
+      fileName: game.fileName,
+      folderTitle: _retroArtworkDataSource?.folderTitleFor(game.id),
+    );
+    if (identical(raw, game.title)) {
+      return _browse.displayTitles[game.id] ??
+          gameDisplayTitle(game.title, game.fileName);
+    }
+    return gameDisplayTitle(raw, game.fileName);
   }
 
   int? _statusCodeFromArtworkError(Object error) {
@@ -1077,11 +1107,13 @@ class _GameSystemScreenState extends State<GameSystemScreen>
             : 12.0;
 
         final columnCount =
-            ((availableWidth + preferredSpacing) / (preferredCardWidth + preferredSpacing))
+            ((availableWidth + preferredSpacing) /
+                    (preferredCardWidth + preferredSpacing))
                 .floor()
                 .clamp(2, 20);
         final cardWidth =
-            (availableWidth - preferredSpacing * (columnCount - 1)) / columnCount;
+            (availableWidth - preferredSpacing * (columnCount - 1)) /
+            columnCount;
         final gridSpacing = (cardFocusExpansion && !isMobile)
             ? MediaCard.focusGap(cardWidth, minimum: 12.0)
             : 12.0;
@@ -1166,15 +1198,17 @@ class _GameSystemScreenState extends State<GameSystemScreen>
                     : column == columnCount - 1 || index == games.length - 1;
                 final artAspect = _retroArtworkDataSource?.snapshot
                     ?.aspectRatioFor(game.id);
-                final containArt =
-                    cellAspect != null &&
-                    (artAspect == null ||
-                        RetroArtworkShape.needsFill(
-                          artAspect,
-                          cell.aspectRatio,
-                        ));
+                final containArt = RetroArtworkShape.shouldContain(
+                  cellAspect: cellAspect,
+                  artAspect: artAspect,
+                  shapeAspect: cell.aspectRatio,
+                );
+                final learnAspect =
+                    _retroArtworkDataSource?.reportsDimensions == false;
                 return GamePosterCard(
                   imageUrl: reference?.legacyUrl,
+                  imageFit: containArt ? BoxFit.contain : BoxFit.cover,
+                  fillBehind: containArt && source == null,
                   artwork:
                       source == null ||
                           _retroArtworkTransport == null ||
@@ -1197,6 +1231,10 @@ class _GameSystemScreenState extends State<GameSystemScreen>
                           ),
                           fit: containArt ? BoxFit.contain : BoxFit.cover,
                           fillBehind: containArt,
+                          onIntrinsicAspect: learnAspect
+                              ? (aspect) => _retroArtworkDataSource
+                                    ?.reportDecodedBoxartAspect(game.id, aspect)
+                              : null,
                           onLoadFinished: () => _retroArtworkDataSource
                               ?.reportImageLoaded(game.id),
                           errorBuilder: (_, error) {
@@ -1207,12 +1245,16 @@ class _GameSystemScreenState extends State<GameSystemScreen>
                             return const SizedBox.shrink();
                           },
                         ),
-                  title: game.title,
+                  title: preferGameFolderTitle(
+                    title: game.title,
+                    fileName: game.fileName,
+                    folderTitle: _retroArtworkDataSource?.folderTitleFor(
+                      game.id,
+                    ),
+                  ),
                   fileName: game.fileName,
                   seed: game.id,
-                  cacheManager: gameArtworkCacheManagerForScope(
-                    _artworkScope,
-                  ),
+                  cacheManager: gameArtworkCacheManagerForScope(_artworkScope),
                   width: cardWidth,
                   imageHeight: imageHeight,
                   focusNode: cardFocusNode,
@@ -1347,9 +1389,10 @@ class _FocusedGameHud extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final activeGame = game;
-    final textScale = MediaQuery.textScalerOf(
-      context,
-    ).scale(1).clamp(1.0, 2.0).toDouble();
+    final textScale = MediaQuery.textScalerOf(context)
+        .scale(1)
+        .clamp(1.0, 2.0)
+        .toDouble();
     final responsiveScale = desktopScale > textScale ? desktopScale : textScale;
     return SizedBox(
       // Match the regular library HUD's reserved-height approach so changing

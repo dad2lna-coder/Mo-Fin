@@ -69,8 +69,7 @@ class _FakeArtworkDataSource implements RetroArtworkDataSource {
   /// completion would, so a test can simulate that happening while the app
   /// is otherwise idle (no animation, nothing else pending).
   void notifyChanged() {
-    for (final listener
-        in List<RetroArtworkSnapshotListener>.of(_listeners)) {
+    for (final listener in List<RetroArtworkSnapshotListener>.of(_listeners)) {
       listener();
     }
   }
@@ -127,6 +126,15 @@ class _FakeArtworkDataSource implements RetroArtworkDataSource {
 
   @override
   void reportImageLoaded(String gameId, {String role = 'boxart'}) {}
+
+  @override
+  void reportDecodedBoxartAspect(String gameId, double aspectRatio) {}
+
+  @override
+  String? folderTitleFor(String gameId) => null;
+
+  @override
+  Future<void> considerFolderCovers(Iterable<String> gameIds) async {}
 
   @override
   void onRouteCovered() {}
@@ -188,19 +196,18 @@ void main() {
     final client = _MockMediaServerClient();
     gamesApi = _MockGamesApi();
     when(() => client.gamesApi).thenReturn(gamesApi);
-    when(
-      () => gamesApi.getGames(any(), system: any(named: 'system')),
-    ).thenAnswer(
-      (_) async => const [
-        GameSummary(
-          id: 'sonic',
-          title: 'Sonic',
-          system: 'sms',
-          core: 'genesis_plus_gx',
-          fileName: 'Sonic.sms',
-        ),
-      ],
-    );
+    when(() => gamesApi.getGames(any(), system: any(named: 'system')))
+        .thenAnswer(
+          (_) async => const [
+            GameSummary(
+              id: 'sonic',
+              title: 'Sonic',
+              system: 'sms',
+              core: 'genesis_plus_gx',
+              fileName: 'Sonic.sms',
+            ),
+          ],
+        );
     when(() => gamesApi.getSystems(any())).thenAnswer(
       (_) async => const [
         GameSystem(
@@ -233,12 +240,96 @@ void main() {
     expect(find.byType(GamePosterCard), findsOneWidget);
   });
 
-  testWidgets(
-    'artwork loads start without waiting for the priority hint',
-    (tester) async {
-      final fakeDataSource = _FakeArtworkDataSource();
-      final fakeTransport = _RecordingArtworkTransport();
-      final source = RetroArtworkSource(
+  testWidgets('artwork loads start without waiting for the priority hint', (
+    tester,
+  ) async {
+    final fakeDataSource = _FakeArtworkDataSource();
+    final fakeTransport = _RecordingArtworkTransport();
+    final source = RetroArtworkSource(
+      serverIdentity: 'srv',
+      libraryId: 'retro',
+      gameId: 'sonic',
+      role: 'boxart',
+      revision: 'r1',
+      state: RetroArtworkReadyState.thumbnailReady,
+      uri: Uri.parse('https://example.test/art/sonic.png'),
+    );
+    fakeDataSource.seedImage('sonic', source);
+
+    final priority = Completer<void>();
+    fakeDataSource.onSubmitPriority = () => priority.future;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
+        home: GameSystemScreen(
+          libraryId: 'retro',
+          systemId: 'sms',
+          debugArtworkDataSource: fakeDataSource,
+          debugArtworkTransport: fakeTransport,
+          // Production always supplies these together, and the card only
+          // builds its image when both are present.
+          debugArtworkActivityGate: RetroArtworkActivityGate(),
+        ),
+      ),
+    );
+    // Let the games load, the debug data source get wired in, and the grid
+    // build the card that owns the transfer.
+    await tester.pump();
+    await tester.pump();
+    await tester.pump();
+    // Past RetroArtworkImage.defaultSettleDelay.
+    await tester.pump(const Duration(milliseconds: 150));
+
+    expect(
+      fakeDataSource.submitPriorityCallCount,
+      greaterThan(0),
+      reason: 'the priority hint must still be requested',
+    );
+    expect(
+      fakeTransport.loadCallCount,
+      greaterThan(0),
+      reason: 'artwork must not wait on the debounced priority round trip',
+    );
+
+    priority.complete();
+    await tester.pumpAndSettle();
+  });
+
+  testWidgets('artwork completing while idle still repaints the grid', (
+    tester,
+  ) async {
+    final fakeDataSource = _FakeArtworkDataSource();
+    final fakeTransport = _RecordingArtworkTransport();
+
+    await tester.pumpWidget(
+      MaterialApp(
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
+        home: GameSystemScreen(
+          libraryId: 'retro',
+          systemId: 'sms',
+          debugArtworkDataSource: fakeDataSource,
+          debugArtworkTransport: fakeTransport,
+          debugArtworkActivityGate: RetroArtworkActivityGate(),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle(); // settle: no frames pending, no art yet
+
+    expect(
+      find.byType(RetroArtworkImage),
+      findsNothing,
+      reason: 'no artwork is seeded yet',
+    );
+
+    // Seed the image the fake now has available, then fire the snapshot
+    // listener exactly as an async artwork completion would while the app
+    // is otherwise idle (no animation, nothing else pending).
+    fakeDataSource.seedImage(
+      'sonic',
+      RetroArtworkSource(
         serverIdentity: 'srv',
         libraryId: 'retro',
         gameId: 'sonic',
@@ -246,105 +337,19 @@ void main() {
         revision: 'r1',
         state: RetroArtworkReadyState.thumbnailReady,
         uri: Uri.parse('https://example.test/art/sonic.png'),
-      );
-      fakeDataSource.seedImage('sonic', source);
+      ),
+    );
+    fakeDataSource.notifyChanged();
+    await tester.pumpAndSettle();
 
-      final priority = Completer<void>();
-      fakeDataSource.onSubmitPriority = () => priority.future;
-
-      await tester.pumpWidget(
-        MaterialApp(
-          localizationsDelegates: AppLocalizations.localizationsDelegates,
-          supportedLocales: AppLocalizations.supportedLocales,
-          home: GameSystemScreen(
-            libraryId: 'retro',
-            systemId: 'sms',
-            debugArtworkDataSource: fakeDataSource,
-            debugArtworkTransport: fakeTransport,
-            // Production always supplies these together, and the card only
-            // builds its image when both are present.
-            debugArtworkActivityGate: RetroArtworkActivityGate(),
-          ),
-        ),
-      );
-      // Let the games load, the debug data source get wired in, and the grid
-      // build the card that owns the transfer.
-      await tester.pump();
-      await tester.pump();
-      await tester.pump();
-      // Past RetroArtworkImage.defaultSettleDelay.
-      await tester.pump(const Duration(milliseconds: 150));
-
-      expect(
-        fakeDataSource.submitPriorityCallCount,
-        greaterThan(0),
-        reason: 'the priority hint must still be requested',
-      );
-      expect(
-        fakeTransport.loadCallCount,
-        greaterThan(0),
-        reason: 'artwork must not wait on the debounced priority round trip',
-      );
-
-      priority.complete();
-      await tester.pumpAndSettle();
-    },
-  );
-
-  testWidgets(
-    'artwork completing while idle still repaints the grid',
-    (tester) async {
-      final fakeDataSource = _FakeArtworkDataSource();
-      final fakeTransport = _RecordingArtworkTransport();
-
-      await tester.pumpWidget(
-        MaterialApp(
-          localizationsDelegates: AppLocalizations.localizationsDelegates,
-          supportedLocales: AppLocalizations.supportedLocales,
-          home: GameSystemScreen(
-            libraryId: 'retro',
-            systemId: 'sms',
-            debugArtworkDataSource: fakeDataSource,
-            debugArtworkTransport: fakeTransport,
-            debugArtworkActivityGate: RetroArtworkActivityGate(),
-          ),
-        ),
-      );
-      await tester.pumpAndSettle(); // settle: no frames pending, no art yet
-
-      expect(
-        find.byType(RetroArtworkImage),
-        findsNothing,
-        reason: 'no artwork is seeded yet',
-      );
-
-      // Seed the image the fake now has available, then fire the snapshot
-      // listener exactly as an async artwork completion would while the app
-      // is otherwise idle (no animation, nothing else pending).
-      fakeDataSource.seedImage(
-        'sonic',
-        RetroArtworkSource(
-          serverIdentity: 'srv',
-          libraryId: 'retro',
-          gameId: 'sonic',
-          role: 'boxart',
-          revision: 'r1',
-          state: RetroArtworkReadyState.thumbnailReady,
-          uri: Uri.parse('https://example.test/art/sonic.png'),
-        ),
-      );
-      fakeDataSource.notifyChanged();
-      await tester.pumpAndSettle();
-
-      expect(
-        find.byType(RetroArtworkImage),
-        findsWidgets,
-        reason:
-            'scheduleFrame() must wake the idle binding so the queued '
-            'postFrameCallback actually runs and repaints the grid',
-      );
-    },
-  );
+    expect(
+      find.byType(RetroArtworkImage),
+      findsWidgets,
+      reason:
+          'scheduleFrame() must wake the idle binding so the queued '
+          'postFrameCallback actually runs and repaints the grid',
+    );
+  });
 
   Future<void> pumpShapedGrid(
     WidgetTester tester,
@@ -425,6 +430,45 @@ void main() {
 
     expect(cardAspect(tester), closeTo(1 / 1.34, 0.01));
   });
+
+  testWidgets('unknown box art is contained over a fill, not cropped', (
+    tester,
+  ) async {
+    final dataSource = _FakeArtworkDataSource();
+    dataSource.seedImage(
+      'sonic',
+      RetroArtworkSource(
+        serverIdentity: 'srv',
+        libraryId: 'retro',
+        gameId: 'sonic',
+        role: 'boxart',
+        revision: 'r1',
+        state: RetroArtworkReadyState.thumbnailReady,
+        uri: Uri.parse('https://example.test/art/sonic.png'),
+      ),
+    );
+
+    await pumpShapedGrid(tester, dataSource);
+
+    final image = tester.widget<RetroArtworkImage>(
+      find.byType(RetroArtworkImage),
+    );
+    expect(image.fit, BoxFit.contain);
+    expect(image.fillBehind, isTrue);
+  });
+
+  testWidgets(
+    'a known box shape is used even when the server omits dimensions',
+    (tester) async {
+      final dataSource = _FakeArtworkDataSource()
+        ..reportsDimensions = false
+        ..seedBoxartSizes({'sonic': (512, 357)});
+
+      await pumpShapedGrid(tester, dataSource);
+
+      expect(cardAspect(tester), closeTo(512 / 357, 0.01));
+    },
+  );
 
   testWidgets('art of another shape is contained over a fill, not cropped', (
     tester,
@@ -514,9 +558,7 @@ void main() {
 
   for (final cellAspect in const <double?>[null, 1.0, 1.43]) {
     testWidgets('keeps the focused row on screen deep into a large library '
-        '(cell shape ${cellAspect ?? 'portrait'})', (
-      tester,
-    ) async {
+        '(cell shape ${cellAspect ?? 'portrait'})', (tester) async {
       if (cellAspect != null) {
         await GetIt.instance<UserPreferences>().setGameGridCellAspect(
           'retro/sms',
@@ -607,150 +649,152 @@ void main() {
   // A 1080p Android TV is 960x540 logical, where the grid shows only about
   // one and a half rows of posters; the others fit more rows.
   for (final cellAspect in const <double?>[null, 1.43]) {
-  for (final (physical, ratio) in const [
-    (Size(1920, 1080), 2.0),
-    (Size(1280, 720), 1.0),
-    (Size(1920, 1080), 1.0),
-  ]) {
-    testWidgets('FF/RW page by the full rows on screen at '
-        '${physical.width ~/ ratio}x${physical.height ~/ ratio} '
-        '(cell shape ${cellAspect ?? 'portrait'})', (
-      tester,
-    ) async {
-      if (cellAspect != null) {
-        await GetIt.instance<UserPreferences>().setGameGridCellAspect(
-          'retro/sms',
-          cellAspect,
+    for (final (physical, ratio) in const [
+      (Size(1920, 1080), 2.0),
+      (Size(1280, 720), 1.0),
+      (Size(1920, 1080), 1.0),
+    ]) {
+      testWidgets('FF/RW page by the full rows on screen at '
+          '${physical.width ~/ ratio}x${physical.height ~/ ratio} '
+          '(cell shape ${cellAspect ?? 'portrait'})', (tester) async {
+        if (cellAspect != null) {
+          await GetIt.instance<UserPreferences>().setGameGridCellAspect(
+            'retro/sms',
+            cellAspect,
+          );
+        }
+        final games = [
+          for (var i = 0; i < 600; i++)
+            GameSummary(
+              id: 'game-$i',
+              title: 'Game ${i.toString().padLeft(3, '0')}',
+              system: 'sms',
+              core: 'genesis_plus_gx',
+              fileName: 'Game$i.sms',
+            ),
+        ];
+        when(() => gamesApi.getGames(any(), system: any(named: 'system')))
+            .thenAnswer((_) async => games);
+        when(() => gamesApi.getGame(any(), any()))
+            .thenAnswer((_) async => null);
+        PlatformDetection.setInterfaceLayout(InterfaceLayout.tv);
+        addTearDown(
+          () => PlatformDetection.setInterfaceLayout(InterfaceLayout.automatic),
         );
-      }
-      final games = [
-        for (var i = 0; i < 600; i++)
-          GameSummary(
-            id: 'game-$i',
-            title: 'Game ${i.toString().padLeft(3, '0')}',
-            system: 'sms',
-            core: 'genesis_plus_gx',
-            fileName: 'Game$i.sms',
+        tester.view.physicalSize = physical;
+        tester.view.devicePixelRatio = ratio;
+        addTearDown(tester.view.reset);
+
+        await tester.pumpWidget(
+          MaterialApp(
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            supportedLocales: AppLocalizations.supportedLocales,
+            home: const GameSystemScreen(libraryId: 'retro', systemId: 'sms'),
           ),
-      ];
-      when(() => gamesApi.getGames(any(), system: any(named: 'system')))
-          .thenAnswer((_) async => games);
-      when(() => gamesApi.getGame(any(), any())).thenAnswer((_) async => null);
-      PlatformDetection.setInterfaceLayout(InterfaceLayout.tv);
-      addTearDown(
-        () => PlatformDetection.setInterfaceLayout(InterfaceLayout.automatic),
-      );
-      tester.view.physicalSize = physical;
-      tester.view.devicePixelRatio = ratio;
-      addTearDown(tester.view.reset);
+        );
+        await tester.pumpAndSettle();
 
-      await tester.pumpWidget(
-        MaterialApp(
-          localizationsDelegates: AppLocalizations.localizationsDelegates,
-          supportedLocales: AppLocalizations.supportedLocales,
-          home: const GameSystemScreen(libraryId: 'retro', systemId: 'sms'),
-        ),
-      );
-      await tester.pumpAndSettle();
-
-      final cards = find.byType(GamePosterCard);
-      int indexOf(GamePosterCard card) => int.parse(card.seed.split('-').last);
-      final columns = tester
-          .widgetList<GamePosterCard>(cards)
-          .where(
-            (card) =>
-                tester.getRect(find.byWidget(card)).top ==
-                tester.getRect(cards.first).top,
-          )
-          .length;
-      final viewport = tester.getRect(find.byType(GridView));
-
-      // Every built row with its on-screen rect, keyed by row index.
-      Map<int, Rect> rowRects() => {
-        for (final card in tester.widgetList<GamePosterCard>(cards))
-          if (indexOf(card) % columns == 0)
-            indexOf(card) ~/ columns: tester.getRect(find.byWidget(card)),
-      };
-      int firstVisibleRow() => (rowRects().entries.toList()
-            ..sort((a, b) => a.key.compareTo(b.key)))
-          .firstWhere((e) => e.value.top >= viewport.top - 0.5)
-          .key;
-      int firstCutOffRow() {
-        final rows = rowRects().entries.toList()
-          ..sort((a, b) => a.key.compareTo(b.key));
-        // When the rows on screen end exactly at the bottom edge, the next
-        // row may not be built at all.
-        return rows
-            .firstWhere(
-              (e) => e.value.bottom > viewport.bottom + 0.5,
-              orElse: () => MapEntry(rows.last.key + 1, Rect.zero),
-            )
-            .key;
-      }
-      int focusedIndex() => indexOf(
-        tester
+        final cards = find.byType(GamePosterCard);
+        int indexOf(GamePosterCard card) =>
+            int.parse(card.seed.split('-').last);
+        final columns = tester
             .widgetList<GamePosterCard>(cards)
-            .singleWhere((card) => card.focusNode?.hasFocus ?? false),
-      );
+            .where(
+              (card) =>
+                  tester.getRect(find.byWidget(card)).top ==
+                  tester.getRect(cards.first).top,
+            )
+            .length;
+        final viewport = tester.getRect(find.byType(GridView));
 
-      // Start one column in, so the test also proves the column is kept.
-      tester.widget<GamePosterCard>(cards.at(1)).focusNode!.requestFocus();
-      await tester.pumpAndSettle();
+        // Every built row with its on-screen rect, keyed by row index.
+        Map<int, Rect> rowRects() => {
+          for (final card in tester.widgetList<GamePosterCard>(cards))
+            if (indexOf(card) % columns == 0)
+              indexOf(card) ~/ columns: tester.getRect(find.byWidget(card)),
+        };
+        int firstVisibleRow() =>
+            (rowRects().entries.toList()
+                  ..sort((a, b) => a.key.compareTo(b.key)))
+                .firstWhere((e) => e.value.top >= viewport.top - 0.5)
+                .key;
+        int firstCutOffRow() {
+          final rows = rowRects().entries.toList()
+            ..sort((a, b) => a.key.compareTo(b.key));
+          // When the rows on screen end exactly at the bottom edge, the next
+          // row may not be built at all.
+          return rows
+              .firstWhere(
+                (e) => e.value.bottom > viewport.bottom + 0.5,
+                orElse: () => MapEntry(rows.last.key + 1, Rect.zero),
+              )
+              .key;
+        }
 
-      for (var page = 0; page < 3; page++) {
-        final top = firstVisibleRow();
-        final cutOff = firstCutOffRow();
-        final pageRows = cutOff - top < 1 ? 1 : cutOff - top;
-        final from = focusedIndex();
+        int focusedIndex() => indexOf(
+          tester
+              .widgetList<GamePosterCard>(cards)
+              .singleWhere((card) => card.focusNode?.hasFocus ?? false),
+        );
 
-        await tester.sendKeyEvent(LogicalKeyboardKey.mediaFastForward);
+        // Start one column in, so the test also proves the column is kept.
+        tester.widget<GamePosterCard>(cards.at(1)).focusNode!.requestFocus();
         await tester.pumpAndSettle();
 
+        for (var page = 0; page < 3; page++) {
+          final top = firstVisibleRow();
+          final cutOff = firstCutOffRow();
+          final pageRows = cutOff - top < 1 ? 1 : cutOff - top;
+          final from = focusedIndex();
+
+          await tester.sendKeyEvent(LogicalKeyboardKey.mediaFastForward);
+          await tester.pumpAndSettle();
+
+          expect(
+            firstVisibleRow(),
+            cutOff,
+            reason: 'FF scrolls the row cut off at the bottom to the top',
+          );
+          expect(focusedIndex(), from + pageRows * columns);
+          final focused = tester.getRect(
+            find.byWidget(
+              tester
+                  .widgetList<GamePosterCard>(cards)
+                  .singleWhere((card) => card.focusNode?.hasFocus ?? false),
+            ),
+          );
+          expect(
+            focused.top >= viewport.top && focused.bottom <= viewport.bottom,
+            isTrue,
+            reason: 'the focused card $focused stays on screen $viewport',
+          );
+
+          await tester.sendKeyEvent(LogicalKeyboardKey.mediaRewind);
+          await tester.pumpAndSettle();
+          expect(firstVisibleRow(), top, reason: 'RW pages straight back');
+          expect(focusedIndex(), from);
+
+          await tester.sendKeyEvent(LogicalKeyboardKey.mediaFastForward);
+          await tester.pumpAndSettle();
+        }
+
+        for (var press = 0; press < 150; press++) {
+          await tester.sendKeyEvent(LogicalKeyboardKey.mediaRewind);
+          await tester.pumpAndSettle();
+        }
+        expect(focusedIndex(), 1, reason: 'RW stops at the first row');
+
+        for (var press = 0; press < 150; press++) {
+          await tester.sendKeyEvent(LogicalKeyboardKey.mediaFastForward);
+          await tester.pumpAndSettle();
+        }
+        final lastRowStart = (games.length - 1) ~/ columns * columns;
         expect(
-          firstVisibleRow(),
-          cutOff,
-          reason: 'FF scrolls the row cut off at the bottom to the top',
+          focusedIndex(),
+          (lastRowStart + 1).clamp(0, games.length - 1),
+          reason: 'FF stops on the last row, in the same column when it exists',
         );
-        expect(focusedIndex(), from + pageRows * columns);
-        final focused = tester.getRect(
-          find.byWidget(
-            tester
-                .widgetList<GamePosterCard>(cards)
-                .singleWhere((card) => card.focusNode?.hasFocus ?? false),
-          ),
-        );
-        expect(
-          focused.top >= viewport.top && focused.bottom <= viewport.bottom,
-          isTrue,
-          reason: 'the focused card $focused stays on screen $viewport',
-        );
-
-        await tester.sendKeyEvent(LogicalKeyboardKey.mediaRewind);
-        await tester.pumpAndSettle();
-        expect(firstVisibleRow(), top, reason: 'RW pages straight back');
-        expect(focusedIndex(), from);
-
-        await tester.sendKeyEvent(LogicalKeyboardKey.mediaFastForward);
-        await tester.pumpAndSettle();
-      }
-
-      for (var press = 0; press < 150; press++) {
-        await tester.sendKeyEvent(LogicalKeyboardKey.mediaRewind);
-        await tester.pumpAndSettle();
-      }
-      expect(focusedIndex(), 1, reason: 'RW stops at the first row');
-
-      for (var press = 0; press < 150; press++) {
-        await tester.sendKeyEvent(LogicalKeyboardKey.mediaFastForward);
-        await tester.pumpAndSettle();
-      }
-      final lastRowStart = (games.length - 1) ~/ columns * columns;
-      expect(
-        focusedIndex(),
-        (lastRowStart + 1).clamp(0, games.length - 1),
-        reason: 'FF stops on the last row, in the same column when it exists',
-      );
-    });
-  }
+      });
+    }
   }
 }

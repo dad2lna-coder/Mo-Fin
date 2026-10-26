@@ -66,4 +66,36 @@ void main() {
       expect(RetroArtworkShape.needsFill(1.46, 1.369), isTrue);
     });
   });
+
+  group('RetroArtworkShape.shouldContain', () {
+    test('unknown cell or art is contained instead of cropped', () {
+      expect(
+        RetroArtworkShape.shouldContain(
+          cellAspect: null,
+          artAspect: 1.43,
+          shapeAspect: 1 / 1.34,
+        ),
+        isTrue,
+      );
+      expect(
+        RetroArtworkShape.shouldContain(
+          cellAspect: 1.43,
+          artAspect: null,
+          shapeAspect: 1.43,
+        ),
+        isTrue,
+      );
+    });
+
+    test('a matching shape covers its cell', () {
+      expect(
+        RetroArtworkShape.shouldContain(
+          cellAspect: 1.369,
+          artAspect: 1.40,
+          shapeAspect: 1.369,
+        ),
+        isFalse,
+      );
+    });
+  });
 }

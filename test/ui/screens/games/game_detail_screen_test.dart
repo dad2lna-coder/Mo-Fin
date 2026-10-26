@@ -41,8 +41,7 @@ class _FakeArtworkDataSource implements RetroArtworkDataSource {
   }
 
   void notifyChanged() {
-    for (final listener
-        in List<RetroArtworkSnapshotListener>.of(_listeners)) {
+    for (final listener in List<RetroArtworkSnapshotListener>.of(_listeners)) {
       listener();
     }
   }
@@ -95,6 +94,15 @@ class _FakeArtworkDataSource implements RetroArtworkDataSource {
 
   @override
   void reportImageLoaded(String gameId, {String role = 'boxart'}) {}
+
+  @override
+  void reportDecodedBoxartAspect(String gameId, double aspectRatio) {}
+
+  @override
+  String? folderTitleFor(String gameId) => null;
+
+  @override
+  Future<void> considerFolderCovers(Iterable<String> gameIds) async {}
 
   @override
   void onRouteCovered() {}
@@ -203,18 +211,17 @@ void _stubBackendOverrideToEmulatorJs(_MockGamesApi gamesApi) {
 /// [_stubBackendOverrideToEmulatorJs], matching the "picking MAME forces
 /// EmulatorJS" flow used by several picker tests.
 void _stubCoreOverrideToMame(_MockGamesApi gamesApi) {
-  when(
-    () => gamesApi.setGameCoreOverride('library', 'game', core: 'mame'),
-  ).thenAnswer(
-    (_) async => _gameDetail(
-      system: 'Arcade',
-      core: 'mame',
-      recommendedCore: 'arcade',
-      userCoreOverride: 'mame',
-      userBackendOverride: 'emulatorjs',
-      availableCores: const ['arcade', 'mame'],
-    ),
-  );
+  when(() => gamesApi.setGameCoreOverride('library', 'game', core: 'mame'))
+      .thenAnswer(
+        (_) async => _gameDetail(
+          system: 'Arcade',
+          core: 'mame',
+          recommendedCore: 'arcade',
+          userCoreOverride: 'mame',
+          userBackendOverride: 'emulatorjs',
+          availableCores: const ['arcade', 'mame'],
+        ),
+      );
 }
 
 void main() {
@@ -236,9 +243,8 @@ void main() {
       ),
     );
     when(() => gamesApi.getSave(any())).thenAnswer((_) async => null);
-    when(
-      () => gamesApi.getGames(any(), system: any(named: 'system')),
-    ).thenAnswer((_) async => const []);
+    when(() => gamesApi.getGames(any(), system: any(named: 'system')))
+        .thenAnswer((_) async => const []);
     when(
       () => gamesApi.thumbUrl(
         libraryId: any(named: 'libraryId'),
@@ -468,9 +474,8 @@ void main() {
         backend: 'emulatorjs',
       ),
     ).called(1);
-    verify(
-      () => gamesApi.setGameCoreOverride('library', 'game', core: 'mame'),
-    ).called(1);
+    verify(() => gamesApi.setGameCoreOverride('library', 'game', core: 'mame'))
+        .called(1);
     expect(find.text('MAME'), findsAtLeastNWidgets(1));
   });
 
@@ -478,9 +483,8 @@ void main() {
     tester,
   ) async {
     _stubBackendOverrideToEmulatorJs(gamesApi);
-    when(
-      () => gamesApi.setGameCoreOverride('library', 'game', core: 'mame'),
-    ).thenThrow(StateError('core update failed'));
+    when(() => gamesApi.setGameCoreOverride('library', 'game', core: 'mame'))
+        .thenThrow(StateError('core update failed'));
 
     await pumpDetailScreen(tester);
     await tester.tap(
@@ -545,78 +549,14 @@ void main() {
     },
   );
 
-  testWidgets('core picker shows the server coreCompatibilityReason when present', (
-    tester,
-  ) async {
-    when(() => gamesApi.getGame('library', 'game')).thenAnswer(
-      (_) async => _gameDetail(
-        recommendedCore: 'arcade',
-        availableCores: const ['arcade', 'mame'],
-        coreCompatibilityReason:
-            'Validated against both installed FBNeo and MAME DATs; FBNeo is preferred.',
-      ),
-    );
-
-    await pumpDetailScreen(tester);
-
-    await tester.tap(
-      find.descendant(
-        of: find.byType(FilledButton),
-        matching: find.text('FBNeo'),
-      ),
-    );
-    await tester.pumpAndSettle();
-
-    expect(find.text('Choose player'), findsOneWidget);
-    expect(
-      find.text(
-        'Validated against both installed FBNeo and MAME DATs; FBNeo is preferred.',
-      ),
-      findsOneWidget,
-    );
-  });
-
-  group('generic (player, core) row generation', () {
-    testWidgets('1943 (arcade): native FBNeo installed produces three distinct, '
-        'unambiguous rows', (tester) async {
-      await _registerInstalledCores(['fbneo']);
-
+  testWidgets(
+    'core picker shows the server coreCompatibilityReason when present',
+    (tester) async {
       when(() => gamesApi.getGame('library', 'game')).thenAnswer(
         (_) async => _gameDetail(
-          title: '1943',
-          fileName: '1943.zip',
-          recommendedCore: 'mame',
-          availableCores: const ['mame'],
-        ),
-      );
-      when(
-        () => gamesApi.setGameBackendOverride(
-          'library',
-          'game',
-          backend: 'emulatorjs',
-        ),
-      ).thenAnswer(
-        (_) async => _gameDetail(
-          title: '1943',
-          core: 'mame',
-          recommendedCore: 'mame',
-          userCoreOverride: 'mame',
-          userBackendOverride: 'emulatorjs',
-          availableCores: const ['mame'],
-          fileName: '1943.zip',
-        ),
-      );
-      when(
-        () => gamesApi.setGameCoreOverride('library', 'game', core: 'mame'),
-      ).thenAnswer(
-        (_) async => _gameDetail(
-          title: '1943',
-          core: 'mame',
-          recommendedCore: 'mame',
-          userCoreOverride: 'mame',
-          userBackendOverride: 'emulatorjs',
-          availableCores: const ['mame'],
-          fileName: '1943.zip',
+          recommendedCore: 'arcade',
+          availableCores: const ['arcade', 'mame'],
+          coreCompatibilityReason: 'Validated against both installed FBNeo and MAME DATs; FBNeo is preferred.',
         ),
       );
 
@@ -630,66 +570,139 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      final dialog = find.byType(AlertDialog);
-      expect(dialog, findsOneWidget);
-
-      // Exactly three rows: Native/FBNeo, EmulatorJS/MAME, EmulatorJS/FBNeo.
+      expect(find.text('Choose player'), findsOneWidget);
       expect(
-        find.descendant(of: dialog, matching: find.text('Native core')),
+        find.text(
+          'Validated against both installed FBNeo and MAME DATs; FBNeo is preferred.',
+        ),
         findsOneWidget,
       );
-      expect(
-        find.descendant(
-          of: dialog,
-          matching: find.text('EmulatorJS (WebView)'),
-        ),
-        findsNWidgets(2),
-      );
+    },
+  );
 
-      // Not validated against FBNeo (only MAME is in availableCores).
-      expect(
-        find.descendant(
-          of: dialog,
-          matching: find.text(
-            'This archive is not validated for FBNeo and may not launch correctly.',
+  group('generic (player, core) row generation', () {
+    testWidgets(
+      '1943 (arcade): native FBNeo installed produces three distinct, '
+      'unambiguous rows',
+      (tester) async {
+        await _registerInstalledCores(['fbneo']);
+
+        when(() => gamesApi.getGame('library', 'game')).thenAnswer(
+          (_) async => _gameDetail(
+            title: '1943',
+            fileName: '1943.zip',
+            recommendedCore: 'mame',
+            availableCores: const ['mame'],
           ),
-        ),
-        findsNWidgets(2),
-      );
+        );
+        when(
+          () => gamesApi.setGameBackendOverride(
+            'library',
+            'game',
+            backend: 'emulatorjs',
+          ),
+        ).thenAnswer(
+          (_) async => _gameDetail(
+            title: '1943',
+            core: 'mame',
+            recommendedCore: 'mame',
+            userCoreOverride: 'mame',
+            userBackendOverride: 'emulatorjs',
+            availableCores: const ['mame'],
+            fileName: '1943.zip',
+          ),
+        );
+        when(
+          () => gamesApi.setGameCoreOverride('library', 'game', core: 'mame'),
+        ).thenAnswer(
+          (_) async => _gameDetail(
+            title: '1943',
+            core: 'mame',
+            recommendedCore: 'mame',
+            userCoreOverride: 'mame',
+            userBackendOverride: 'emulatorjs',
+            availableCores: const ['mame'],
+            fileName: '1943.zip',
+          ),
+        );
 
-      // MAME has no native mapping, so its recommendation lands on
-      // EmulatorJS only.
-      expect(
-        find.descendant(of: dialog, matching: find.text('MAME (Recommended)')),
-        findsOneWidget,
-      );
+        await pumpDetailScreen(tester);
 
-      // Native FBNeo is the current effective outcome.
-      expect(
-        find.descendant(
-          of: dialog,
-          matching: find.byIcon(Icons.radio_button_checked),
-        ),
-        findsOneWidget,
-      );
+        await tester.tap(
+          find.descendant(
+            of: find.byType(FilledButton),
+            matching: find.text('FBNeo'),
+          ),
+        );
+        await tester.pumpAndSettle();
 
-      // Selecting the MAME row must set backend to EmulatorJS explicitly.
-      await tester.tap(
-        find.descendant(of: dialog, matching: find.text('MAME (Recommended)')),
-      );
-      await tester.pump();
+        final dialog = find.byType(AlertDialog);
+        expect(dialog, findsOneWidget);
 
-      verify(
-        () => gamesApi.setGameBackendOverride(
-          'library',
-          'game',
-          backend: 'emulatorjs',
-        ),
-      ).called(1);
-      verify(
-        () => gamesApi.setGameCoreOverride('library', 'game', core: 'mame'),
-      ).called(1);
-    });
+        // Exactly three rows: Native/FBNeo, EmulatorJS/MAME, EmulatorJS/FBNeo.
+        expect(
+          find.descendant(of: dialog, matching: find.text('Native core')),
+          findsOneWidget,
+        );
+        expect(
+          find.descendant(
+            of: dialog,
+            matching: find.text('EmulatorJS (WebView)'),
+          ),
+          findsNWidgets(2),
+        );
+
+        // Not validated against FBNeo (only MAME is in availableCores).
+        expect(
+          find.descendant(
+            of: dialog,
+            matching: find.text(
+              'This archive is not validated for FBNeo and may not launch correctly.',
+            ),
+          ),
+          findsNWidgets(2),
+        );
+
+        // MAME has no native mapping, so its recommendation lands on
+        // EmulatorJS only.
+        expect(
+          find.descendant(
+            of: dialog,
+            matching: find.text('MAME (Recommended)'),
+          ),
+          findsOneWidget,
+        );
+
+        // Native FBNeo is the current effective outcome.
+        expect(
+          find.descendant(
+            of: dialog,
+            matching: find.byIcon(Icons.radio_button_checked),
+          ),
+          findsOneWidget,
+        );
+
+        // Selecting the MAME row must set backend to EmulatorJS explicitly.
+        await tester.tap(
+          find.descendant(
+            of: dialog,
+            matching: find.text('MAME (Recommended)'),
+          ),
+        );
+        await tester.pump();
+
+        verify(
+          () => gamesApi.setGameBackendOverride(
+            'library',
+            'game',
+            backend: 'emulatorjs',
+          ),
+        ).called(1);
+        verify(
+          () => gamesApi.setGameCoreOverride('library', 'game', core: 'mame'),
+        ).called(1);
+      },
+    );
 
     testWidgets(
       'Joust (MAME-only arcade game): FBNeo installed but not validated '

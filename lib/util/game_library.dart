@@ -26,10 +26,9 @@ class GameLibraryRegistry {
 
   /// Concurrent callers share a single request instead of each hitting the
   /// server.
-  Future<void> refresh() =>
-      _inFlightRefresh ??= _refreshNow().whenComplete(
-        () => _inFlightRefresh = null,
-      );
+  Future<void> refresh() => _inFlightRefresh ??= _refreshNow().whenComplete(
+    () => _inFlightRefresh = null,
+  );
 
   /// Populates the registry directly. Tests have no [MediaServerClient] to
   /// refresh from, and both `_ids` and `_loaded` are private.
@@ -112,7 +111,11 @@ const IconData gameLibraryIcon = Icons.sports_esports;
 /// itself: libretro sends no CORS headers, which a browser will not accept, and one download
 /// on the server then serves every client. [kind] is `boxart`, `snap` or `title`. A URL comes
 /// back even when the game has no art, so callers still need their error fallback.
-String? gameThumbUrl(String libraryId, String gameId, {String kind = 'boxart'}) {
+String? gameThumbUrl(
+  String libraryId,
+  String gameId, {
+  String kind = 'boxart',
+}) {
   final api = GetIt.instance<MediaServerClient>().gamesApi;
   return api?.thumbUrl(libraryId: libraryId, gameId: gameId, kind: kind);
 }
@@ -125,12 +128,63 @@ String _fileStem(String fileName) {
 /// A safe display title for a game. Some ROM folder names carry characters the app font
 /// cannot render (they arrive as the replacement char) or control bytes; strip those and,
 /// when nothing legible remains, fall back to the filename without its extension.
+///
+/// No-Intro and GoodTools suffixes ride on the end of the name — `(USA)`, `(Rev 1)`,
+/// `[!]`, `[T+Eng]` — and are not part of the title. A trailing `, The` / `, A` / `, An`
+/// is the catalog's article-last form and is turned back into "The Name".
 String gameDisplayTitle(String title, String fileName) {
   final cleaned = title
       .replaceAll('�', '')
       .replaceAll(RegExp(r'[\x00-\x1F\x7F]'), '')
       .trim();
-  return cleaned.isEmpty ? _fileStem(fileName) : cleaned;
+  final source = cleaned.isEmpty ? _fileStem(fileName) : cleaned;
+  final display = _promoteLeadingArticle(_stripTrailingGroups(source));
+  return display.isEmpty ? _fileStem(fileName) : display;
+}
+
+/// Folder artwork is a stand-in for a ROM that has no libretro thumbnail. Use the
+/// folder's name only when the plugin title is empty or is just the filename —
+/// a real plugin title, descriptions, and details stay as the server sent them.
+String preferGameFolderTitle({
+  required String title,
+  required String fileName,
+  String? folderTitle,
+}) {
+  final folder = folderTitle?.trim();
+  if (folder == null || folder.isEmpty) return title;
+  final raw = title.trim();
+  if (raw.isEmpty) return folder;
+  final stem = _fileStem(fileName);
+  if (raw == fileName || raw == stem) return folder;
+  if (gameDisplayTitle(raw, fileName) == gameDisplayTitle('', fileName)) {
+    return folder;
+  }
+  return title;
+}
+
+final RegExp _trailingGroup = RegExp(r'\s*(?:\([^)]*\)|\[[^\]]*\])\s*$');
+final RegExp _trailingArticle = RegExp(
+  r'^(.*),\s*(The|A|An)$',
+  caseSensitive: false,
+);
+
+String _stripTrailingGroups(String value) {
+  var result = value.trim();
+  while (true) {
+    final next = result.replaceFirst(_trailingGroup, '').trimRight();
+    if (next == result) return result.trim();
+    result = next;
+  }
+}
+
+String _promoteLeadingArticle(String value) {
+  final match = _trailingArticle.firstMatch(value.trim());
+  if (match == null) return value;
+  final name = match.group(1)!.trim();
+  final article = match.group(2)!;
+  if (name.isEmpty) return value;
+  final titled = article[0].toUpperCase() + article.substring(1).toLowerCase();
+  return '$titled $name';
 }
 
 /// A stable, pleasant fallback color for poster/backdrop placeholders when no thumbnail

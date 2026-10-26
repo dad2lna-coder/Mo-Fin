@@ -238,6 +238,7 @@ class _GameDetailScreenState extends State<GameDetailScreen> with RouteAware {
         libraryId: widget.libraryId,
         systemId: game.system,
       );
+      unawaited(dataSource.considerFolderCovers(<String>[game.id]));
     } catch (_) {
       // Existing detail metadata remains usable when a manifest refresh fails.
     } finally {
@@ -402,9 +403,11 @@ class _GameDetailScreenState extends State<GameDetailScreen> with RouteAware {
     } catch (_) {
       if (!mounted) return;
       setState(() => _hardwareRenderingEnabled = !next);
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-        content: Text('Could not save hardware rendering setting.'),
-      ));
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Could not save hardware rendering setting.'),
+        ),
+      );
     }
   }
 
@@ -459,9 +462,9 @@ class _GameDetailScreenState extends State<GameDetailScreen> with RouteAware {
     } catch (e) {
       if (!mounted) return;
       final detail = describeError(e, AppLocalizations.of(context));
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Could not change player: $detail')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Could not change player: $detail')),
+      );
     } finally {
       if (didUpdate && mounted) unawaited(_loadSave(games, updated));
     }
@@ -1061,9 +1064,28 @@ class _Poster extends StatelessWidget {
     final artAspect = artworkDataSource?.snapshot?.aspectRatioFor(game.id);
     final cell = RetroArtworkShape.cellFor(artAspect);
     final posterWidth = width * cell.width;
-    final containArt =
-        artAspect != null &&
-        RetroArtworkShape.needsFill(artAspect, cell.aspectRatio);
+    final containArt = RetroArtworkShape.shouldContain(
+      cellAspect: artAspect,
+      artAspect: artAspect,
+      shapeAspect: cell.aspectRatio,
+    );
+    final learnAspect = artworkDataSource?.reportsDimensions == false;
+    Widget networkPoster(BoxFit fit) => BoundedNetworkImage(
+      imageUrl: reference!.legacyUrl!,
+      cacheManager: gameArtworkCacheManagerForScope(artworkScope),
+      fit: fit,
+      maxWidth: 512,
+      onLoadFinished: () =>
+          artworkDataSource?.reportImageLoaded(game.id, role: 'boxart'),
+      errorBuilder: (_, _, error) {
+        artworkDataSource?.reportImageFailure(
+          game.id,
+          role: 'boxart',
+          statusCode: _artworkStatusCode(error),
+        );
+        return fallback;
+      },
+    );
     final artwork = source != null && transport != null && gate != null
         ? RetroArtworkImage(
             source: source,
@@ -1076,6 +1098,12 @@ class _Poster extends StatelessWidget {
             ),
             fit: containArt ? BoxFit.contain : BoxFit.cover,
             fillBehind: containArt,
+            onIntrinsicAspect: learnAspect
+                ? (aspect) => artworkDataSource?.reportDecodedBoxartAspect(
+                    game.id,
+                    aspect,
+                  )
+                : null,
             onLoadFinished: () =>
                 artworkDataSource?.reportImageLoaded(game.id, role: 'boxart'),
             errorBuilder: (_, error) {
@@ -1089,22 +1117,12 @@ class _Poster extends StatelessWidget {
           )
         : reference?.legacyUrl == null
         ? fallback
-        : BoundedNetworkImage(
-            imageUrl: reference!.legacyUrl!,
-            cacheManager: gameArtworkCacheManagerForScope(artworkScope),
-            fit: BoxFit.cover,
-            maxWidth: 512,
-            onLoadFinished: () =>
-                artworkDataSource?.reportImageLoaded(game.id, role: 'boxart'),
-            errorBuilder: (_, _, error) {
-              artworkDataSource?.reportImageFailure(
-                game.id,
-                role: 'boxart',
-                statusCode: _artworkStatusCode(error),
-              );
-              return fallback;
-            },
-          );
+        : containArt
+        ? RetroArtworkBackdrop(
+            backdrop: networkPoster(BoxFit.cover),
+            child: networkPoster(BoxFit.contain),
+          )
+        : networkPoster(BoxFit.cover);
     return ClipRRect(
       borderRadius: BorderRadius.circular(12),
       child: DecoratedBox(
@@ -1169,7 +1187,7 @@ class _HeroTitle extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       children: [
         Text(
-          game.title,
+          gameDisplayTitle(game.title, game.fileName),
           style: TextStyle(
             color: Colors.white,
             fontSize: large ? 30 : 20,
@@ -1216,7 +1234,8 @@ class _MetaPills extends StatelessWidget {
   Widget build(BuildContext context) {
     final native = _usesNativeBackend(game);
     final pills = <Widget>[
-      if (game.region != null && game.region!.isNotEmpty) _Pill(text: game.region!),
+      if (game.region != null && game.region!.isNotEmpty)
+        _Pill(text: game.region!),
       if (game.sizeBytes > 0) _Pill(text: _formatBytes(game.sizeBytes)),
       if (hasSave) const _Pill(text: 'Save found', accent: true),
       if (game.bios.isNotEmpty) const _Pill(text: 'BIOS required'),
@@ -2003,6 +2022,8 @@ String _formatBytes(int bytes) {
     size /= 1024;
     unit++;
   }
-  final rounded = (size >= 10 || unit == 0) ? size.toStringAsFixed(0) : size.toStringAsFixed(1);
+  final rounded = (size >= 10 || unit == 0)
+      ? size.toStringAsFixed(0)
+      : size.toStringAsFixed(1);
   return '$rounded ${units[unit]}';
 }
