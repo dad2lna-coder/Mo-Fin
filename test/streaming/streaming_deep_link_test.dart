@@ -3,6 +3,23 @@ import 'package:moonfin/streaming/streaming_service.dart';
 
 void main() {
   group('StreamingService Deep Links', () {
+    test('providerUrl beats id/search for each service', () {
+      for (final service in StreamingService.values) {
+        const customUrl = 'https://custom.provider.com/watch/12345';
+        final androidUri = service.androidTitleUri('fallback_id', providerUrl: customUrl);
+        expect(androidUri?.toString(), customUrl);
+
+        final webUri = service.webUri(providerTitleId: 'fallback_id', providerUrl: customUrl, title: 'Test Title');
+        expect(webUri.toString(), customUrl);
+
+        final buttonText = service.watchButtonText(providerTitleId: null, providerUrl: customUrl, title: 'Test Title');
+        expect(buttonText, 'Play on ${service.label}');
+
+        final subtitle = service.watchButtonSubtitle(providerTitleId: null, providerUrl: customUrl, title: 'Test Title');
+        expect(subtitle, isNull);
+      }
+    });
+
     test('Netflix deep link URLs and fallbacks', () {
       const service = StreamingService.netflix;
       expect(service.androidPackages, contains('com.netflix.ninja'));

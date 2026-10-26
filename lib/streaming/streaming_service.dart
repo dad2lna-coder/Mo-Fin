@@ -31,6 +31,13 @@ extension StreamingServiceInfo on StreamingService {
       };
 
   /// Fire TV package first, then the Android package when it differs.
+  ///
+  /// Fire TV packages, in the order Dart sends them:
+  /// Netflix `com.netflix.ninja` (phone build is `com.netflix.mediaclient`),
+  /// Disney+ `com.disney.disneyplus`. Max is `com.wbd.stream`, then the
+  /// older `com.hbo.hbonow`. Prime Video on Fire TV is `com.amazon.firebat`,
+  /// then `com.amazon.avod`, then the Appstore package
+  /// `com.amazon.avod.thirdpartyclient`.
   List<String> get androidPackages => switch (this) {
         StreamingService.netflix => const [
             'com.netflix.ninja',

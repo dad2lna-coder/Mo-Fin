@@ -49,6 +49,7 @@ class _StreamingDetailScreenState extends State<StreamingDetailScreen> {
   }
 
   Future<void> _load() async {
+    final providerApiKey = await StreamingProviderKeyStore().read();
     final key = await (widget.store ?? _store).read();
     final client = TmdbStreamingClient.forKey(key);
     if (!client.hasKey) {
@@ -63,6 +64,7 @@ class _StreamingDetailScreenState extends State<StreamingDetailScreen> {
       final title = await client.details(
         mediaType: widget.mediaType,
         id: widget.tmdbId,
+        providerApiKey: providerApiKey,
       );
       AggregatedItem? jMatch;
       if (title != null) {
@@ -338,7 +340,7 @@ class _JellyfinPlayButtonState extends State<_JellyfinPlayButton> {
   final _buttonFocus = FocusNode(skipTraversal: true, canRequestFocus: false);
   bool _focused = false;
 
-  void _play() {
+  void _open() {
     context.push(Destinations.item(widget.item.id, serverId: widget.item.serverId));
   }
 
@@ -353,7 +355,7 @@ class _JellyfinPlayButtonState extends State<_JellyfinPlayButton> {
     return Focus(
       autofocus: widget.autofocus,
       onFocusChange: (focused) => setState(() => _focused = focused),
-      onKeyEvent: (_, event) => handleOneShotSelect(event, _play),
+      onKeyEvent: (_, event) => handleOneShotSelect(event, _open),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 120),
         decoration: BoxDecoration(
@@ -366,10 +368,10 @@ class _JellyfinPlayButtonState extends State<_JellyfinPlayButton> {
         ),
         child: TextButton.icon(
           focusNode: _buttonFocus,
-          onPressed: _play,
-          icon: const Icon(Icons.play_arrow, color: Colors.white),
+          onPressed: _open,
+          icon: const Icon(Icons.folder_open, color: Colors.white),
           label: const Text(
-            'Play in Jellyfin',
+            'Open in Jellyfin',
             style: TextStyle(
               color: Colors.white,
               fontWeight: FontWeight.bold,

@@ -49,11 +49,13 @@ class StreamingSource {
   final StreamingService service;
   final String? nativeId;
   final String? webUrl;
+  final String? androidUrl;
 
   const StreamingSource({
     required this.service,
     this.nativeId,
     this.webUrl,
+    this.androidUrl,
   });
 }
 
@@ -81,23 +83,28 @@ class StreamingProviderClient {
       if (response.statusCode < 200 || response.statusCode >= 300) return const [];
       final decoded = jsonDecode(response.body);
       if (decoded is! List) return const [];
-      final sources = <StreamingSource>[];
+      final mapByService = <StreamingService, StreamingSource>{};
       for (final item in decoded) {
         if (item is! Map) continue;
+        final type = item['type']?.toString().toLowerCase() ?? '';
+        if (type != 'sub' && type != 'free') continue;
         final name = item['name']?.toString() ?? '';
         final service = streamingServiceForProviderName(name);
         if (service == null) continue;
+        if (mapByService.containsKey(service)) continue;
+
         final webUrl = item['web_url']?.toString();
-        final nativeId = item['source_id']?.toString() ?? item['source_title_id']?.toString();
-        sources.add(
-          StreamingSource(
-            service: service,
-            nativeId: nativeId,
-            webUrl: webUrl,
-          ),
+        final androidUrl = item['android_url']?.toString();
+        final nativeId = item['source_title_id']?.toString();
+
+        mapByService[service] = StreamingSource(
+          service: service,
+          nativeId: (nativeId != null && nativeId.isNotEmpty) ? nativeId : null,
+          webUrl: (webUrl != null && webUrl.isNotEmpty) ? webUrl : androidUrl,
+          androidUrl: (androidUrl != null && androidUrl.isNotEmpty) ? androidUrl : webUrl,
         );
       }
-      return sources;
+      return mapByService.values.toList();
     } catch (_) {
       return const [];
     }
@@ -309,15 +316,15 @@ class TmdbStreamingClient {
       final ids = await _providerIds();
       final active = enabledServices.isEmpty ? kStreamingServices : enabledServices;
 
-      // Execute row loads concurrently for high responsiveness
-      final results = await Future.wait([
-        _trending(ids),
-        for (final service in active) _discoverService(service, ids),
-        _newThisWeek(ids, active),
-        _topRated(ids, active),
-        _genreRow(28, 'Action', ids, active),
-        _genreRow(35, 'Comedy', ids, active),
-      ]);
+      // Execute row loads with a small concurrency pool
+      final results = await _chunkedRowFetch([
+        () => _trending(ids),
+        for (final service in active) () => _discoverService(service, ids),
+        () => _newThisWeek(ids, active),
+        () => _topRated(ids, active),
+        () => _genreRow(28, 'Action', ids, active),
+        () => _genreRow(35, 'Comedy', ids, active),
+      ], concurrency: 4);
 
       final trending = results[0];
       final rows = <StreamingRow>[
@@ -364,6 +371,22 @@ class TmdbStreamingClient {
     } catch (error) {
       return StreamingPage(error: streamingErrorText(error));
     }
+  }
+
+  Future<List<List<StreamingTitle>>> _chunkedRowFetch(
+    List<Future<List<StreamingTitle>> Function()> rowTasks, {
+    int concurrency = 4,
+  }) async {
+    final results = List<List<StreamingTitle>>.filled(rowTasks.length, const []);
+    for (var i = 0; i < rowTasks.length; i += concurrency) {
+      final end = (i + concurrency < rowTasks.length) ? i + concurrency : rowTasks.length;
+      final chunk = rowTasks.sublist(i, end);
+      final chunkResults = await Future.wait(chunk.map((fn) => fn()));
+      for (var j = 0; j < chunkResults.length; j++) {
+        results[i + j] = chunkResults[j];
+      }
+    }
+    return results;
   }
 
   Future<StreamingPage> search(String query) async {
@@ -533,7 +556,7 @@ class TmdbStreamingClient {
         if (raw is! Map) continue;
         final id = _int(raw['id']);
         if (id == null) continue;
-        final title = _titleFrom(raw, type, services: enabledServices);
+        final title = _titleFrom(raw, type, services: const []);
         found['$type:$id'] = title;
       }
     }
@@ -560,7 +583,7 @@ class TmdbStreamingClient {
         if (raw is! Map) continue;
         final id = _int(raw['id']);
         if (id == null) continue;
-        final title = _titleFrom(raw, type, services: enabledServices);
+        final title = _titleFrom(raw, type, services: const []);
         found['$type:$id'] = title;
       }
     }
@@ -587,7 +610,7 @@ class TmdbStreamingClient {
         if (raw is! Map) continue;
         final id = _int(raw['id']);
         if (id == null) continue;
-        final title = _titleFrom(raw, type, services: enabledServices);
+        final title = _titleFrom(raw, type, services: const []);
         found['$type:$id'] = title;
       }
     }

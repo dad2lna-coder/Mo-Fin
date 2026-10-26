@@ -388,10 +388,14 @@ function rokuDeepLink(service as string, title as string, contentId as string, m
     if service = "max" then channelId = "61322"
     if service = "prime" then channelId = "13"
     if channelId = "" then return invalid
+
+    ecpMediaType = mediaType
+    if ecpMediaType = "tv" then ecpMediaType = "series"
+
     return {
         channelId: channelId,
         contentId: contentId,
-        mediaType: mediaType
+        mediaType: ecpMediaType
     }
 end function
 
