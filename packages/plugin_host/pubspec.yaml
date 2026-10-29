@@ -1,0 +1,24 @@
+name: plugin_host
+description: Plugin host package for MoFin client web plugins.
+publish_to: 'none'
+version: 0.1.0
+
+environment:
+  sdk: ">=3.11.0 <4.0.0"
+  flutter: ">=3.41.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_inappwebview: ^6.1.5
+  shared_preferences: ^2.5.5
+  get_it: ^9.2.1
+  http: ^1.1.0
+  server_core:
+    path: ../server_core
+  playback_core:
+    path: ../playback_core
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter

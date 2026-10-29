@@ -3320,6 +3320,26 @@ class UserPreferences extends ChangeNotifier {
   /// already answered stays answered.
   static const setupWizardVersion = 1;
 
+  // MOFIN-PLUGIN-HOOK: Plugin host system preferences
+  static final pluginsEnabled = Preference<bool>(
+    key: 'pref_plugins_enabled',
+    defaultValue: false,
+  );
+
+  static final pluginUrls = Preference<String>(
+    key: 'pref_plugin_urls',
+    defaultValue: '',
+  );
+
+  List<String> get configuredPluginUrls {
+    final raw = get(pluginUrls);
+    if (raw.trim().isEmpty) return const [];
+    return raw.split(',').map((s) => s.trim()).where((s) => s.isNotEmpty).toList();
+  }
+
+  Future<void> setConfiguredPluginUrls(List<String> urls) =>
+      set(pluginUrls, urls.join(','));
+
   static final confirmExit = Preference(
     key: 'confirm_exit',
     defaultValue: true,

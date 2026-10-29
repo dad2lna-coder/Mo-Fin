@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get_it/get_it.dart';
+import 'package:plugin_host/plugin_host.dart';
 import 'package:go_router/go_router.dart';
 import 'package:playback_core/playback_core.dart';
 
@@ -659,6 +660,23 @@ final appRouter = GoRouter(
     GoRoute(
       path: Destinations.settings,
       builder: (context, state) => const SettingsSidePanel(),
+    ),
+
+    // MOFIN-PLUGIN-HOOK: Plugin WebView screen route
+    GoRoute(
+      path: '/plugin-screen',
+      builder: (context, state) {
+        final title = state.uri.queryParameters['title'] ?? 'Plugin';
+        final url = state.uri.queryParameters['url'] ?? '';
+        final pluginId = state.uri.queryParameters['pluginId'] ?? 'plugin';
+        final pluginService = GetIt.instance<PluginService>();
+        return PluginWebViewScreen(
+          title: title,
+          entryUrl: url,
+          pluginId: pluginId,
+          pluginService: pluginService,
+        );
+      },
     ),
 
     // Seerr

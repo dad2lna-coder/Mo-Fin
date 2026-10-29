@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Hello World Plugin</title>
+  <style>
+    body {
+      font-family: Roboto, system-ui, -apple-system, sans-serif;
+      background-color: #121212;
+      color: #ffffff;
+      padding: 24px;
+      margin: 0;
+    }
+    h1 {
+      color: #00e5ff;
+      margin-top: 0;
+    }
+    .card {
+      background-color: #1e1e1e;
+      border-radius: 12px;
+      padding: 16px;
+      margin-bottom: 16px;
+      border: 1px solid #333;
+    }
+    button {
+      background-color: #00a4dc;
+      color: white;
+      border: none;
+      padding: 10px 16px;
+      font-size: 14px;
+      border-radius: 6px;
+      cursor: pointer;
+      margin-right: 8px;
+      margin-bottom: 8px;
+    }
+    button:hover {
+      background-color: #0084b0;
+    }
+    pre {
+      background: #000;
+      padding: 12px;
+      border-radius: 6px;
+      overflow-x: auto;
+      color: #00ff66;
+    }
+  </style>
+</head>
+<body>
+  <h1>MoFin Hello World Plugin</h1>
+  <p>Demonstrates host API bridge calls (hostApi = 1).</p>
+
+  <div class="card">
+    <h3>Active User Context</h3>
+    <button onclick="fetchUserContext()">Get User Context</button>
+    <pre id="userContextOutput">Click button to fetch...</pre>
+  </div>
+
+  <div class="card">
+    <h3>Register Dynamic Home Row</h3>
+    <button onclick="registerHomeRow()">Register Row on Home Screen</button>
+    <p>Adds a custom "Hello World Picks" row to MoFin's home dashboard.</p>
+  </div>
+
+  <div class="card">
+    <h3>Register Settings Page & Nav Item</h3>
+    <button onclick="registerSettings()">Register Settings Entry</button>
+    <button onclick="registerNavItem()">Register Sidebar Nav Item</button>
+  </div>
+
+  <div class="card">
+    <h3>Plugin Storage</h3>
+    <button onclick="saveStorage()">Save Preference ("greeting" = "Hello MoFin!")</button>
+    <button onclick="readStorage()">Read Preference</button>
+    <pre id="storageOutput">No data read yet</pre>
+  </div>
+
+  <div class="card">
+    <h3>Playback Integration</h3>
+    <button onclick="triggerStreamPlayback()">Play Direct Stream URL</button>
+    <button onclick="showToastNotification()">Show Toast Notification</button>
+  </div>
+
+  <script>
+    async function callHost(method, params) {
+      if (!window.MoFinHost || !window.MoFinHost.call) {
+        alert("MoFinHost bridge is not available. Ensure plugin is running inside MoFin.");
+        return null;
+      }
+      return await window.MoFinHost.call(method, params);
+    }
+
+    async function fetchUserContext() {
+      try {
+        const context = await callHost("getUserContext", {});
+        document.getElementById("userContextOutput").innerText = JSON.stringify(context, null, 2);
+      } catch (err) {
+        document.getElementById("userContextOutput").innerText = "Error: " + err.message;
+      }
+    }
+
+    async function registerHomeRow() {
+      try {
+        await callHost("registerHomeRow", {
+          id: "hello_sample_row",
+          title: "Hello World Picks",
+          items: [
+            {
+              id: "sample_stream_1",
+              title: "Big Buck Bunny Stream",
+              subtitle: "Sample HLS Test Stream",
+              imageUrl: "https://upload.wikimedia.org/wikipedia/commons/c/c5/Big_buck_bunny_poster_big.jpg",
+              streamUrl: "https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8"
+            },
+            {
+              id: "sample_stream_2",
+              title: "Tears of Steel Stream",
+              subtitle: "Open Source Movie Stream",
+              imageUrl: "https://upload.wikimedia.org/wikipedia/commons/a/a2/Tears_of_Steel_poster.jpg",
+              streamUrl: "https://demo.unified-streaming.com/k8s/features/stable/video/tears-of-steel/tears-of-steel.ism/.m3u8"
+            }
+          ]
+        });
+        alert("Registered 'Hello World Picks' row! Return to Home screen to see it.");
+      } catch (err) {
+        alert("Failed to register home row: " + err.message);
+      }
+    }
+
+    async function registerSettings() {
+      try {
+        await callHost("registerSettingsPage", {
+          id: "hello_settings",
+          title: "Hello Plugin Preferences",
+          url: window.location.href
+        });
+        alert("Registered settings page! Check Settings > Integrations.");
+      } catch (err) {
+        alert("Failed: " + err.message);
+      }
+    }
+
+    async function registerNavItem() {
+      try {
+        await callHost("registerNavItem", {
+          id: "hello_nav",
+          title: "Hello Plugin",
+          icon: "extension",
+          url: window.location.href
+        });
+        alert("Registered sidebar nav item!");
+      } catch (err) {
+        alert("Failed: " + err.message);
+      }
+    }
+
+    async function saveStorage() {
+      try {
+        await callHost("storageSet", { key: "greeting", value: "Hello MoFin!" });
+        document.getElementById("storageOutput").innerText = "Saved 'greeting' = 'Hello MoFin!'";
+      } catch (err) {
+        document.getElementById("storageOutput").innerText = "Error: " + err.message;
+      }
+    }
+
+    async function readStorage() {
+      try {
+        const val = await callHost("storageGet", { key: "greeting" });
+        document.getElementById("storageOutput").innerText = "Read 'greeting' = " + JSON.stringify(val);
+      } catch (err) {
+        document.getElementById("storageOutput").innerText = "Error: " + err.message;
+      }
+    }
+
+    async function triggerStreamPlayback() {
+      try {
+        await callHost("playMedia", {
+          streamUrl: "https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8",
+          title: "Big Buck Bunny"
+        });
+      } catch (err) {
+        alert("Failed to start playback: " + err.message);
+      }
+    }
+
+    async function showToastNotification() {
+      try {
+        await callHost("showToast", { message: "Hello from the Sample Web Plugin!" });
+      } catch (err) {
+        alert("Failed: " + err.message);
+      }
+    }
+
+    // Auto-register home row and settings page when loaded
+    window.addEventListener("DOMContentLoaded", () => {
+      setTimeout(() => {
+        registerHomeRow();
+        registerSettings();
+      }, 500);
+    });
+  </script>
+</body>
+</html>

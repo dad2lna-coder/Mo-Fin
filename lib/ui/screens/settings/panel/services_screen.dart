@@ -93,6 +93,44 @@ class _ServicesScreenState extends State<_ServicesScreen> {
                 const StreamingSettingsScreen(),
               ),
             ),
+            // MOFIN-PLUGIN-HOOK: Plugin Host Settings
+            _TvSettingsListTile(
+              leading: const Icon(Icons.extension),
+              title: const Text('Plugins'),
+              subtitle: const Text('Web plugin host system and installed plugins'),
+              onTap: () => context.pushSettingsScreen(
+                PluginSettingsScreen(
+                  pluginService: GetIt.instance<PluginService>(),
+                  onTogglePluginsEnabled: (val) async {
+                    final prefs = GetIt.instance<UserPreferences>();
+                    await prefs.set(UserPreferences.pluginsEnabled, val);
+                  },
+                  onUpdatePluginUrls: (urls) async {
+                    final prefs = GetIt.instance<UserPreferences>();
+                    await prefs.setConfiguredPluginUrls(urls);
+                  },
+                ),
+              ),
+            ),
+            // MOFIN-PLUGIN-HOOK: Dynamic registered plugin settings entries
+            if (GetIt.instance.isRegistered<PluginRegistry>())
+              ...GetIt.instance<PluginRegistry>().settingsEntries.map((entry) {
+                return _TvSettingsListTile(
+                  leading: const Icon(Icons.extension_outlined),
+                  title: Text(entry.title),
+                  subtitle: Text('Plugin: ${entry.pluginId}'),
+                  onTap: () {
+                    context.pushSettingsScreen(
+                      PluginWebViewScreen(
+                        title: entry.title,
+                        entryUrl: entry.url,
+                        pluginId: entry.pluginId,
+                        pluginService: GetIt.instance<PluginService>(),
+                      ),
+                    );
+                  },
+                );
+              }),
             if (achievements.available)
               _TvSettingsListTile(
                 leading: const Icon(
