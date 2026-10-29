@@ -241,11 +241,12 @@ void registerAppModule() {
         final server = _getIt<ServerRepository>().getServer(serverId);
         if (server == null) return null;
         final user = _getIt<UserRepository>().currentUser;
+        final token = user is PrivateUser ? user.accessToken : '';
         return PluginUserContext(
           userId: userId,
           username: user?.name ?? 'User',
           serverUrl: server.address,
-          token: user?.accessToken ?? '',
+          token: token,
         );
       },
       getPluginUrls: () => prefs.configuredPluginUrls,
