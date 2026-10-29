@@ -1769,6 +1769,7 @@ class RowDataSource {
       case HomeRowType.activeRecordings:
       case HomeRowType.mediaBar:
       case HomeRowType.pluginDynamic:
+      case HomeRowType.pluginHost:
         return (row.items, row.totalCount);
     }
 

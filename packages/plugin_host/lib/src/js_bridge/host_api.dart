@@ -64,21 +64,21 @@ class HostApiHandler {
 
   /// Validates that a target URL is strictly under this plugin's own files path `/Moonfin/Plugins/{pluginId}/files/`.
   bool isUrlUnderPluginFilesPath(String url) {
-    if (url.isEmpty) return false;
+    if (url.trim().isEmpty) return false;
+    final resolved = resolvePluginFileUrl(url);
     final client = clientProvider?.call();
     final baseUrl = client?.baseUrl as String? ?? '';
-    final filesPrefix = '/Moonfin/Plugins/$pluginId/files/';
-
-    if (url.startsWith('http://') || url.startsWith('https://')) {
-      if (baseUrl.isNotEmpty && !url.startsWith(baseUrl)) {
-        return false;
-      }
-      final uri = Uri.parse(url);
-      return uri.path.startsWith(filesPrefix) || uri.path.contains(filesPrefix);
+    if (baseUrl.isNotEmpty && !resolved.startsWith(baseUrl)) {
+      return false;
     }
-
-    final cleanPath = url.startsWith('/') ? url : '/$url';
-    return cleanPath.startsWith(filesPrefix) || cleanPath.startsWith('/files/');
+    final filesPrefix = '/Moonfin/Plugins/$pluginId/files/';
+    try {
+      final uri = Uri.parse(resolved);
+      final normalizedPath = uri.normalizePath().path;
+      return normalizedPath.startsWith(filesPrefix);
+    } catch (_) {
+      return false;
+    }
   }
 
   /// Resolves relative plugin file URL to full `/Moonfin/Plugins/{pluginId}/files/{path}` URL

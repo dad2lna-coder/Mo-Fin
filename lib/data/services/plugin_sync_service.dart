@@ -11,6 +11,8 @@ import 'package:jellyfin_preference/jellyfin_preference.dart';
 import 'package:server_core/server_core.dart';
 
 import '../../data/repositories/seerr_repository.dart';
+import 'package:plugin_host/plugin_host.dart';
+
 import 'seerr/seerr_discover_sliders.dart';
 import 'server_messages_service.dart';
 import 'settings_stream_transport.dart';

@@ -139,7 +139,7 @@ class _PluginWebViewScreenState extends State<PluginWebViewScreen> {
   bool _isUnsupportedPlatform() {
     if (kIsWeb) return true;
     final target = defaultTargetPlatform;
-    return target == TargetPlatform.linux || target == TargetPlatform.iOS && defaultTargetPlatform == TargetPlatform.iOS && kIsWeb; // Note: tvOS in Flutter returns TargetPlatform.iOS with tvOS build config or kIsWeb/linux
+    return target == TargetPlatform.linux;
   }
 
   @override
