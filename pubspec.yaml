@@ -10,8 +10,8 @@ moonfin:
   beta_number: 1
 
 environment:
-  sdk: ">=3.11.0 <4.0.0"
-  flutter: ">=3.41.0"
+  sdk: ">=3.13.0 <4.0.0"
+  flutter: ">=3.47.0"
 
 dependencies:
   flutter:
@@ -211,9 +211,6 @@ dev_dependencies:
   plugin_platform_interface: ^2.1.8
 
 dependency_overrides:
-  emoji_picker_flutter: 4.5.0
-  app_links: 6.3.3
-  pdfrx: 2.4.7
   # objective_c 9.3.0's build hook imports a private path out of
   # native_toolchain_c, which stopped compiling on the Flutter 3.47 SDK and takes
   # `flutter test` down with it. 9.4.1 drops that import.
