@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get_it/get_it.dart';
+import 'package:plugin_host/plugin_host.dart';
 import 'package:go_router/go_router.dart';
 import 'package:playback_core/playback_core.dart';
 
@@ -16,6 +17,7 @@ import '../../preference/preference_constants.dart';
 import '../../syncplay/syncplay_manager.dart';
 import '../../util/game_cores.dart';
 import '../../util/platform_detection.dart';
+import '../../util/webview_environment.dart';
 import '../screens/admin/admin_nav.dart';
 import '../screens/admin/admin_routes.dart';
 import '../screens/auth/emby_connect_screen.dart';
@@ -194,6 +196,35 @@ final appRouter = GoRouter(
     if (path.startsWith('/admin')) {
       final user = getIt<UserRepository>().currentUser;
       if (user == null || !user.isAdministrator || !_adminAvailable()) {
+        return Destinations.home;
+      }
+    }
+
+    if (path.startsWith('/plugin-screen')) {
+      final prefs = GetIt.instance<UserPreferences>();
+      final pluginsEnabled = prefs.get(UserPreferences.pluginsEnabled);
+      if (!pluginsEnabled) {
+        return Destinations.home;
+      }
+      final pluginId = state.uri.queryParameters['pluginId'] ?? '';
+      final url = state.uri.queryParameters['url'] ?? '';
+      if (pluginId.isEmpty) return Destinations.home;
+
+      final pluginService = GetIt.instance.isRegistered<PluginService>()
+          ? GetIt.instance<PluginService>()
+          : null;
+      if (pluginService == null || !pluginService.pluginsEnabled) {
+        return Destinations.home;
+      }
+
+      final registry = pluginService.registry;
+      final manifest = registry.plugins[pluginId];
+      if (manifest == null || !registry.isPluginEnabled(pluginId)) {
+        return Destinations.home;
+      }
+
+      final hostApi = pluginService.createHostApiHandler(pluginId);
+      if (url.isNotEmpty && !hostApi.isUrlUnderPluginFilesPath(url)) {
         return Destinations.home;
       }
     }
@@ -659,6 +690,24 @@ final appRouter = GoRouter(
     GoRoute(
       path: Destinations.settings,
       builder: (context, state) => const SettingsSidePanel(),
+    ),
+
+    // MOFIN-PLUGIN-HOOK: Plugin WebView screen route
+    GoRoute(
+      path: '/plugin-screen',
+      builder: (context, state) {
+        final title = state.uri.queryParameters['title'] ?? 'Plugin';
+        final url = state.uri.queryParameters['url'] ?? '';
+        final pluginId = state.uri.queryParameters['pluginId'] ?? 'plugin';
+        final pluginService = GetIt.instance<PluginService>();
+        return PluginWebViewScreen(
+          title: title,
+          entryUrl: url,
+          pluginId: pluginId,
+          pluginService: pluginService,
+          webViewEnvironment: gWebViewEnvironment,
+        );
+      },
     ),
 
     // Seerr

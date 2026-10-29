@@ -136,6 +136,8 @@ dependencies:
     path: packages/playback_jellyfin
   playback_emby:
     path: packages/playback_emby
+  plugin_host:
+    path: packages/plugin_host
   moonfin_design:
     path: packages/design
   jellyfin_preference:

@@ -544,6 +544,17 @@ class PluginSyncService extends ChangeNotifier {
   ) async {
     final type = _eventValue(parsed, 'type');
 
+    if (type is String && type.startsWith('plugin:')) {
+      final parts = type.split(':');
+      if (parts.length >= 2) {
+        final pluginId = parts[1];
+        if (GetIt.instance.isRegistered<PluginService>()) {
+          GetIt.instance<PluginService>().dispatchPluginEvent(pluginId, parsed);
+        }
+      }
+      return;
+    }
+
     if (type == 'adminMessage') {
       // Broadcasts are saved as messages now, so refreshing is enough: the
       // stored copy is set to open the window, which the messages service does.

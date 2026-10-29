@@ -8,6 +8,7 @@ import 'package:server_core/server_core.dart';
 
 import '../../direct_iptv/direct_iptv_catalog.dart';
 import '../../auth/models/user.dart';
+import '../../auth/repositories/server_repository.dart';
 import '../../auth/repositories/session_repository.dart';
 import '../../auth/repositories/user_repository.dart';
 import '../../auth/store/authentication_store.dart';
@@ -62,8 +63,10 @@ import '../../playback/current_playing_item.dart';
 import '../../playback/external_player_service.dart';
 import '../../preference/seerr_preferences.dart';
 import '../../preference/user_preferences.dart';
+import 'package:plugin_host/plugin_host.dart';
 import '../../ui/navigation/app_router.dart';
 import '../../ui/navigation/destinations.dart';
+import '../../ui/navigation/playback_launcher.dart';
 import '../../ui/screensaver/screensaver_controller.dart';
 import '../../ui/screens/home/home_view_model.dart';
 import '../../ui/screens/setup/setup_wizard_gate.dart';
@@ -221,6 +224,62 @@ void registerAppModule() {
     ),
     dispose: (service) => service.dispose(),
   );
+  // MOFIN-PLUGIN-HOOK: Register PluginRegistry and PluginService
+  _getIt.registerLazySingleton<PluginRegistry>(
+    () => PluginRegistry(prefs: _getIt<PreferenceStore>()),
+  );
+  _getIt.registerLazySingleton<PluginService>(() {
+    final prefs = _getIt<UserPreferences>();
+    final session = _getIt<SessionRepository>();
+    final service = PluginService(
+      registry: _getIt<PluginRegistry>(),
+      prefs: _getIt<PreferenceStore>(),
+      clientProvider: () => _getIt.isRegistered<MediaServerClient>()
+          ? _getIt<MediaServerClient>()
+          : null,
+      userContextProvider: () {
+        final userId = session.activeUserId;
+        final serverId = session.activeServerId;
+        if (userId == null || serverId == null) return null;
+        final server = _getIt<ServerRepository>().getServer(serverId);
+        if (server == null) return null;
+        final user = _getIt<UserRepository>().currentUser;
+        return PluginUserContext(
+          userId: userId,
+          username: user?.name ?? 'User',
+          serverName: server.name,
+        );
+      },
+      onOpenScreen: (title, url, pluginId) {
+        appRouter.push(
+          Uri(
+            path: '/plugin-screen',
+            queryParameters: {
+              'title': title,
+              'url': url,
+              'pluginId': pluginId,
+            },
+          ).toString(),
+        );
+      },
+      onPlayMedia: ({jellyfinItemId, streamUrl, title}) {
+        if (jellyfinItemId != null && jellyfinItemId.isNotEmpty) {
+          PlaybackLauncher.playItem(jellyfinItemId);
+        } else if (streamUrl != null && streamUrl.isNotEmpty) {
+          PlaybackLauncher.playStream(streamUrl, title: title);
+        }
+      },
+      onShowToast: (message) {
+        // MOFIN-PLUGIN-HOOK: Toast notification hook
+      },
+      initialPluginsEnabled: prefs.get(UserPreferences.pluginsEnabled),
+    );
+    if (prefs.get(UserPreferences.pluginsEnabled)) {
+      unawaited(service.reloadPlugins());
+    }
+    return service;
+  });
+
   _getIt.registerLazySingleton(
     () => PluginSyncService(_getIt<UserPreferences>(), _getIt()),
   );

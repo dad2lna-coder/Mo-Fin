@@ -6,6 +6,7 @@ import 'package:path_provider/path_provider.dart';
 
 import 'package:flutter/foundation.dart';
 import 'package:get_it/get_it.dart';
+import 'package:plugin_host/plugin_host.dart';
 import 'package:server_core/server_core.dart';
 import 'package:collection/collection.dart';
 
@@ -173,6 +174,41 @@ class HomeViewModel extends ChangeNotifier {
     }
   }
 
+  // MOFIN-PLUGIN-HOOK: Dynamic plugin home rows retriever
+  List<HomeRow> _getRegisteredPluginHomeRows() {
+    if (!GetIt.instance.isRegistered<PluginService>()) return const [];
+    final pluginService = GetIt.instance<PluginService>();
+    if (!_prefs.get(UserPreferences.pluginsEnabled) || !pluginService.pluginsEnabled) {
+      return const [];
+    }
+    final registry = pluginService.registry;
+    return registry.homeRows.map((pluginRow) {
+      final items = pluginRow.items.map((pi) {
+        return AggregatedItem(
+          id: pi.id,
+          serverId: 'plugin_${pluginRow.pluginId}',
+          rawData: {
+            'Name': pi.title,
+            'Type': 'Video',
+            'Overview': pi.subtitle ?? '',
+            'PosterPath': pi.imageUrl ?? '',
+            'BackdropPath': pi.imageUrl ?? '',
+            'JellyfinItemId': pi.jellyfinItemId,
+            'StreamUrl': pi.streamUrl,
+            'ActionUrl': pi.actionUrl,
+          },
+        );
+      }).toList();
+      return HomeRow(
+        id: 'pluginHost:${pluginRow.pluginId}:${pluginRow.id}',
+        title: pluginRow.title,
+        rowType: HomeRowType.pluginHost,
+        items: items,
+        totalCount: items.length,
+      );
+    }).toList();
+  }
+
   String _homeCacheKey() {
     final userId = _ownerUserId;
     final sections = _prefs.get(UserPreferences.homeSectionsJson);
@@ -189,7 +225,10 @@ class HomeViewModel extends ChangeNotifier {
   /// Called again when the resume and next up rows refresh on their own, or
   /// the next cold start paints the ones from before the last episode
   /// finished.
-  void _saveRowCache() => unawaited(_cacheStore.write(_homeCacheKey(), _rows));
+  void _saveRowCache() {
+    final cacheableRows = _rows.where((r) => r.rowType != HomeRowType.pluginHost).toList();
+    unawaited(_cacheStore.write(_homeCacheKey(), cacheableRows));
+  }
 
   static bool _isFavoriteSectionType(HomeSectionType type) {
     return switch (type) {
@@ -328,7 +367,23 @@ class HomeViewModel extends ChangeNotifier {
        _mediaBarViewModel = mediaBarViewModel,
        _multiServerRepo = multiServerRepo,
        _cacheStore = cacheStore ?? HomeRowCacheStore(),
-       _ownerUserId = client.userId ?? '';
+       _ownerUserId = client.userId ?? '' {
+    if (GetIt.instance.isRegistered<PluginService>()) {
+      GetIt.instance<PluginService>().registry.addListener(_onPluginRegistryChanged);
+    }
+  }
+
+  void _onPluginRegistryChanged() {
+    unawaited(refresh(preserveExisting: true));
+  }
+
+  @override
+  void dispose() {
+    if (GetIt.instance.isRegistered<PluginService>()) {
+      GetIt.instance<PluginService>().registry.removeListener(_onPluginRegistryChanged);
+    }
+    super.dispose();
+  }
 
   /// Whether a section whose load threw keeps what is already on screen.
   ///
@@ -695,6 +750,17 @@ class HomeViewModel extends ChangeNotifier {
         3,
         (cfg) => loadConfigItem(cfg),
       );
+
+      // MOFIN-PLUGIN-HOOK: Inject registered plugin home rows
+      final pluginRows = _getRegisteredPluginHomeRows();
+      if (pluginRows.isNotEmpty) {
+        final existingIds = _rows.map((r) => r.id).toSet();
+        for (final pr in pluginRows) {
+          if (!existingIds.contains(pr.id)) {
+            _rows.add(pr);
+          }
+        }
+      }
 
       _saveRowCache();
       _topShelf.update(_rows);

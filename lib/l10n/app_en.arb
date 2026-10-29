@@ -13945,5 +13945,29 @@
   "librarySortLength": "Length",
   "@librarySortLength": {
     "description": "Sort option for music: by track or album length"
+  },
+  "pluginsTitle": "Plugins",
+  "@pluginsTitle": {
+    "description": "Title for the plugin host settings tile"
+  },
+  "pluginsSubtitle": "Web plugin host system and installed plugins",
+  "@pluginsSubtitle": {
+    "description": "Subtitle for the plugin host settings tile"
+  },
+  "pluginsEnableHost": "Enable Plugin Host System",
+  "@pluginsEnableHost": {
+    "description": "Label for enabling the plugin host system switch"
+  },
+  "pluginsEnableHostDescription": "Allows web-based plugins to run from the media server.",
+  "@pluginsEnableHostDescription": {
+    "description": "Description for enabling the plugin host system switch"
+  },
+  "pluginsUnsupportedOnDevice": "Plugins are not supported on this device.",
+  "@pluginsUnsupportedOnDevice": {
+    "description": "Message shown when plugin host WebView is unsupported on current device"
+  },
+  "pluginsLoadFailed": "Failed to load plugin",
+  "@pluginsLoadFailed": {
+    "description": "Error message when a plugin fails to load"
   }
 }

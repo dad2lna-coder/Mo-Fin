@@ -22,6 +22,7 @@ enum HomeRowType {
   mediaBar,
   pluginDynamic,
   liveTvFavorites,
+  pluginHost,
 }
 
 class HomeRow {

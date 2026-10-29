@@ -1,0 +1,24 @@
+{
+  "id": "mofin-sample-hello",
+  "name": "Hello World Sample Plugin",
+  "version": "1.0.0",
+  "description": "Sample plugin for MoFin",
+  "provides": [
+    "homeRow",
+    "settingsPage",
+    "navItem"
+  ],
+  "requires": [],
+  "slots": {
+    "homeRow": true,
+    "playback": false,
+    "settings": true,
+    "events": false
+  },
+  "client": {
+    "html": "index.html",
+    "js": "index.js"
+  },
+  "minHostApi": 1,
+  "proxyAccess": false
+}
