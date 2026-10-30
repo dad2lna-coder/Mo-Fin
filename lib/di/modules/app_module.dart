@@ -102,6 +102,13 @@ void resetUserScopedSingletons() {
   // Watched state is per user, so the next account must not inherit it.
   userDataSync.reset();
 
+  if (_getIt.isRegistered<PluginService>()) {
+    final pluginService = _getIt<PluginService>();
+    if (pluginService.pluginsEnabled) {
+      unawaited(pluginService.reloadPlugins());
+    }
+  }
+
   _registerUserScopedSingletons();
 }
 

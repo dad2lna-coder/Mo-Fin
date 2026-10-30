@@ -7,3 +7,4 @@ export 'src/plugin_registry.dart';
 export 'src/plugin_service.dart';
 export 'src/ui/plugin_web_view_screen.dart';
 export 'src/ui/plugin_settings_screen.dart';
+export 'src/util/platform_guard.dart';

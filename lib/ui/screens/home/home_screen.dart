@@ -4982,7 +4982,9 @@ class _ContentRowsState extends State<_ContentRows>
             showContextMenu(context, item, onChanged: () => setState(() {})),
         onTap: (_, item) {
           _finishSharedPreview(releaseResources: true);
-          if (row.rowType == HomeRowType.libraryTiles) {
+          if (row.rowType == HomeRowType.pluginHost) {
+            _handlePluginHostItemTap(context, item);
+          } else if (row.rowType == HomeRowType.libraryTiles) {
             _navigateToLibrary(context, item);
           } else if (row.rowType == HomeRowType.genres && row.id == 'genres') {
             context.push(Destinations.genre(item.name, genreId: item.id));
@@ -5561,6 +5563,47 @@ class _ContentRowsState extends State<_ContentRows>
         tmdbId: item.tmdbId ?? (int.tryParse(item.id) != null ? item.id : null),
         imdbId: item.imdbId,
       );
+
+  static void _handlePluginHostItemTap(BuildContext context, AggregatedItem item) {
+    final jellyfinItemId = item.rawData['JellyfinItemId'] as String?;
+    if (jellyfinItemId != null && jellyfinItemId.isNotEmpty) {
+      PlaybackLauncher.playItem(jellyfinItemId);
+      return;
+    }
+
+    final streamUrl = item.rawData['StreamUrl'] as String?;
+    if (streamUrl != null && streamUrl.isNotEmpty) {
+      PlaybackLauncher.playStream(streamUrl, title: item.name);
+      return;
+    }
+
+    final actionUrl = item.rawData['ActionUrl'] as String?;
+    if (actionUrl != null && actionUrl.isNotEmpty) {
+      final pluginId = item.serverId.startsWith('plugin_')
+          ? item.serverId.substring(7)
+          : item.serverId;
+      final pluginService = GetIt.instance.isRegistered<PluginService>()
+          ? GetIt.instance<PluginService>()
+          : null;
+      if (pluginService != null) {
+        final hostApi = pluginService.createHostApiHandler(pluginId);
+        if (hostApi.isUrlUnderPluginFilesPath(actionUrl)) {
+          final resolvedUrl = hostApi.resolvePluginFileUrl(actionUrl);
+          context.push(
+            Uri(
+              path: '/plugin-screen',
+              queryParameters: {
+                'title': item.name,
+                'url': resolvedUrl,
+                'pluginId': pluginId,
+              },
+            ).toString(),
+          );
+          return;
+        }
+      }
+    }
+  }
 
   static void _navigateToSeerrItem(BuildContext context, AggregatedItem item) {
     final shortcut = SeerrShortcut.fromName(

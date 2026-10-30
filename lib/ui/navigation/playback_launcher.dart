@@ -5,10 +5,12 @@ import 'package:get_it/get_it.dart';
 import 'package:go_router/go_router.dart';
 import 'package:playback_core/playback_core.dart';
 import 'package:server_core/server_core.dart';
+import 'package:plugin_host/plugin_host.dart';
 
 import '../../auth/repositories/session_repository.dart';
 import '../../data/services/log_service.dart';
 import '../../data/models/aggregated_item.dart';
+import 'app_router.dart';
 import 'destinations.dart';
 
 // MOFIN-PLUGIN-HOOK: PlaybackLauncher helper for plugin-triggered playback
@@ -28,6 +30,12 @@ class PlaybackLauncher {
           rawData: itemData,
         );
         await manager.playItems([item]);
+        final mediaType = item.rawData['MediaType'] as String?;
+        final isAudio = item.type == 'Audio' ||
+            item.type == 'MusicAlbum' ||
+            item.type == 'AudioBook' ||
+            mediaType == 'Audio';
+        appRouter.push(isAudio ? Destinations.audioPlayer : Destinations.videoPlayer);
       });
     } catch (e) {
       GetIt.instance<LogService>().log(
@@ -46,13 +54,11 @@ class PlaybackLauncher {
         : client.baseUrl;
 
     // Security check: Only allow streamUrl playback through a server-provided URL
-    final isServerUrl = streamUrl.startsWith(client.baseUrl) ||
-        streamUrl.startsWith('http://localhost') ||
-        streamUrl.startsWith('https://localhost');
+    final isServerUrl = HostApiHandler.isSameOrigin(streamUrl, client.baseUrl);
     if (!isServerUrl) {
       GetIt.instance<LogService>().log(
         LogCategory.playback,
-        'PlaybackLauncher: rejected non-server streamUrl $streamUrl',
+        'PlaybackLauncher: rejected non-server streamUrl',
         level: LogLevel.warning,
       );
       return;
@@ -78,11 +84,12 @@ class PlaybackLauncher {
           },
         );
         await manager.playItems([item]);
+        appRouter.push(Destinations.videoPlayer);
       });
     } catch (e) {
       GetIt.instance<LogService>().log(
         LogCategory.playback,
-        'PlaybackLauncher: failed to launch stream $streamUrl: $e',
+        'PlaybackLauncher: failed to launch stream: $e',
         level: LogLevel.error,
       );
     }
@@ -99,7 +106,12 @@ Future<T> runPlaybackStart<T>(
 }
 
 /// Aborts a preparation whose launch is gone, the user backed out or another
-/// launch took over.
+/// launch took over. The session is the lifecycle a start belongs to, the
+/// widget that happened to be tapped is not: on a phone the player forces
+/// landscape as it opens, the covered screen rebuilds for the new orientation
+/// and the tapped element is unmounted while the start it began is still
+/// wanted. A null session is a start with no player route to lose, so there
+/// is nothing to check.
 void ensureLaunchStillWanted(PlaybackLaunchSession? session) {
   if (session != null && !session.isActive) {
     throw PlaybackStartupRecoveryAbortedException();
@@ -108,6 +120,9 @@ void ensureLaunchStillWanted(PlaybackLaunchSession? session) {
 
 PlaybackLaunchSession? _activeVideoLaunch;
 
+/// Opens the appropriate player around [startPlayback]. Video routes paint
+/// before the start callback runs; audio keeps its existing start-then-open
+/// behavior because its compact player remains visible on the current page.
 Future<bool> launchPlayerWhilePreparing(
   BuildContext context, {
   required PlaybackManager manager,
@@ -124,6 +139,11 @@ Future<bool> launchPlayerWhilePreparing(
   }
 
   if (_activeVideoLaunch != null) {
+    // A location change (go/replace) removes the player route without
+    // completing its push future, so a launch whose route is already gone can
+    // hold the slot for the rest of the process and swallow every later play
+    // press. A live launch always has its route on the stack, so a holder
+    // without one is dead and its slot can be taken over.
     if (_videoPlayerRoutePresent(context)) {
       return false;
     }
@@ -138,9 +158,14 @@ Future<bool> launchPlayerWhilePreparing(
   Future<Object?> routeFuture;
   try {
     manager.beginPlaybackPreparation();
+    // The queue still points at the previous item until preparation finishes.
+    // Keep the temporary internal route from being redirected using stale data.
     manager.skipExternalRoutingOnce();
     routeFuture = context.push(Destinations.videoPlayer);
   } catch (_) {
+    // Release the slot before touching the manager again. The cleanup below
+    // goes through the same call that just threw, and a second throw here
+    // would leave the slot claimed for the rest of the process.
     _activeVideoLaunch = null;
     manager.consumeSkipExternalRoutingOnce();
     manager.cancelPlaybackPreparation();
@@ -153,6 +178,12 @@ Future<bool> launchPlayerWhilePreparing(
       if (!session._startupFinished) {
         session._cancelled = true;
         manager.cancelPlaybackPreparation();
+        // The slot is normally released in the finally below, but that only
+        // runs once startPlayback settles. A start that hangs on an await
+        // with no timeout never settles, and without this the slot survives
+        // the user backing out and swallows every following play press. The
+        // session is already cancelled here, so a hung pipeline that later
+        // wakes throws at its next checkpoint rather than continuing.
         if (identical(_activeVideoLaunch, session)) {
           _activeVideoLaunch = null;
         }
@@ -161,10 +192,16 @@ Future<bool> launchPlayerWhilePreparing(
   );
 
   try {
+    // Let the opaque black player and its loading treatment paint before any
+    // item hydration, prompts, or source resolution continues.
     await WidgetsBinding.instance.endOfFrame;
     if (!session.isActive) return false;
 
     final started = await startPlayback(session);
+    // A preparation that quietly gives up on the way to playItems still
+    // reports success, and taking it at its word parks the player route on a
+    // bringup that never leaves preparing. Nothing was asked to play, so the
+    // phase is the ground truth.
     final startedNothing =
         started && manager.bringupState.phase == PlaybackBringupPhase.preparing;
     if (startedNothing) {
@@ -215,6 +252,8 @@ Future<bool> launchPlayerWhilePreparing(
   }
 }
 
+/// Reads the router that owns [context] rather than the app-wide one, so the
+/// answer describes the stack the launch actually pushed onto.
 bool _videoPlayerRoutePresent(BuildContext context) {
   try {
     bool present(List<RouteMatchBase> matches) {
@@ -229,6 +268,7 @@ bool _videoPlayerRoutePresent(BuildContext context) {
       GoRouter.of(context).routerDelegate.currentConfiguration.matches,
     );
   } catch (_) {
+    // Router not usable, so treat the slot as held and never steal on doubt.
     return true;
   }
 }

@@ -201,6 +201,9 @@ final appRouter = GoRouter(
     }
 
     if (path.startsWith('/plugin-screen')) {
+      if (!PlatformDetection.pluginHostSupported) {
+        return Destinations.home;
+      }
       final prefs = GetIt.instance<UserPreferences>();
       final pluginsEnabled = prefs.get(UserPreferences.pluginsEnabled);
       if (!pluginsEnabled) {

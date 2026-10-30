@@ -57,7 +57,7 @@ void main() {
       expect(jsonString.contains('accessToken'), isFalse);
     });
 
-    test('isUrlUnderPluginFilesPath restricts access to plugin files path', () {
+    test('isUrlUnderPluginFilesPath restricts access to plugin files path and enforces origin', () {
       expect(
         handler.isUrlUnderPluginFilesPath('https://server.test/Moonfin/Plugins/test-plugin/files/index.html'),
         isTrue,
@@ -71,6 +71,14 @@ void main() {
         isFalse,
       );
       expect(
+        handler.isUrlUnderPluginFilesPath('https://server.test.evil.net/Moonfin/Plugins/test-plugin/files/index.html'),
+        isFalse,
+      );
+      expect(
+        handler.isUrlUnderPluginFilesPath('https://server.test:8443/Moonfin/Plugins/test-plugin/files/index.html'),
+        isFalse,
+      );
+      expect(
         handler.isUrlUnderPluginFilesPath('https://server.test/Moonfin/Plugins/other-plugin/files/index.html'),
         isFalse,
       );
@@ -78,6 +86,44 @@ void main() {
         handler.isUrlUnderPluginFilesPath('https://server.test/Admin/Settings'),
         isFalse,
       );
+
+      final emptyClientHandler = HostApiHandler(
+        pluginId: 'test-plugin',
+        registry: registry,
+        userContextProvider: () => null,
+        clientProvider: () => _MockClient(''),
+        prefs: prefs,
+      );
+      expect(emptyClientHandler.isUrlUnderPluginFilesPath('files/index.html'), isFalse);
+    });
+
+    test('callPluginRoute rejects path traversal and reserved paths', () async {
+      final res1 = await handler.handleMessage('''
+      {
+        "method": "callPluginRoute",
+        "params": { "path": "../../Users", "method": "GET" }
+      }
+      ''');
+      expect(res1['ok'], isFalse);
+      expect(res1['error'], contains('Access denied'));
+
+      final res2 = await handler.handleMessage('''
+      {
+        "method": "callPluginRoute",
+        "params": { "path": "%2e%2e/Users", "method": "GET" }
+      }
+      ''');
+      expect(res2['ok'], isFalse);
+      expect(res2['error'], contains('Access denied'));
+
+      final res3 = await handler.handleMessage('''
+      {
+        "method": "callPluginRoute",
+        "params": { "path": "files/secret", "method": "GET" }
+      }
+      ''');
+      expect(res3['ok'], isFalse);
+      expect(res3['error'], contains('Access denied'));
     });
 
     test('openPluginScreen rejects foreign URLs', () async {

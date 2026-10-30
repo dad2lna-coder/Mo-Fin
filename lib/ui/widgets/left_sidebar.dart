@@ -1143,7 +1143,8 @@ class _LeftSidebarState extends State<LeftSidebar> with RouteAware {
                     },
                   ),
                 // MOFIN-PLUGIN-HOOK: Dynamic registered plugin nav items
-                if (_prefs.get(UserPreferences.pluginsEnabled) &&
+                if (PlatformDetection.pluginHostSupported &&
+                    _prefs.get(UserPreferences.pluginsEnabled) &&
                     GetIt.instance.isRegistered<PluginRegistry>())
                   ...GetIt.instance<PluginRegistry>().navItems.map((navItem) {
                     return _SidebarItem(

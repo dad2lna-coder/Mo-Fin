@@ -62,19 +62,35 @@ class HostApiHandler {
     Dio? dio,
   }) : _dio = dio ?? Dio();
 
+  /// Compares scheme, host, and port between two URLs.
+  static bool isSameOrigin(String url1, String url2) {
+    if (url1.trim().isEmpty || url2.trim().isEmpty) return false;
+    try {
+      final uri1 = Uri.parse(url1);
+      final uri2 = Uri.parse(url2);
+      return uri1.scheme == uri2.scheme &&
+          uri1.host == uri2.host &&
+          uri1.port == uri2.port;
+    } catch (_) {
+      return false;
+    }
+  }
+
   /// Validates that a target URL is strictly under this plugin's own files path `/Moonfin/Plugins/{pluginId}/files/`.
   bool isUrlUnderPluginFilesPath(String url) {
     if (url.trim().isEmpty) return false;
-    final resolved = resolvePluginFileUrl(url);
     final client = clientProvider?.call();
     final baseUrl = client?.baseUrl as String? ?? '';
-    if (baseUrl.isNotEmpty && !resolved.startsWith(baseUrl)) {
-      return false;
-    }
-    final filesPrefix = '/Moonfin/Plugins/$pluginId/files/';
+    if (baseUrl.trim().isEmpty) return false;
+
     try {
-      final uri = Uri.parse(resolved);
-      final normalizedPath = uri.normalizePath().path;
+      final resolved = resolvePluginFileUrl(url);
+      if (!isSameOrigin(resolved, baseUrl)) {
+        return false;
+      }
+      final filesPrefix = '/Moonfin/Plugins/$pluginId/files/';
+      final targetUri = Uri.parse(resolved);
+      final normalizedPath = targetUri.normalizePath().path;
       return normalizedPath.startsWith(filesPrefix);
     } catch (_) {
       return false;
@@ -282,7 +298,7 @@ class HostApiHandler {
     final options = await _buildHostAuthOptions();
     options.headers?['Content-Type'] = 'application/json';
     final url = _buildServerUrl('Moonfin/Plugins/$pluginId/Data/${Uri.encodeComponent(key)}');
-    final data = value is String || value is Map || value is List ? value : jsonEncode(value);
+    final data = jsonEncode(value);
     await _dio.put(url, data: data, options: options);
     return true;
   }
@@ -303,9 +319,31 @@ class HostApiHandler {
   }
 
   Future<dynamic> _serverCallPluginRoute(String path, String method, dynamic body) async {
+    if (path.contains('..') ||
+        path.toLowerCase().contains('%2e') ||
+        path.contains('\\') ||
+        path.startsWith('//') ||
+        path.contains('://')) {
+      throw Exception('Access denied: invalid or path traversal segment in route path');
+    }
+
+    final lowerPath = path.toLowerCase();
+    final segments = lowerPath.split('/');
+    if (segments.contains('files') ||
+        segments.contains('data') ||
+        segments.contains('proxy')) {
+      throw Exception('Access denied: reserved path segment in route path');
+    }
+
     final options = await _buildHostAuthOptions();
     final cleanPath = path.startsWith('/') ? path.substring(1) : path;
-    final url = _buildServerUrl('Moonfin/Plugins/$pluginId/$cleanPath');
+    final rawUrl = _buildServerUrl('Moonfin/Plugins/$pluginId/$cleanPath');
+    final uri = Uri.parse(rawUrl).normalizePath();
+    final requiredPrefix = '/Moonfin/Plugins/$pluginId/';
+    if (!uri.path.startsWith(requiredPrefix)) {
+      throw Exception('Access denied: resolved route path outside plugin scope');
+    }
+    final url = uri.toString();
 
     Response res;
     switch (method) {

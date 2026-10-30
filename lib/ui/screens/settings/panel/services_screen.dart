@@ -94,23 +94,25 @@ class _ServicesScreenState extends State<_ServicesScreen> {
               ),
             ),
             // MOFIN-PLUGIN-HOOK: Plugin Host Settings
-            _TvSettingsListTile(
-              leading: const Icon(Icons.extension),
-              title: const Text('Plugins'),
-              subtitle: const Text('Web plugin host system and installed plugins'),
-              onTap: () => context.pushSettingsScreen(
-                PluginSettingsScreen(
-                  pluginService: GetIt.instance<PluginService>(),
-                  onTogglePluginsEnabled: (val) async {
-                    final prefs = GetIt.instance<UserPreferences>();
-                    await prefs.set(UserPreferences.pluginsEnabled, val);
-                  },
-                  onUpdatePluginUrls: (urls) async {},
+            if (PlatformDetection.pluginHostSupported)
+              _TvSettingsListTile(
+                leading: const Icon(Icons.extension),
+                title: const Text('Plugins'),
+                subtitle: const Text('Web plugin host system and installed plugins'),
+                onTap: () => context.pushSettingsScreen(
+                  PluginSettingsScreen(
+                    pluginService: GetIt.instance<PluginService>(),
+                    onTogglePluginsEnabled: (val) async {
+                      final prefs = GetIt.instance<UserPreferences>();
+                      await prefs.set(UserPreferences.pluginsEnabled, val);
+                    },
+                    onUpdatePluginUrls: (urls) async {},
+                  ),
                 ),
               ),
-            ),
             // MOFIN-PLUGIN-HOOK: Dynamic registered plugin settings entries
-            if (GetIt.instance<UserPreferences>().get(UserPreferences.pluginsEnabled) &&
+            if (PlatformDetection.pluginHostSupported &&
+                GetIt.instance<UserPreferences>().get(UserPreferences.pluginsEnabled) &&
                 GetIt.instance.isRegistered<PluginRegistry>())
               ...GetIt.instance<PluginRegistry>().settingsEntries.map((entry) {
                 return _TvSettingsListTile(
@@ -124,6 +126,7 @@ class _ServicesScreenState extends State<_ServicesScreen> {
                         entryUrl: entry.url,
                         pluginId: entry.pluginId,
                         pluginService: GetIt.instance<PluginService>(),
+                        webViewEnvironment: gWebViewEnvironment,
                       ),
                     );
                   },

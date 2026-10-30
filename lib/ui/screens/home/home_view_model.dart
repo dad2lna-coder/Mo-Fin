@@ -354,6 +354,8 @@ class HomeViewModel extends ChangeNotifier {
     return _multiServerRepo.getImageApiForServer(serverId);
   }
 
+  Timer? _pluginRegistryDebounceTimer;
+
   HomeViewModel({
     required RowDataSource dataSource,
     required UserPreferences prefs,
@@ -374,11 +376,24 @@ class HomeViewModel extends ChangeNotifier {
   }
 
   void _onPluginRegistryChanged() {
-    unawaited(refresh(preserveExisting: true));
+    _pluginRegistryDebounceTimer?.cancel();
+    _pluginRegistryDebounceTimer = Timer(const Duration(milliseconds: 300), () {
+      rebuildPluginHostRows();
+    });
+  }
+
+  void rebuildPluginHostRows() {
+    final pluginRows = _getRegisteredPluginHomeRows();
+    final newRows = List<HomeRow>.from(_rows);
+    newRows.removeWhere((r) => r.rowType == HomeRowType.pluginHost);
+    newRows.addAll(pluginRows);
+    _rows = newRows;
+    notifyListeners();
   }
 
   @override
   void dispose() {
+    _pluginRegistryDebounceTimer?.cancel();
     if (GetIt.instance.isRegistered<PluginService>()) {
       GetIt.instance<PluginService>().registry.removeListener(_onPluginRegistryChanged);
     }

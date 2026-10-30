@@ -61,8 +61,7 @@ class PluginRegistry extends ChangeNotifier {
   bool isPluginEnabled(String pluginId) {
     if (!(_enabledPlugins[pluginId] ?? true)) return false;
     final manifest = _plugins[pluginId];
-    if (manifest == null) return false;
-    return _areRequirementsMet(manifest.requires);
+    return manifest != null;
   }
 
   bool isSlotEnabledForProfile(String pluginId, String slotName, String profile) {
@@ -186,9 +185,8 @@ class PluginRegistry extends ChangeNotifier {
         continue;
       }
 
-      final reqsMet = _areRequirementsMet(manifest.requires);
-      if (!active || !reqsMet) {
-        final reason = dormantReason ?? (!reqsMet ? 'Missing required dependencies (${manifest.requires.join(', ')})' : 'Dormant');
+      if (!active) {
+        final reason = dormantReason ?? 'Dormant';
         _urlStatus[id] = 'Dormant: $reason';
         continue;
       }

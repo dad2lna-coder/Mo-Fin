@@ -10,28 +10,23 @@ Every MoFin plugin serves a valid `plugin.json` manifest via the Moonbase plugin
 
 ```json
 {
-  "id": "mofin-sample-hello",
+  "id": "hello",
   "name": "Hello World Sample Plugin",
   "version": "1.0.0",
   "description": "Sample plugin for MoFin",
   "provides": [
-    "homeRow",
-    "settingsPage",
-    "navItem"
+    "hello.homeRow"
   ],
   "requires": [],
-  "slots": {
-    "homeRow": true,
-    "playback": false,
-    "settings": true,
-    "events": false
-  },
+  "slots": [
+    "homeRow"
+  ],
   "client": {
-    "html": "index.html",
-    "js": "index.js"
+    "html": "client/index.html",
+    "js": "client/app.js"
   },
   "minHostApi": 1,
-  "proxyAccess": false
+  "proxyAccess": "admin"
 }
 ```
 
@@ -44,11 +39,11 @@ Every MoFin plugin serves a valid `plugin.json` manifest via the Moonbase plugin
 | `description` | String | No | Optional plugin description. |
 | `provides` | Array[String] | No | Feature tags provided by this plugin. |
 | `requires` | Array[String] | No | Capability/plugin dependencies required. A plugin whose requirements are not active remains dormant and fills no slot. |
-| `slots` | Object | Yes | Enabled UI slots: `homeRow`, `playback`, `settings`, `events`. |
-| `client` | Object | Yes | Entry files: `{ "html": "index.html", "js": "index.js" }`. |
+| `slots` | Array[String] | Yes | Enabled UI slots: `homeRow`, `playback`, `settings`, `events`. |
+| `client` | Object | Yes | Entry files: `{ "html": "client/index.html", "js": "client/app.js" }`. |
 | `server` | String/Object | No | Server component indicator/configuration. |
 | `minHostApi` | Integer | Yes | Minimum Host API version required (must be 1). |
-| `proxyAccess` | Boolean | No | Whether the plugin uses host proxy endpoints. |
+| `proxyAccess` | String | No | Proxy access level ("admin" \| "user", default "admin"). |
 
 ---
 

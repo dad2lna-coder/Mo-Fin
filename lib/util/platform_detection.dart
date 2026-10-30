@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
+import 'package:plugin_host/plugin_host.dart';
 
 import 'os_version_stub.dart' if (dart.library.io) 'os_version_io.dart';
 
@@ -81,6 +82,8 @@ class PlatformDetection {
   /// no WebKit and uses the native libretro bridge instead. Per-system support
   /// on tvOS is gated by the bundled-core map in util/game_cores.dart.
   static bool get gamesPlaybackSupported => true;
+
+  static bool get pluginHostSupported => isPluginHostSupported(isTv: isTV);
 
   static final Set<String> _displayHdrTypes = <String>{};
   static final Map<String, dynamic> _mediaCodecCapabilities =

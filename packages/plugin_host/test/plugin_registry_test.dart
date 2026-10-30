@@ -21,7 +21,7 @@ void main() {
         id: 'direct-plugin',
         name: 'Direct Plugin',
         version: '1.0.0',
-        client: PluginClientInfo(html: 'index.html'),
+        client: PluginClientInfo(html: 'client/index.html'),
       );
 
       registry.registerManifest(manifest);
@@ -29,10 +29,10 @@ void main() {
       expect(registry.isPluginEnabled('direct-plugin'), isTrue);
     });
 
-    test('loads plugins from GET /Moonfin/Plugins response', () {
+    test('loads plugins from GET /Moonfin/Plugins response with Moonbase format', () {
       final response = {
         'hostApi': 1,
-        'capabilities': {'featureA': true, 'featureB': false},
+        'capabilities': {'featureA': true},
         'plugins': [
           {
             'id': 'active-plugin',
@@ -41,8 +41,9 @@ void main() {
             'enabled': true,
             'active': true,
             'requires': ['featureA'],
-            'slots': {'homeRow': true, 'settings': true},
-            'clientEntryUrl': '/Moonfin/Plugins/active-plugin/files/index.html'
+            'slots': ['homeRow', 'settings'],
+            'proxyAccess': 'admin',
+            'clientEntryUrl': '/Moonfin/Plugins/active-plugin/files/client/index.html'
           },
           {
             'id': 'dormant-plugin',
@@ -50,10 +51,11 @@ void main() {
             'version': '1.0.0',
             'enabled': true,
             'active': false,
-            'dormantReason': 'Missing requirement featureB',
-            'requires': ['featureB'],
-            'slots': {'homeRow': true},
-            'clientEntryUrl': '/Moonfin/Plugins/dormant-plugin/files/index.html'
+            'dormantReason': 'Missing host requirement',
+            'requires': ['seerr'],
+            'slots': ['homeRow'],
+            'proxyAccess': 'user',
+            'clientEntryUrl': '/Moonfin/Plugins/dormant-plugin/files/client/index.html'
           }
         ]
       };
@@ -65,37 +67,28 @@ void main() {
       expect(registry.urlStatus['dormant-plugin'], contains('Dormant'));
     });
 
-    test('plugin with inactive requirements stays dormant and fills no slot', () {
-      registry.setCapabilities({'req1': false});
-
+    test('trusts server active flag without client-side requires re-checking', () {
       final response = {
         'hostApi': 1,
-        'capabilities': {'req1': false},
+        'capabilities': {},
         'plugins': [
           {
-            'id': 'req-plugin',
-            'name': 'Required Plugin',
+            'id': 'seerr-plugin',
+            'name': 'Seerr Host Plugin',
             'version': '1.0.0',
             'enabled': true,
             'active': true,
-            'requires': ['req1'],
-            'slots': {'homeRow': true},
-            'clientEntryUrl': '/Moonfin/Plugins/req-plugin/files/index.html'
+            'requires': ['seerr'],
+            'slots': ['homeRow'],
+            'proxyAccess': 'admin',
+            'clientEntryUrl': '/Moonfin/Plugins/seerr-plugin/files/client/index.html'
           }
         ]
       };
 
       registry.loadPluginsFromResponse(response);
 
-      expect(registry.isPluginEnabled('req-plugin'), isFalse);
-      const row = PluginHomeRow(
-        id: 'r1',
-        pluginId: 'req-plugin',
-        title: 'Row 1',
-        items: [],
-      );
-      registry.registerHomeRow(row);
-      expect(registry.homeRows, isEmpty);
+      expect(registry.isPluginEnabled('seerr-plugin'), isTrue);
     });
 
     test('enabling and disabling plugins filters UI registrations', () {
@@ -104,7 +97,7 @@ void main() {
         name: 'UI Plugin',
         version: '1.0.0',
         slots: PluginSlots(homeRow: true, settings: true),
-        client: PluginClientInfo(html: 'index.html'),
+        client: PluginClientInfo(html: 'client/index.html'),
       );
       registry.registerManifest(manifest);
 

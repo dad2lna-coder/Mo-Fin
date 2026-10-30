@@ -6,41 +6,58 @@ class PluginSlots {
   final bool playback;
   final bool settings;
   final bool events;
+  final List<String> rawList;
 
   const PluginSlots({
     this.homeRow = false,
     this.playback = false,
     this.settings = false,
     this.events = false,
+    this.rawList = const [],
   });
 
   factory PluginSlots.fromJson(dynamic json) {
-    if (json is Map<String, dynamic>) {
-      return PluginSlots(
-        homeRow: json['homeRow'] as bool? ?? false,
-        playback: json['playback'] as bool? ?? false,
-        settings: json['settings'] as bool? ?? false,
-        events: json['events'] as bool? ?? false,
-      );
-    } else if (json is List<dynamic>) {
+    if (json is List<dynamic>) {
       final list = json.map((e) => e.toString()).toList();
       return PluginSlots(
         homeRow: list.contains('homeRow'),
         playback: list.contains('playback'),
         settings: list.contains('settings') || list.contains('settingsPage'),
         events: list.contains('events'),
+        rawList: list,
+      );
+    } else if (json is Map<String, dynamic>) {
+      final homeRow = json['homeRow'] as bool? ?? false;
+      final playback = json['playback'] as bool? ?? false;
+      final settings =
+          (json['settings'] as bool? ?? false) || (json['settingsPage'] as bool? ?? false);
+      final events = json['events'] as bool? ?? false;
+      final list = <String>[
+        if (homeRow) 'homeRow',
+        if (playback) 'playback',
+        if (settings) 'settings',
+        if (events) 'events',
+      ];
+      return PluginSlots(
+        homeRow: homeRow,
+        playback: playback,
+        settings: settings,
+        events: events,
+        rawList: list,
       );
     }
     return const PluginSlots();
   }
 
-  Map<String, dynamic> toJson() {
-    return {
-      'homeRow': homeRow,
-      'playback': playback,
-      'settings': settings,
-      'events': events,
-    };
+  dynamic toJson() {
+    return rawList.isNotEmpty
+        ? rawList
+        : [
+            if (homeRow) 'homeRow',
+            if (playback) 'playback',
+            if (settings) 'settings',
+            if (events) 'events',
+          ];
   }
 }
 
@@ -106,8 +123,11 @@ class PluginManifest {
   /// Minimum Host API version required (must be 1).
   final int minHostApi;
 
-  /// Whether the plugin uses host proxy access.
-  final bool proxyAccess;
+  /// Proxy access level ("admin" | "user", default "admin").
+  final String proxyAccess;
+
+  /// Server-provided resolved client entry URL.
+  final String? clientEntryUrl;
 
   /// Base URL where the manifest was fetched from.
   final String? baseUrl;
@@ -123,12 +143,23 @@ class PluginManifest {
     required this.client,
     this.server,
     this.minHostApi = 1,
-    this.proxyAccess = false,
+    this.proxyAccess = 'admin',
+    this.clientEntryUrl,
     this.baseUrl,
   });
 
   /// Resolves the absolute URL for the plugin's client entry point.
   String get entryUrl {
+    if (clientEntryUrl != null && clientEntryUrl!.isNotEmpty) {
+      if (clientEntryUrl!.startsWith('http://') || clientEntryUrl!.startsWith('https://')) {
+        return clientEntryUrl!;
+      }
+      if (baseUrl != null && baseUrl!.isNotEmpty) {
+        final uri = Uri.parse(baseUrl!);
+        return uri.resolve(clientEntryUrl!).toString();
+      }
+      return clientEntryUrl!;
+    }
     final entry = client.html;
     if (entry.startsWith('http://') || entry.startsWith('https://')) {
       return entry;
@@ -141,6 +172,11 @@ class PluginManifest {
   }
 
   factory PluginManifest.fromJson(Map<String, dynamic> json, {String? baseUrl}) {
+    final rawProxy = json['proxyAccess'];
+    final proxyAccessStr = rawProxy is bool
+        ? (rawProxy ? 'admin' : 'user')
+        : (rawProxy?.toString() ?? 'admin');
+
     return PluginManifest(
       id: json['id'] as String? ?? '',
       name: json['name'] as String? ?? 'Unnamed Plugin',
@@ -158,7 +194,8 @@ class PluginManifest {
       client: PluginClientInfo.fromJson(json['client'] ?? json['entry'] ?? 'index.html'),
       server: json['server'] as String?,
       minHostApi: (json['minHostApi'] as num?)?.toInt() ?? 1,
-      proxyAccess: json['proxyAccess'] as bool? ?? false,
+      proxyAccess: proxyAccessStr,
+      clientEntryUrl: json['clientEntryUrl'] as String?,
       baseUrl: baseUrl,
     );
   }
@@ -181,6 +218,7 @@ class PluginManifest {
       if (server != null) 'server': server,
       'minHostApi': minHostApi,
       'proxyAccess': proxyAccess,
+      if (clientEntryUrl != null) 'clientEntryUrl': clientEntryUrl,
       if (baseUrl != null) 'baseUrl': baseUrl,
     };
   }
@@ -196,7 +234,8 @@ class PluginManifest {
     PluginClientInfo? client,
     String? server,
     int? minHostApi,
-    bool? proxyAccess,
+    String? proxyAccess,
+    String? clientEntryUrl,
     String? baseUrl,
   }) {
     return PluginManifest(
@@ -211,6 +250,7 @@ class PluginManifest {
       server: server ?? this.server,
       minHostApi: minHostApi ?? this.minHostApi,
       proxyAccess: proxyAccess ?? this.proxyAccess,
+      clientEntryUrl: clientEntryUrl ?? this.clientEntryUrl,
       baseUrl: baseUrl ?? this.baseUrl,
     );
   }
