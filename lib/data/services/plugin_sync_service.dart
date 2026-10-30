@@ -11,6 +11,8 @@ import 'package:jellyfin_preference/jellyfin_preference.dart';
 import 'package:server_core/server_core.dart';
 
 import '../../data/repositories/seerr_repository.dart';
+import 'package:plugin_host/plugin_host.dart';
+
 import 'seerr/seerr_discover_sliders.dart';
 import 'server_messages_service.dart';
 import 'settings_stream_transport.dart';
@@ -543,6 +545,17 @@ class PluginSyncService extends ChangeNotifier {
     Map<String, dynamic> parsed,
   ) async {
     final type = _eventValue(parsed, 'type');
+
+    if (type is String && type.startsWith('plugin:')) {
+      final parts = type.split(':');
+      if (parts.length >= 2) {
+        final pluginId = parts[1];
+        if (GetIt.instance.isRegistered<PluginService>()) {
+          GetIt.instance<PluginService>().dispatchPluginEvent(pluginId, parsed);
+        }
+      }
+      return;
+    }
 
     if (type == 'adminMessage') {
       // Broadcasts are saved as messages now, so refreshing is enough: the

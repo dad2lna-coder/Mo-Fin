@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Hello World Plugin</title>
+  <style>
+    body {
+      font-family: Roboto, system-ui, -apple-system, sans-serif;
+      background-color: #121212;
+      color: #ffffff;
+      padding: 24px;
+      margin: 0;
+    }
+    h1 {
+      color: #00e5ff;
+      margin-top: 0;
+    }
+    .card {
+      background-color: #1e1e1e;
+      border-radius: 12px;
+      padding: 16px;
+      margin-bottom: 16px;
+      border: 1px solid #333;
+    }
+    button {
+      background-color: #00a4dc;
+      color: white;
+      border: none;
+      padding: 10px 16px;
+      font-size: 14px;
+      border-radius: 6px;
+      cursor: pointer;
+      margin-right: 8px;
+      margin-bottom: 8px;
+    }
+    button:hover {
+      background-color: #0084b0;
+    }
+    pre {
+      background: #000;
+      padding: 12px;
+      border-radius: 6px;
+      overflow-x: auto;
+      color: #00ff66;
+    }
+  </style>
+</head>
+<body>
+  <h1>MoFin Hello World Plugin</h1>
+  <p>Demonstrates host API bridge calls (hostApi = 1).</p>
+
+  <div class="card">
+    <h3>Active User Context</h3>
+    <button onclick="fetchUserContext()">Get User Context</button>
+    <pre id="userContextOutput">Click button to fetch...</pre>
+  </div>
+
+  <div class="card">
+    <h3>Register Dynamic Home Row</h3>
+    <button onclick="registerHomeRow()">Register Row on Home Screen</button>
+    <p>Adds a custom "Hello World Picks" row to MoFin's home dashboard.</p>
+  </div>
+
+  <div class="card">
+    <h3>Plugin Storage</h3>
+    <button onclick="saveStorage()">Save Preference ("greeting" = "Hello MoFin!")</button>
+    <button onclick="readStorage()">Read Preference</button>
+    <pre id="storageOutput">No data read yet</pre>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>

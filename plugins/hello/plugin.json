@@ -1,0 +1,19 @@
+{
+  "id": "hello",
+  "name": "Hello World Sample Plugin",
+  "version": "1.0.0",
+  "description": "Sample plugin for MoFin",
+  "provides": [
+    "hello.homeRow"
+  ],
+  "requires": [],
+  "slots": [
+    "homeRow"
+  ],
+  "client": {
+    "html": "client/index.html",
+    "js": "client/app.js"
+  },
+  "minHostApi": 1,
+  "proxyAccess": "admin"
+}

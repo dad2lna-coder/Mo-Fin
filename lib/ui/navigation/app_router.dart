@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:get_it/get_it.dart';
+import 'package:plugin_host/plugin_host.dart';
 import 'package:go_router/go_router.dart';
 import 'package:playback_core/playback_core.dart';
 
+import '../../l10n/app_localizations.dart';
 import '../../auth/repositories/session_repository.dart';
 import '../../auth/repositories/user_repository.dart';
 import '../../data/services/connectivity_service.dart';
@@ -16,6 +18,7 @@ import '../../preference/preference_constants.dart';
 import '../../syncplay/syncplay_manager.dart';
 import '../../util/game_cores.dart';
 import '../../util/platform_detection.dart';
+import '../../util/webview_environment.dart';
 import '../screens/admin/admin_nav.dart';
 import '../screens/admin/admin_routes.dart';
 import '../screens/auth/emby_connect_screen.dart';
@@ -76,6 +79,28 @@ import '../screens/setup/setup_wizard_screen.dart';
 import 'destinations.dart';
 import 'focus_route_observer.dart';
 import 'route_lifecycle_observer.dart';
+
+PluginHostStrings _buildPluginHostStrings(AppLocalizations l10n) {
+  return PluginHostStrings(
+    pluginsTitle: l10n.pluginsTitle,
+    reloadPlugins: l10n.pluginsReload,
+    enablePluginHost: l10n.pluginsEnableHost,
+    enablePluginHostDescription: l10n.pluginsEnableHostDescription,
+    serverPluginsCount: (count) => l10n.pluginsServerPluginsCount(count),
+    noPluginsActive: l10n.pluginsNoActivePlugins,
+    openPlugin: l10n.pluginsOpenPlugin,
+    statusActive: l10n.pluginsStatusActive,
+    pluginSubtitleDetails: (id, version, status) =>
+        l10n.pluginsSubtitleDetails(id, version, status),
+    unsupportedOnDevice: l10n.pluginsUnsupportedOnDevice,
+    reload: l10n.reload,
+    retry: l10n.retry,
+    hostDisabled: l10n.pluginsHostDisabled,
+    pluginNotLoaded: (pluginId) => l10n.pluginsNotLoaded(pluginId),
+    unauthorizedEntryUrl: l10n.pluginsUnauthorizedEntryUrl,
+    loadFailedWithError: (error) => l10n.pluginsLoadFailedWithError(error),
+  );
+}
 
 const _authRoutes = {
   Destinations.startup,
@@ -194,6 +219,38 @@ final appRouter = GoRouter(
     if (path.startsWith('/admin')) {
       final user = getIt<UserRepository>().currentUser;
       if (user == null || !user.isAdministrator || !_adminAvailable()) {
+        return Destinations.home;
+      }
+    }
+
+    if (path.startsWith('/plugin-screen')) {
+      if (!PlatformDetection.pluginHostSupported) {
+        return Destinations.home;
+      }
+      final prefs = GetIt.instance<UserPreferences>();
+      final pluginsEnabled = prefs.get(UserPreferences.pluginsEnabled);
+      if (!pluginsEnabled) {
+        return Destinations.home;
+      }
+      final pluginId = state.uri.queryParameters['pluginId'] ?? '';
+      final url = state.uri.queryParameters['url'] ?? '';
+      if (pluginId.isEmpty) return Destinations.home;
+
+      final pluginService = GetIt.instance.isRegistered<PluginService>()
+          ? GetIt.instance<PluginService>()
+          : null;
+      if (pluginService == null || !pluginService.pluginsEnabled) {
+        return Destinations.home;
+      }
+
+      final registry = pluginService.registry;
+      final manifest = registry.plugins[pluginId];
+      if (manifest == null || !registry.isPluginEnabled(pluginId)) {
+        return Destinations.home;
+      }
+
+      final hostApi = pluginService.createHostApiHandler(pluginId);
+      if (url.isNotEmpty && !hostApi.isUrlUnderPluginFilesPath(url)) {
         return Destinations.home;
       }
     }
@@ -659,6 +716,26 @@ final appRouter = GoRouter(
     GoRoute(
       path: Destinations.settings,
       builder: (context, state) => const SettingsSidePanel(),
+    ),
+
+    // MOFIN-PLUGIN-HOOK: Plugin WebView screen route
+    GoRoute(
+      path: '/plugin-screen',
+      builder: (context, state) {
+        final title = state.uri.queryParameters['title'] ?? 'Plugin';
+        final url = state.uri.queryParameters['url'] ?? '';
+        final pluginId = state.uri.queryParameters['pluginId'] ?? 'plugin';
+        final pluginService = GetIt.instance<PluginService>();
+        final l10n = AppLocalizations.of(context);
+        return PluginWebViewScreen(
+          title: title,
+          entryUrl: url,
+          pluginId: pluginId,
+          pluginService: pluginService,
+          webViewEnvironment: gWebViewEnvironment,
+          strings: _buildPluginHostStrings(l10n),
+        );
+      },
     ),
 
     // Seerr

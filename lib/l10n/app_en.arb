@@ -13945,5 +13945,104 @@
   "librarySortLength": "Length",
   "@librarySortLength": {
     "description": "Sort option for music: by track or album length"
+  },
+  "pluginsTitle": "Plugins",
+  "@pluginsTitle": {
+    "description": "Title for the plugin host settings tile"
+  },
+  "pluginsSubtitle": "Web plugin host system and installed plugins",
+  "@pluginsSubtitle": {
+    "description": "Subtitle for the plugin host settings tile"
+  },
+  "pluginsEnableHost": "Enable Plugin Host System",
+  "@pluginsEnableHost": {
+    "description": "Label for enabling the plugin host system switch"
+  },
+  "pluginsEnableHostDescription": "Allows web-based plugins to run from the media server.",
+  "@pluginsEnableHostDescription": {
+    "description": "Description for enabling the plugin host system switch"
+  },
+  "pluginsUnsupportedOnDevice": "Plugins are not supported on this device.",
+  "@pluginsUnsupportedOnDevice": {
+    "description": "Message shown when plugin host WebView is unsupported on current device"
+  },
+  "pluginsStatusActive": "Active",
+  "@pluginsStatusActive": {
+    "description": "Status text for active plugins"
+  },
+  "pluginsSubtitleDetails": "ID: {id} | v{version} | Status: {status}",
+  "@pluginsSubtitleDetails": {
+    "description": "Subtitle details for plugin tile in settings",
+    "placeholders": {
+      "id": {
+        "type": "String"
+      },
+      "version": {
+        "type": "String"
+      },
+      "status": {
+        "type": "String"
+      }
+    }
+  },
+  "pluginsEntrySubtitle": "Plugin: {pluginId}",
+  "@pluginsEntrySubtitle": {
+    "description": "Subtitle for plugin settings entry",
+    "placeholders": {
+      "pluginId": {
+        "type": "String"
+      }
+    }
+  },
+  "pluginsReload": "Reload Plugins",
+  "@pluginsReload": {
+    "description": "Tooltip for reloading plugins button"
+  },
+  "pluginsServerPluginsCount": "Server Plugins ({count})",
+  "@pluginsServerPluginsCount": {
+    "description": "Header for server plugins count",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "pluginsNoActivePlugins": "No plugins currently active on this server.",
+  "@pluginsNoActivePlugins": {
+    "description": "Text shown when no plugins are active"
+  },
+  "pluginsOpenPlugin": "Open Plugin",
+  "@pluginsOpenPlugin": {
+    "description": "Tooltip for open plugin button"
+  },
+  "pluginsHostDisabled": "Plugin Host System is currently disabled.",
+  "@pluginsHostDisabled": {
+    "description": "Message when plugin host system is disabled"
+  },
+  "pluginsNotLoaded": "Plugin \"{pluginId}\" is not loaded or active.",
+  "@pluginsNotLoaded": {
+    "description": "Message when a plugin is not loaded or active",
+    "placeholders": {
+      "pluginId": {
+        "type": "String"
+      }
+    }
+  },
+  "pluginsUnauthorizedEntryUrl": "Failed to load plugin: Unauthorized entry URL.",
+  "@pluginsUnauthorizedEntryUrl": {
+    "description": "Error message when plugin entry URL is unauthorized"
+  },
+  "pluginsLoadFailedWithError": "Failed to load plugin: {error}",
+  "@pluginsLoadFailedWithError": {
+    "description": "Error message when plugin fails to load with details",
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "reload": "Reload",
+  "@reload": {
+    "description": "Generic reload button or tooltip"
   }
 }
