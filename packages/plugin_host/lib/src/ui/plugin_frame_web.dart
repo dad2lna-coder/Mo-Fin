@@ -104,7 +104,8 @@ class _PluginFrameState extends State<PluginFrame> {
       ..setAttribute('referrerpolicy', 'no-referrer');
 
     final fullUrl = widget.hostApiHandler.resolvePluginFileUrl(widget.entryUrl);
-    iframe.src = '$fullUrl#mofinNonce=$_nonce';
+    final cleanUrl = Uri.parse(fullUrl).removeFragment().toString();
+    iframe.src = '$cleanUrl#mofinNonce=$_nonce';
 
     _loadEventListener = ((web.Event _) {
       _loadCount++;
@@ -140,7 +141,8 @@ class _PluginFrameState extends State<PluginFrame> {
     if (iframe != null) {
       final fullUrl =
           widget.hostApiHandler.resolvePluginFileUrl(widget.entryUrl);
-      iframe.src = '$fullUrl#mofinNonce=$_nonce';
+      final cleanUrl = Uri.parse(fullUrl).removeFragment().toString();
+      iframe.src = '$cleanUrl#mofinNonce=$_nonce';
     }
   }
 
@@ -153,8 +155,10 @@ class _PluginFrameState extends State<PluginFrame> {
     final contentWindow = iframe.contentWindow;
     if (contentWindow == null) return;
 
-    // Check message source is iframe.contentWindow and origin is 'null' (opaque origin)
-    if (event.source != contentWindow) return;
+    // Check message source is iframe.contentWindow using JS strict equality
+    // and verify origin is 'null' (opaque sandboxed origin)
+    final source = event.source;
+    if (source == null || !source.strictEquals(contentWindow).toDart) return;
     if (event.origin != 'null') return;
 
     final dataAny = event.data;

@@ -4,6 +4,7 @@ import 'package:plugin_host/plugin_host.dart';
 import 'package:go_router/go_router.dart';
 import 'package:playback_core/playback_core.dart';
 
+import '../../l10n/app_localizations.dart';
 import '../../auth/repositories/session_repository.dart';
 import '../../auth/repositories/user_repository.dart';
 import '../../data/services/connectivity_service.dart';
@@ -78,6 +79,28 @@ import '../screens/setup/setup_wizard_screen.dart';
 import 'destinations.dart';
 import 'focus_route_observer.dart';
 import 'route_lifecycle_observer.dart';
+
+PluginHostStrings _buildPluginHostStrings(AppLocalizations l10n) {
+  return PluginHostStrings(
+    pluginsTitle: l10n.pluginsTitle,
+    reloadPlugins: l10n.pluginsReload,
+    enablePluginHost: l10n.pluginsEnableHost,
+    enablePluginHostDescription: l10n.pluginsEnableHostDescription,
+    serverPluginsCount: (count) => l10n.pluginsServerPluginsCount(count),
+    noPluginsActive: l10n.pluginsNoActivePlugins,
+    openPlugin: l10n.pluginsOpenPlugin,
+    statusActive: l10n.pluginsStatusActive,
+    pluginSubtitleDetails: (id, version, status) =>
+        l10n.pluginsSubtitleDetails(id, version, status),
+    unsupportedOnDevice: l10n.pluginsUnsupportedOnDevice,
+    reload: l10n.reload,
+    retry: l10n.retry,
+    hostDisabled: l10n.pluginsHostDisabled,
+    pluginNotLoaded: (pluginId) => l10n.pluginsNotLoaded(pluginId),
+    unauthorizedEntryUrl: l10n.pluginsUnauthorizedEntryUrl,
+    loadFailedWithError: (error) => l10n.pluginsLoadFailedWithError(error),
+  );
+}
 
 const _authRoutes = {
   Destinations.startup,
@@ -703,12 +726,14 @@ final appRouter = GoRouter(
         final url = state.uri.queryParameters['url'] ?? '';
         final pluginId = state.uri.queryParameters['pluginId'] ?? 'plugin';
         final pluginService = GetIt.instance<PluginService>();
+        final l10n = AppLocalizations.of(context);
         return PluginWebViewScreen(
           title: title,
           entryUrl: url,
           pluginId: pluginId,
           pluginService: pluginService,
           webViewEnvironment: gWebViewEnvironment,
+          strings: _buildPluginHostStrings(l10n),
         );
       },
     ),

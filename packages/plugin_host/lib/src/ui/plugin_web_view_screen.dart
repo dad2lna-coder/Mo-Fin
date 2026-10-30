@@ -1,4 +1,3 @@
-import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
@@ -7,6 +6,7 @@ import '../models/plugin_manifest.dart';
 import '../plugin_service.dart';
 import 'plugin_frame_io.dart'
     if (dart.library.js_interop) 'plugin_frame_web.dart';
+import 'plugin_host_strings.dart';
 
 /// Screen component rendering a web plugin inside a locked down container.
 class PluginWebViewScreen extends StatefulWidget {
@@ -15,6 +15,7 @@ class PluginWebViewScreen extends StatefulWidget {
   final PluginService pluginService;
   final String? entryUrl;
   final dynamic webViewEnvironment;
+  final PluginHostStrings strings;
 
   const PluginWebViewScreen({
     super.key,
@@ -23,6 +24,7 @@ class PluginWebViewScreen extends StatefulWidget {
     required this.pluginService,
     this.entryUrl,
     this.webViewEnvironment,
+    this.strings = const PluginHostStrings(),
   });
 
   @override
@@ -56,13 +58,13 @@ class _PluginWebViewScreenState extends State<PluginWebViewScreen> {
     final manifest = registry.plugins[widget.pluginId];
 
     if (!widget.pluginService.pluginsEnabled) {
-      _errorMessage = 'Plugin Host System is currently disabled.';
+      _errorMessage = widget.strings.hostDisabled;
       _isLoading = false;
       return;
     }
 
     if (manifest == null || !registry.isPluginEnabled(widget.pluginId)) {
-      _errorMessage = 'Plugin "${widget.pluginId}" is not loaded or active.';
+      _errorMessage = widget.strings.pluginNotLoaded(widget.pluginId);
       _isLoading = false;
       return;
     }
@@ -75,7 +77,7 @@ class _PluginWebViewScreenState extends State<PluginWebViewScreen> {
 
     if (candidate.isEmpty ||
         !_hostApiHandler.isUrlUnderPluginFilesPath(candidate)) {
-      _errorMessage = 'Failed to load plugin: Unauthorized entry URL.';
+      _errorMessage = widget.strings.unauthorizedEntryUrl;
       _isLoading = false;
       return;
     }
@@ -115,7 +117,7 @@ class _PluginWebViewScreenState extends State<PluginWebViewScreen> {
           child: Padding(
             padding: const EdgeInsets.all(24.0),
             child: Text(
-              'Plugins are not supported on this device.',
+              widget.strings.unsupportedOnDevice,
               textAlign: TextAlign.center,
               style: Theme.of(context).textTheme.bodyLarge,
             ),
@@ -132,7 +134,7 @@ class _PluginWebViewScreenState extends State<PluginWebViewScreen> {
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh),
-            tooltip: 'Reload',
+            tooltip: widget.strings.reload,
             onPressed: _triggerReload,
           ),
         ],
@@ -159,8 +161,9 @@ class _PluginWebViewScreenState extends State<PluginWebViewScreen> {
                 onError: (error) {
                   if (mounted) {
                     setState(() {
-                      _errorMessage =
-                          error != null ? 'Failed to load plugin: $error' : null;
+                      _errorMessage = error != null
+                          ? widget.strings.loadFailedWithError(error)
+                          : null;
                     });
                   }
                 },
@@ -188,7 +191,7 @@ class _PluginWebViewScreenState extends State<PluginWebViewScreen> {
                       const SizedBox(height: 16),
                       ElevatedButton(
                         onPressed: _triggerReload,
-                        child: const Text('Retry'),
+                        child: Text(widget.strings.retry),
                       ),
                     ],
                   ),
