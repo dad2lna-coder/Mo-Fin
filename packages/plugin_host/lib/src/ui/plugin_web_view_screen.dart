@@ -9,6 +9,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../plugin_service.dart';
 import '../js_bridge/host_api.dart';
 import '../models/plugin_manifest.dart';
+import 'plugin_host_strings.dart';
 
 /// Screen component rendering a web plugin inside a locked down InAppWebView container.
 class PluginWebViewScreen extends StatefulWidget {
@@ -17,6 +18,7 @@ class PluginWebViewScreen extends StatefulWidget {
   final PluginService pluginService;
   final String? entryUrl;
   final WebViewEnvironment? webViewEnvironment;
+  final PluginHostStrings strings;
 
   const PluginWebViewScreen({
     super.key,
@@ -25,6 +27,7 @@ class PluginWebViewScreen extends StatefulWidget {
     required this.pluginService,
     this.entryUrl,
     this.webViewEnvironment,
+    this.strings = const PluginHostStrings(),
   });
 
   @override
@@ -77,18 +80,29 @@ class _PluginWebViewScreenState extends State<PluginWebViewScreen> {
     final manifest = registry.plugins[widget.pluginId];
 
     if (!widget.pluginService.pluginsEnabled) {
-      _errorMessage = 'Plugin Host System is currently disabled.';
+      _errorMessage = widget.strings.hostDisabled;
       _isLoading = false;
       return;
     }
 
     if (manifest == null || !registry.isPluginEnabled(widget.pluginId)) {
-      _errorMessage = 'Plugin "${widget.pluginId}" is not loaded or active.';
+      _errorMessage = widget.strings.pluginNotLoaded(widget.pluginId);
       _isLoading = false;
       return;
     }
 
     _manifest = manifest;
+
+    final candidate = (widget.entryUrl != null && widget.entryUrl!.isNotEmpty)
+        ? widget.entryUrl!
+        : manifest.entryUrl;
+
+    if (candidate.isEmpty ||
+        !_hostApiHandler.isUrlUnderPluginFilesPath(candidate)) {
+      _errorMessage = widget.strings.unauthorizedEntryUrl;
+      _isLoading = false;
+      return;
+    }
   }
 
   Map<String, String> _buildAuthHeaders() {
@@ -106,13 +120,12 @@ class _PluginWebViewScreenState extends State<PluginWebViewScreen> {
   }
 
   String get _resolvedEntryUrl {
-    if (widget.entryUrl != null &&
-        widget.entryUrl!.isNotEmpty &&
-        _hostApiHandler.isUrlUnderPluginFilesPath(widget.entryUrl!)) {
-      return _hostApiHandler.resolvePluginFileUrl(widget.entryUrl!);
-    }
-    if (_manifest != null) {
-      return _hostApiHandler.resolvePluginFileUrl(_manifest!.client.html);
+    final candidate = (widget.entryUrl != null && widget.entryUrl!.isNotEmpty)
+        ? widget.entryUrl!
+        : (_manifest?.entryUrl ?? '');
+    if (candidate.isNotEmpty &&
+        _hostApiHandler.isUrlUnderPluginFilesPath(candidate)) {
+      return _hostApiHandler.resolvePluginFileUrl(candidate);
     }
     return '';
   }
@@ -150,7 +163,7 @@ class _PluginWebViewScreenState extends State<PluginWebViewScreen> {
           child: Padding(
             padding: const EdgeInsets.all(24.0),
             child: Text(
-              'Plugins are not supported on this platform.',
+              widget.strings.unsupportedOnDevice,
               textAlign: TextAlign.center,
               style: Theme.of(context).textTheme.bodyLarge,
             ),
@@ -167,7 +180,7 @@ class _PluginWebViewScreenState extends State<PluginWebViewScreen> {
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh),
-            tooltip: 'Reload',
+            tooltip: widget.strings.reload,
             onPressed: () {
               setState(() {
                 _isLoading = true;
@@ -244,7 +257,7 @@ class _PluginWebViewScreenState extends State<PluginWebViewScreen> {
                 onReceivedError: (controller, request, error) {
                   setState(() {
                     _isLoading = false;
-                    _errorMessage = 'Failed to load plugin: ${error.description}';
+                    _errorMessage = widget.strings.loadFailedWithError(error.description);
                   });
                 },
               ),
@@ -273,7 +286,7 @@ class _PluginWebViewScreenState extends State<PluginWebViewScreen> {
                           });
                           _webViewController?.reload();
                         },
-                        child: const Text('Retry'),
+                        child: Text(widget.strings.retry),
                       ),
                     ],
                   ),
