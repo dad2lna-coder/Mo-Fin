@@ -71,12 +71,14 @@ class _PluginWebViewScreenState extends State<PluginWebViewScreen> {
 
     _manifest = manifest;
 
-    final candidate = (widget.entryUrl != null && widget.entryUrl!.isNotEmpty)
+    final rawCandidate = (widget.entryUrl != null && widget.entryUrl!.isNotEmpty)
         ? widget.entryUrl!
-        : manifest.entryUrl;
+        : (manifest.clientEntryUrl ?? 'client.html');
 
-    if (candidate.isEmpty ||
-        !_hostApiHandler.isUrlUnderPluginFilesPath(candidate)) {
+    final resolved = _hostApiHandler.resolvePluginFileUrl(rawCandidate);
+
+    if (rawCandidate.isEmpty ||
+        !_hostApiHandler.isUrlUnderPluginFilesPath(resolved)) {
       _errorMessage = widget.strings.unauthorizedEntryUrl;
       _isLoading = false;
       return;
@@ -84,12 +86,13 @@ class _PluginWebViewScreenState extends State<PluginWebViewScreen> {
   }
 
   String get _resolvedEntryUrl {
-    final candidate = (widget.entryUrl != null && widget.entryUrl!.isNotEmpty)
+    final rawCandidate = (widget.entryUrl != null && widget.entryUrl!.isNotEmpty)
         ? widget.entryUrl!
-        : (_manifest?.entryUrl ?? '');
-    if (candidate.isNotEmpty &&
-        _hostApiHandler.isUrlUnderPluginFilesPath(candidate)) {
-      return _hostApiHandler.resolvePluginFileUrl(candidate);
+        : (_manifest?.clientEntryUrl ?? 'client.html');
+    final resolved = _hostApiHandler.resolvePluginFileUrl(rawCandidate);
+    if (rawCandidate.isNotEmpty &&
+        _hostApiHandler.isUrlUnderPluginFilesPath(resolved)) {
+      return resolved;
     }
     return '';
   }
