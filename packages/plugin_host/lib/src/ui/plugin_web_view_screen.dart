@@ -1,24 +1,20 @@
 import 'dart:async';
-import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_inappwebview/flutter_inappwebview.dart';
-import 'package:server_core/server_core.dart';
-import 'package:url_launcher/url_launcher.dart';
 
-import '../plugin_service.dart';
 import '../js_bridge/host_api.dart';
 import '../models/plugin_manifest.dart';
-import 'plugin_host_strings.dart';
+import '../plugin_service.dart';
+import 'plugin_frame_io.dart'
+    if (dart.library.js_interop) 'plugin_frame_web.dart';
 
-/// Screen component rendering a web plugin inside a locked down InAppWebView container.
+/// Screen component rendering a web plugin inside a locked down container.
 class PluginWebViewScreen extends StatefulWidget {
   final String title;
   final String pluginId;
   final PluginService pluginService;
   final String? entryUrl;
-  final WebViewEnvironment? webViewEnvironment;
-  final PluginHostStrings strings;
+  final dynamic webViewEnvironment;
 
   const PluginWebViewScreen({
     super.key,
@@ -27,7 +23,6 @@ class PluginWebViewScreen extends StatefulWidget {
     required this.pluginService,
     this.entryUrl,
     this.webViewEnvironment,
-    this.strings = const PluginHostStrings(),
   });
 
   @override
@@ -35,44 +30,25 @@ class PluginWebViewScreen extends StatefulWidget {
 }
 
 class _PluginWebViewScreenState extends State<PluginWebViewScreen> {
-  InAppWebViewController? _webViewController;
   late final HostApiHandler _hostApiHandler;
-  StreamSubscription<PluginEvent>? _eventSubscription;
   bool _isLoading = true;
   String? _errorMessage;
   PluginManifest? _manifest;
+  int _reloadToken = 0;
   final FocusNode _tvFocusNode = FocusNode(debugLabel: 'PluginWebViewTvFocus');
 
   @override
   void initState() {
     super.initState();
-    _hostApiHandler = widget.pluginService.createHostApiHandler(widget.pluginId);
-    _eventSubscription = widget.pluginService.pluginEvents.listen((evt) {
-      if (evt.pluginId == widget.pluginId) {
-        _handleJsEvent(evt.data);
-      }
-    });
+    _hostApiHandler =
+        widget.pluginService.createHostApiHandler(widget.pluginId);
     _resolveManifest();
   }
 
   @override
   void dispose() {
-    unawaited(_eventSubscription?.cancel());
     _tvFocusNode.dispose();
     super.dispose();
-  }
-
-  void _handleJsEvent(dynamic eventData) async {
-    final currentUrl = (await _webViewController?.getUrl())?.toString() ?? '';
-    if (!_hostApiHandler.isUrlUnderPluginFilesPath(currentUrl)) {
-      return;
-    }
-    if (_webViewController != null) {
-      final jsonStr = jsonEncode(eventData);
-      final jsCall =
-          'if(window.MoFinHost && window.MoFinHost._handleEvent){ window.MoFinHost._handleEvent($jsonStr); }';
-      await _webViewController!.evaluateJavascript(source: jsCall);
-    }
   }
 
   void _resolveManifest() {
@@ -80,13 +56,13 @@ class _PluginWebViewScreenState extends State<PluginWebViewScreen> {
     final manifest = registry.plugins[widget.pluginId];
 
     if (!widget.pluginService.pluginsEnabled) {
-      _errorMessage = widget.strings.hostDisabled;
+      _errorMessage = 'Plugin Host System is currently disabled.';
       _isLoading = false;
       return;
     }
 
     if (manifest == null || !registry.isPluginEnabled(widget.pluginId)) {
-      _errorMessage = widget.strings.pluginNotLoaded(widget.pluginId);
+      _errorMessage = 'Plugin "${widget.pluginId}" is not loaded or active.';
       _isLoading = false;
       return;
     }
@@ -99,24 +75,10 @@ class _PluginWebViewScreenState extends State<PluginWebViewScreen> {
 
     if (candidate.isEmpty ||
         !_hostApiHandler.isUrlUnderPluginFilesPath(candidate)) {
-      _errorMessage = widget.strings.unauthorizedEntryUrl;
+      _errorMessage = 'Failed to load plugin: Unauthorized entry URL.';
       _isLoading = false;
       return;
     }
-  }
-
-  Map<String, String> _buildAuthHeaders() {
-    final client = widget.pluginService.clientProvider?.call();
-    if (client == null) return {};
-    final token = client.accessToken as String? ?? '';
-    if (token.isEmpty) return {};
-    return {
-      'Authorization': buildServerAuthorizationHeader(
-        scheme: 'MediaBrowser',
-        deviceInfo: client.deviceInfo,
-        accessToken: token,
-      ),
-    };
   }
 
   String get _resolvedEntryUrl {
@@ -130,28 +92,18 @@ class _PluginWebViewScreenState extends State<PluginWebViewScreen> {
     return '';
   }
 
-  void _handleJsBridgeMessage(String rawJson) async {
-    // Check current main frame URL per message
-    final currentUrl = (await _webViewController?.getUrl())?.toString() ?? '';
-    if (!_hostApiHandler.isUrlUnderPluginFilesPath(currentUrl)) {
-      debugPrint('PluginBridge: Discarded message from unauthorized origin/path: $currentUrl');
-      return;
-    }
-
-    final response = await _hostApiHandler.handleMessage(rawJson);
-    final responseJson = jsonEncode(response);
-
-    if (_webViewController != null) {
-      final jsCall =
-          'if(window.MoFinHost && window.MoFinHost._handleResponse){ window.MoFinHost._handleResponse($responseJson); }';
-      await _webViewController!.evaluateJavascript(source: jsCall);
-    }
-  }
-
   bool _isUnsupportedPlatform() {
-    if (kIsWeb) return true;
+    if (kIsWeb) return false;
     final target = defaultTargetPlatform;
     return target == TargetPlatform.linux;
+  }
+
+  void _triggerReload() {
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+      _reloadToken++;
+    });
   }
 
   @override
@@ -163,7 +115,7 @@ class _PluginWebViewScreenState extends State<PluginWebViewScreen> {
           child: Padding(
             padding: const EdgeInsets.all(24.0),
             child: Text(
-              widget.strings.unsupportedOnDevice,
+              'Plugins are not supported on this device.',
               textAlign: TextAlign.center,
               style: Theme.of(context).textTheme.bodyLarge,
             ),
@@ -180,14 +132,8 @@ class _PluginWebViewScreenState extends State<PluginWebViewScreen> {
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh),
-            tooltip: widget.strings.reload,
-            onPressed: () {
-              setState(() {
-                _isLoading = true;
-                _errorMessage = null;
-              });
-              _webViewController?.reload();
-            },
+            tooltip: 'Reload',
+            onPressed: _triggerReload,
           ),
         ],
       ),
@@ -200,65 +146,23 @@ class _PluginWebViewScreenState extends State<PluginWebViewScreen> {
         child: Stack(
           children: [
             if (_errorMessage == null && entryUrl.isNotEmpty)
-              InAppWebView(
+              PluginFrame(
+                entryUrl: entryUrl,
+                pluginId: widget.pluginId,
+                pluginService: widget.pluginService,
+                hostApiHandler: _hostApiHandler,
                 webViewEnvironment: widget.webViewEnvironment,
-                initialUrlRequest: URLRequest(
-                  url: WebUri(entryUrl),
-                  headers: _buildAuthHeaders(),
-                ),
-                initialSettings: InAppWebViewSettings(
-                  javaScriptEnabled: true,
-                  domStorageEnabled: true,
-                  databaseEnabled: true,
-                  useShouldOverrideUrlLoading: true,
-                  mediaPlaybackRequiresUserGesture: false,
-                  allowsInlineMediaPlayback: true,
-                ),
-                onWebViewCreated: (controller) {
-                  _webViewController = controller;
-                  controller.addJavaScriptHandler(
-                    handlerName: 'MoFinPluginBridge',
-                    callback: (args) {
-                      if (args.isNotEmpty) {
-                        _handleJsBridgeMessage(args[0].toString());
-                      }
-                    },
-                  );
+                reloadToken: _reloadToken,
+                onLoadingChanged: (loading) {
+                  if (mounted) setState(() => _isLoading = loading);
                 },
-                shouldOverrideUrlLoading: (controller, navigationAction) async {
-                  final requestUrl = navigationAction.request.url?.toString() ?? '';
-                  if (_hostApiHandler.isUrlUnderPluginFilesPath(requestUrl)) {
-                    return NavigationActionPolicy.ALLOW;
+                onError: (error) {
+                  if (mounted) {
+                    setState(() {
+                      _errorMessage =
+                          error != null ? 'Failed to load plugin: $error' : null;
+                    });
                   }
-                  if (requestUrl.startsWith('http://') || requestUrl.startsWith('https://')) {
-                    final uri = Uri.tryParse(requestUrl);
-                    if (uri != null) {
-                      unawaited(launchUrl(uri, mode: LaunchMode.externalApplication));
-                    }
-                  }
-                  return NavigationActionPolicy.CANCEL;
-                },
-                onLoadStart: (controller, url) {
-                  setState(() {
-                    _isLoading = true;
-                    _errorMessage = null;
-                  });
-                },
-                onLoadStop: (controller, url) async {
-                  setState(() {
-                    _isLoading = false;
-                  });
-                  final currentUrlStr = url?.toString() ?? '';
-                  if (_hostApiHandler.isUrlUnderPluginFilesPath(currentUrlStr)) {
-                    final script = HostApiHandler.getBridgeInjectionScript();
-                    await controller.evaluateJavascript(source: script);
-                  }
-                },
-                onReceivedError: (controller, request, error) {
-                  setState(() {
-                    _isLoading = false;
-                    _errorMessage = widget.strings.loadFailedWithError(error.description);
-                  });
                 },
               ),
             if (_isLoading && _errorMessage == null)
@@ -270,7 +174,11 @@ class _PluginWebViewScreenState extends State<PluginWebViewScreen> {
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      const Icon(Icons.error_outline, size: 48, color: Colors.red),
+                      const Icon(
+                        Icons.error_outline,
+                        size: 48,
+                        color: Colors.red,
+                      ),
                       const SizedBox(height: 16),
                       Text(
                         _errorMessage!,
@@ -279,14 +187,8 @@ class _PluginWebViewScreenState extends State<PluginWebViewScreen> {
                       ),
                       const SizedBox(height: 16),
                       ElevatedButton(
-                        onPressed: () {
-                          setState(() {
-                            _isLoading = true;
-                            _errorMessage = null;
-                          });
-                          _webViewController?.reload();
-                        },
-                        child: Text(widget.strings.retry),
+                        onPressed: _triggerReload,
+                        child: const Text('Retry'),
                       ),
                     ],
                   ),

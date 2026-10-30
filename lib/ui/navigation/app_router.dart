@@ -4,7 +4,6 @@ import 'package:plugin_host/plugin_host.dart';
 import 'package:go_router/go_router.dart';
 import 'package:playback_core/playback_core.dart';
 
-import '../../l10n/app_localizations.dart';
 import '../../auth/repositories/session_repository.dart';
 import '../../auth/repositories/user_repository.dart';
 import '../../data/services/connectivity_service.dart';
@@ -704,30 +703,12 @@ final appRouter = GoRouter(
         final url = state.uri.queryParameters['url'] ?? '';
         final pluginId = state.uri.queryParameters['pluginId'] ?? 'plugin';
         final pluginService = GetIt.instance<PluginService>();
-        final l10n = AppLocalizations.of(context);
-        final strings = PluginHostStrings(
-          pluginsTitle: l10n.pluginsTitle,
-          reloadPlugins: l10n.pluginsReload,
-          enablePluginHost: l10n.pluginsEnableHost,
-          enablePluginHostDescription: l10n.pluginsEnableHostDescription,
-          serverPluginsCount: (count) => l10n.pluginsServerPluginsCount(count),
-          noPluginsActive: l10n.pluginsNoActivePlugins,
-          openPlugin: l10n.pluginsOpenPlugin,
-          unsupportedOnDevice: l10n.pluginsUnsupportedOnDevice,
-          reload: l10n.reload,
-          retry: l10n.retry,
-          hostDisabled: l10n.pluginsHostDisabled,
-          pluginNotLoaded: (pId) => l10n.pluginsNotLoaded(pId),
-          unauthorizedEntryUrl: l10n.pluginsUnauthorizedEntryUrl,
-          loadFailedWithError: (err) => l10n.pluginsLoadFailedWithError(err),
-        );
         return PluginWebViewScreen(
           title: title,
           entryUrl: url,
           pluginId: pluginId,
           pluginService: pluginService,
           webViewEnvironment: gWebViewEnvironment,
-          strings: strings,
         );
       },
     ),

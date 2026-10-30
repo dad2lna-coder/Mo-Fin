@@ -125,7 +125,16 @@ Displays a toast notification in MoFin.
 
 ---
 
-## 5. Upstream Moonfin Merge Checklist
+## 5. Web Execution Model (Flutter Web & Safari PWA)
+
+1. **Sandboxed Opaque Origin**: On Flutter Web builds, plugins execute inside a sandboxed `HTMLIFrameElement` (`sandbox="allow-scripts allow-forms allow-popups allow-popups-to-escape-sandbox"`). The iframe runs in an opaque origin (`origin: "null"`), so `localStorage`, `sessionStorage`, and cookies are disabled; plugins must use `dataGet`/`dataPut` for persistence.
+2. **PostMessage Nonce Bridge**: Every web plugin instance receives a unique 16-byte cryptographically secure random base64url nonce via `location.hash` (`#mofinNonce=<nonce>`). Bridge envelopes must carry `{ mofin: 1, nonce: "<nonce>", payload: "..." }`. Envelopes with invalid nonces, missing fields, or payloads exceeding 256KB are discarded.
+3. **Single Entry Page Lifecycle**: The web bridge tracks iframe `load` events. After the initial load event, subsequent in-frame navigations mark the bridge dead and ignore bridge messages until the user taps **Reload** (which generates a fresh nonce and iframe src).
+4. **Server Requirements**: The server must serve `/Moonfin/PluginHost/bridge.js`, and the MoFin app origin must be allowed by the HTTP `Content-Security-Policy` `frame-ancestors` directive (same origin as the media server URL or listed in Moonbase's `PluginFrameAncestors` setting).
+
+---
+
+## 6. Upstream Moonfin Merge Checklist
 
 When pulling new releases from upstream `Moonfin-Core`, re-verify integration points marked with `// MOFIN-PLUGIN-HOOK`:
 

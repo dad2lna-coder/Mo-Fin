@@ -105,41 +105,6 @@ void main() {
       expect(emptyClientHandler.isUrlUnderPluginFilesPath('files/index.html'), isFalse);
     });
 
-    test('supports sub-path (base-path) servers in isUrlUnderPluginFilesPath and resolvePluginFileUrl', () {
-      final subPathHandler = HostApiHandler(
-        pluginId: 'test-plugin',
-        registry: registry,
-        userContextProvider: () => const PluginUserContext(
-          userId: 'u1',
-          username: 'TestUser',
-          serverName: 'MyServer',
-        ),
-        clientProvider: () => _MockClient('https://host/jellyfin'),
-        prefs: prefs,
-      );
-
-      expect(
-        subPathHandler.resolvePluginFileUrl('index.html'),
-        equals('https://host/jellyfin/Moonfin/Plugins/test-plugin/files/index.html'),
-      );
-      expect(
-        subPathHandler.isUrlUnderPluginFilesPath('https://host/jellyfin/Moonfin/Plugins/test-plugin/files/index.html'),
-        isTrue,
-      );
-      expect(
-        subPathHandler.isUrlUnderPluginFilesPath('files/index.html'),
-        isTrue,
-      );
-      expect(
-        subPathHandler.isUrlUnderPluginFilesPath('https://host/jellyfin/Moonfin/Plugins/test-plugin/files/../secret'),
-        isFalse,
-      );
-      expect(
-        subPathHandler.isUrlUnderPluginFilesPath('https://host/jellyfin/Moonfin/Plugins/test-plugin/files/%2e%2e/secret'),
-        isFalse,
-      );
-    });
-
     test('callPluginRoute rejects path traversal and reserved paths', () async {
       final res1 = await handler.handleMessage('''
       {

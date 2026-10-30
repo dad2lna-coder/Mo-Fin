@@ -1,24 +1,5 @@
 part of '../settings_side_panel.dart';
 
-PluginHostStrings _buildPluginHostStrings(AppLocalizations l10n) {
-  return PluginHostStrings(
-    pluginsTitle: l10n.pluginsTitle,
-    reloadPlugins: l10n.pluginsReload,
-    enablePluginHost: l10n.pluginsEnableHost,
-    enablePluginHostDescription: l10n.pluginsEnableHostDescription,
-    serverPluginsCount: (count) => l10n.pluginsServerPluginsCount(count),
-    noPluginsActive: l10n.pluginsNoActivePlugins,
-    openPlugin: l10n.pluginsOpenPlugin,
-    unsupportedOnDevice: l10n.pluginsUnsupportedOnDevice,
-    reload: l10n.reload,
-    retry: l10n.retry,
-    hostDisabled: l10n.pluginsHostDisabled,
-    pluginNotLoaded: (pluginId) => l10n.pluginsNotLoaded(pluginId),
-    unauthorizedEntryUrl: l10n.pluginsUnauthorizedEntryUrl,
-    loadFailedWithError: (error) => l10n.pluginsLoadFailedWithError(error),
-  );
-}
-
 class _ServicesScreen extends StatefulWidget {
   const _ServicesScreen();
 
@@ -125,7 +106,7 @@ class _ServicesScreenState extends State<_ServicesScreen> {
                       final prefs = GetIt.instance<UserPreferences>();
                       await prefs.set(UserPreferences.pluginsEnabled, val);
                     },
-                    strings: _buildPluginHostStrings(l10n),
+                    onUpdatePluginUrls: (urls) async {},
                   ),
                 ),
               ),
@@ -137,7 +118,7 @@ class _ServicesScreenState extends State<_ServicesScreen> {
                 return _TvSettingsListTile(
                   leading: const Icon(Icons.extension_outlined),
                   title: Text(entry.title),
-                  subtitle: Text(l10n.pluginsEntrySubtitle(entry.pluginId)),
+                  subtitle: Text('Plugin: ${entry.pluginId}'),
                   onTap: () {
                     context.pushSettingsScreen(
                       PluginWebViewScreen(
@@ -146,7 +127,6 @@ class _ServicesScreenState extends State<_ServicesScreen> {
                         pluginId: entry.pluginId,
                         pluginService: GetIt.instance<PluginService>(),
                         webViewEnvironment: gWebViewEnvironment,
-                        strings: _buildPluginHostStrings(l10n),
                       ),
                     );
                   },

@@ -90,11 +90,7 @@ class HostApiHandler {
       if (!isSameOrigin(resolved, baseUrl)) {
         return false;
       }
-      final baseUri = Uri.parse(baseUrl);
-      final basePath = baseUri.path.endsWith('/')
-          ? baseUri.path.substring(0, baseUri.path.length - 1)
-          : baseUri.path;
-      final filesPrefix = '$basePath/Moonfin/Plugins/$pluginId/files/';
+      final filesPrefix = '/Moonfin/Plugins/$pluginId/files/';
       final targetUri = Uri.parse(resolved);
       final normalizedPath = targetUri.normalizePath().path;
       return normalizedPath.startsWith(filesPrefix);
@@ -110,35 +106,15 @@ class HostApiHandler {
     if (path.startsWith('http://') || path.startsWith('https://')) {
       return path;
     }
-    if (baseUrl.isEmpty) {
-      return path.startsWith('/') ? path : '/$path';
-    }
-    final baseUri = Uri.parse(baseUrl);
-    final basePath = baseUri.path.endsWith('/')
-        ? baseUri.path.substring(0, baseUri.path.length - 1)
-        : baseUri.path;
-    final cleanBaseUrl = baseUrl.endsWith('/')
-        ? baseUrl.substring(0, baseUrl.length - 1)
-        : baseUrl;
-
     final relativePath = path.startsWith('/') ? path.substring(1) : path;
-    final fullPluginFilesPathNoLeadingSlash =
-        '${basePath.startsWith('/') ? basePath.substring(1) : basePath}/Moonfin/Plugins/$pluginId/files/'
-            .replaceAll('//', '/');
-    final relativePluginFilesPathNoLeadingSlash =
-        'Moonfin/Plugins/$pluginId/files/';
-
-    if (relativePath.startsWith(fullPluginFilesPathNoLeadingSlash)) {
-      return '${baseUri.origin}/$relativePath';
-    }
-    if (relativePath.startsWith(relativePluginFilesPathNoLeadingSlash)) {
-      return '$cleanBaseUrl/$relativePath';
+    if (relativePath.startsWith('Moonfin/Plugins/$pluginId/files/')) {
+      return baseUrl.isNotEmpty ? '$baseUrl/$relativePath' : '/$relativePath';
     }
     if (relativePath.startsWith('files/')) {
       final sub = relativePath.substring(6);
-      return '$cleanBaseUrl/Moonfin/Plugins/$pluginId/files/$sub';
+      return '$baseUrl/Moonfin/Plugins/$pluginId/files/$sub';
     }
-    return '$cleanBaseUrl/Moonfin/Plugins/$pluginId/files/$relativePath';
+    return '$baseUrl/Moonfin/Plugins/$pluginId/files/$relativePath';
   }
 
   /// Handles an incoming bridge message string from JavaScript.
@@ -305,8 +281,7 @@ class HostApiHandler {
     final baseUrl = client?.baseUrl as String? ?? '';
     if (baseUrl.isEmpty) throw Exception('No active server URL');
     final cleanSub = subPath.startsWith('/') ? subPath.substring(1) : subPath;
-    final cleanBase = baseUrl.endsWith('/') ? baseUrl.substring(0, baseUrl.length - 1) : baseUrl;
-    return '$cleanBase/$cleanSub';
+    return '$baseUrl/$cleanSub';
   }
 
   Future<dynamic> _serverDataGet(String key) async {
@@ -366,14 +341,7 @@ class HostApiHandler {
     final cleanPath = path.startsWith('/') ? path.substring(1) : path;
     final rawUrl = _buildServerUrl('Moonfin/Plugins/$pluginId/$cleanPath');
     final uri = Uri.parse(rawUrl).normalizePath();
-
-    final client = clientProvider?.call();
-    final baseUrl = client?.baseUrl as String? ?? '';
-    final baseUri = Uri.parse(baseUrl);
-    final basePath = baseUri.path.endsWith('/')
-        ? baseUri.path.substring(0, baseUri.path.length - 1)
-        : baseUri.path;
-    final requiredPrefix = '$basePath/Moonfin/Plugins/$pluginId/';
+    final requiredPrefix = '/Moonfin/Plugins/$pluginId/';
     if (!uri.path.startsWith(requiredPrefix)) {
       throw Exception('Access denied: resolved route path outside plugin scope');
     }
