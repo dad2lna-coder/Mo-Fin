@@ -102,18 +102,6 @@ class PluginRegistry extends ChangeNotifier {
     notifyListeners();
   }
 
-  bool _areRequirementsMet(List<String> requires) {
-    for (final req in requires) {
-      final capVal = _capabilities[req];
-      final pingVal = _pingPlugins[req];
-      final reqActive = (capVal == true) || (pingVal == true);
-      if (!reqActive) {
-        return false;
-      }
-    }
-    return true;
-  }
-
   void setCapabilities(Map<String, dynamic> caps, {Map<String, dynamic>? pingPlugins}) {
     _capabilities = Map.from(caps);
     if (pingPlugins != null) {

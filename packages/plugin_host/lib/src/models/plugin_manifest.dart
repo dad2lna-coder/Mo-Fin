@@ -174,7 +174,7 @@ class PluginManifest {
   factory PluginManifest.fromJson(Map<String, dynamic> json, {String? baseUrl}) {
     final rawProxy = json['proxyAccess'];
     final proxyAccessStr = rawProxy is bool
-        ? (rawProxy ? 'admin' : 'user')
+        ? 'admin'
         : (rawProxy?.toString() ?? 'admin');
 
     return PluginManifest(

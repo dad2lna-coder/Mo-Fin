@@ -1,6 +1,5 @@
 import 'dart:convert';
 import 'package:dio/dio.dart';
-import 'package:flutter/foundation.dart';
 import 'package:server_core/server_core.dart';
 import '../models/plugin_ui_models.dart';
 import '../plugin_registry.dart';
@@ -79,6 +78,9 @@ class HostApiHandler {
   /// Validates that a target URL is strictly under this plugin's own files path `/Moonfin/Plugins/{pluginId}/files/`.
   bool isUrlUnderPluginFilesPath(String url) {
     if (url.trim().isEmpty) return false;
+    if (url.toLowerCase().contains('%2e') || url.contains('..')) {
+      return false;
+    }
     final client = clientProvider?.call();
     final baseUrl = client?.baseUrl as String? ?? '';
     if (baseUrl.trim().isEmpty) return false;

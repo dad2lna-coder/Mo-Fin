@@ -176,6 +176,7 @@ class HomeViewModel extends ChangeNotifier {
 
   // MOFIN-PLUGIN-HOOK: Dynamic plugin home rows retriever
   List<HomeRow> _getRegisteredPluginHomeRows() {
+    if (!PlatformDetection.pluginHostSupported) return const [];
     if (!GetIt.instance.isRegistered<PluginService>()) return const [];
     final pluginService = GetIt.instance<PluginService>();
     if (!_prefs.get(UserPreferences.pluginsEnabled) || !pluginService.pluginsEnabled) {

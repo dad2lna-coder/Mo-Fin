@@ -17,6 +17,7 @@ import 'package:media_kit/media_kit.dart';
 import 'package:media_kit_video/media_kit_video.dart';
 import 'package:moonfin_native_video/moonfin_native_video.dart';
 import 'package:playback_core/playback_core.dart';
+import 'package:plugin_host/plugin_host.dart';
 import 'package:server_core/server_core.dart' hide ImageType;
 import 'package:window_manager/window_manager.dart';
 
@@ -60,6 +61,7 @@ import '../../../util/server_url.dart';
 import '../../../util/tmdb_thumb.dart';
 import '../../navigation/app_router.dart';
 import '../../navigation/destinations.dart';
+import '../../navigation/playback_launcher.dart';
 import '../../../data/models/media_bar_state.dart';
 import '../../../data/viewmodels/media_bar_view_model.dart';
 import '../../widgets/grid_button_card.dart';
@@ -5567,7 +5569,7 @@ class _ContentRowsState extends State<_ContentRows>
   static void _handlePluginHostItemTap(BuildContext context, AggregatedItem item) {
     final jellyfinItemId = item.rawData['JellyfinItemId'] as String?;
     if (jellyfinItemId != null && jellyfinItemId.isNotEmpty) {
-      PlaybackLauncher.playItem(jellyfinItemId);
+      context.push(Destinations.item(jellyfinItemId));
       return;
     }
 

@@ -97,8 +97,8 @@ class _ServicesScreenState extends State<_ServicesScreen> {
             if (PlatformDetection.pluginHostSupported)
               _TvSettingsListTile(
                 leading: const Icon(Icons.extension),
-                title: const Text('Plugins'),
-                subtitle: const Text('Web plugin host system and installed plugins'),
+                title: Text(l10n.pluginsTitle),
+                subtitle: Text(l10n.pluginsSubtitle),
                 onTap: () => context.pushSettingsScreen(
                   PluginSettingsScreen(
                     pluginService: GetIt.instance<PluginService>(),

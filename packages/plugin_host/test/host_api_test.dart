@@ -86,6 +86,14 @@ void main() {
         handler.isUrlUnderPluginFilesPath('https://server.test/Admin/Settings'),
         isFalse,
       );
+      expect(
+        handler.isUrlUnderPluginFilesPath('https://server.test/Moonfin/Plugins/test-plugin/files/../secret'),
+        isFalse,
+      );
+      expect(
+        handler.isUrlUnderPluginFilesPath('https://server.test/Moonfin/Plugins/test-plugin/files/%2e%2e/secret'),
+        isFalse,
+      );
 
       final emptyClientHandler = HostApiHandler(
         pluginId: 'test-plugin',
@@ -181,8 +189,8 @@ void main() {
 
 class _MockClient {
   final String baseUrl;
-  final String? accessToken;
-  final dynamic deviceInfo;
+  final String? accessToken = 'mockToken';
+  final dynamic deviceInfo = null;
 
-  _MockClient(this.baseUrl, [this.accessToken = 'mockToken', this.deviceInfo]);
+  _MockClient(this.baseUrl);
 }
