@@ -6,7 +6,6 @@ import 'package:path_provider/path_provider.dart';
 
 import 'package:flutter/foundation.dart';
 import 'package:get_it/get_it.dart';
-import 'package:plugin_host/plugin_host.dart';
 import 'package:server_core/server_core.dart';
 import 'package:collection/collection.dart';
 
@@ -172,39 +171,6 @@ class HomeViewModel extends ChangeNotifier {
     } catch (_) {
       return const {};
     }
-  }
-
-  // MOFIN-PLUGIN-HOOK: Dynamic plugin home rows retriever
-  List<HomeRow> _getRegisteredPluginHomeRows() {
-    if (!GetIt.instance.isRegistered<PluginService>()) return const [];
-    final pluginService = GetIt.instance<PluginService>();
-    if (!pluginService.pluginsEnabled) return const [];
-    final registry = pluginService.registry;
-    return registry.homeRows.map((pluginRow) {
-      final items = pluginRow.items.map((pi) {
-        return AggregatedItem(
-          id: pi.id,
-          serverId: 'plugin_${pluginRow.pluginId}',
-          rawData: {
-            'Name': pi.title,
-            'Type': 'Video',
-            'Overview': pi.subtitle ?? '',
-            'PosterPath': pi.imageUrl ?? '',
-            'BackdropPath': pi.imageUrl ?? '',
-            'JellyfinItemId': pi.jellyfinItemId,
-            'StreamUrl': pi.streamUrl,
-            'ActionUrl': pi.actionUrl,
-          },
-        );
-      }).toList();
-      return HomeRow(
-        id: 'pluginDynamic:${pluginRow.pluginId}:${pluginRow.id}',
-        title: pluginRow.title,
-        rowType: HomeRowType.pluginDynamic,
-        items: items,
-        totalCount: items.length,
-      );
-    }).toList();
   }
 
   String _homeCacheKey() {
@@ -729,17 +695,6 @@ class HomeViewModel extends ChangeNotifier {
         3,
         (cfg) => loadConfigItem(cfg),
       );
-
-      // MOFIN-PLUGIN-HOOK: Inject registered plugin home rows
-      final pluginRows = _getRegisteredPluginHomeRows();
-      if (pluginRows.isNotEmpty) {
-        final existingIds = _rows.map((r) => r.id).toSet();
-        for (final pr in pluginRows) {
-          if (!existingIds.contains(pr.id)) {
-            _rows.add(pr);
-          }
-        }
-      }
 
       _saveRowCache();
       _topShelf.update(_rows);

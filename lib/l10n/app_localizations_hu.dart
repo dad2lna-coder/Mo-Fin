@@ -1,5 +1,6 @@
 // ignore: unused_import
 import 'package:intl/intl.dart' as intl;
+
 import 'app_localizations.dart';
 
 // ignore_for_file: type=lint
@@ -18,10 +19,10 @@ class AppLocalizationsHu extends AppLocalizations {
   String get animeMarkerMixed => 'Vegyes';
 
   @override
-  String get animeMarkerAnimeCanon => 'Anime kánon';
+  String get animeMarkerAnimeCanon => 'Anime Kánon';
 
   @override
-  String get animeMarkerMangaCanon => 'Manga kánon';
+  String get animeMarkerMangaCanon => 'Manga Kánon';
 
   @override
   String get animeMarkerSubbed => 'Feliratos';
@@ -15114,13 +15115,6 @@ class AppLocalizationsHu extends AppLocalizations {
 
   @override
   String get navYou => 'You';
-
-  @override
-  String get cinemaSkipPrerolls => 'Cinema Mode Skip Button';
-
-  @override
-  String get cinemaSkipPrerollsDescription =>
-      'Show a Skip button during Cinema Mode trailers, commercials, and other pre-rolls.';
 
   @override
   String get detailsPage => 'Details Page';

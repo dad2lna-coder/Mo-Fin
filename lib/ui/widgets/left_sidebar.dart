@@ -7,7 +7,6 @@ import 'package:flutter/services.dart';
 import 'package:get_it/get_it.dart';
 import 'package:go_router/go_router.dart';
 import 'package:moonfin_design/moonfin_design.dart';
-import 'package:plugin_host/plugin_host.dart';
 import 'package:server_core/server_core.dart';
 
 import '../../auth/repositories/user_repository.dart';
@@ -1134,31 +1133,6 @@ class _LeftSidebarState extends State<LeftSidebar> with RouteAware {
                       );
                     },
                   ),
-                // MOFIN-PLUGIN-HOOK: Dynamic registered plugin nav items
-                if (GetIt.instance.isRegistered<PluginRegistry>())
-                  ...GetIt.instance<PluginRegistry>().navItems.map((navItem) {
-                    return _SidebarItem(
-                      key: ValueKey('sidebar-plugin-${navItem.id}'),
-                      icon: Icons.extension_outlined,
-                      label: navItem.title,
-                      baseColor: nextMainSidebarColor(),
-                      showLabel: _showLabels,
-                      onPressed: () {
-                        _onNavigate();
-                        _markNavigationAwayFromSidebar();
-                        context.push(
-                          Uri(
-                            path: '/plugin-screen',
-                            queryParameters: {
-                              'title': navItem.title,
-                              'url': navItem.url,
-                              'pluginId': navItem.pluginId,
-                            },
-                          ).toString(),
-                        );
-                      },
-                    );
-                  }),
                 if (!kidsMode &&
                     _prefs.get(UserPreferences.showSeerrButton) &&
                     GetIt.instance<PluginSyncService>().seerrAvailable)
