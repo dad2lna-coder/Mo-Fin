@@ -4,9 +4,64 @@ import 'package:flutter/widgets.dart';
 import 'package:get_it/get_it.dart';
 import 'package:go_router/go_router.dart';
 import 'package:playback_core/playback_core.dart';
+import 'package:server_core/server_core.dart';
 
 import '../../data/services/log_service.dart';
+import '../../data/models/aggregated_item.dart';
 import 'destinations.dart';
+
+// MOFIN-PLUGIN-HOOK: PlaybackLauncher helper for plugin-triggered playback
+class PlaybackLauncher {
+  static Future<void> playItem(String itemId) async {
+    final manager = GetIt.instance<PlaybackManager>();
+    final client = GetIt.instance<MediaServerClient>();
+    try {
+      final itemData = await client.itemsApi.getItem(itemId);
+      final item = AggregatedItem(
+        id: itemId,
+        serverId: client.baseUrl,
+        rawData: itemData,
+      );
+      await manager.playItems([item]);
+    } catch (e) {
+      GetIt.instance<LogService>().log(
+        LogCategory.playback,
+        'PlaybackLauncher: failed to launch item $itemId: $e',
+        level: LogLevel.error,
+      );
+    }
+  }
+
+  static Future<void> playStream(String streamUrl, {String? title}) async {
+    final manager = GetIt.instance<PlaybackManager>();
+    try {
+      final item = AggregatedItem(
+        id: 'stream_${DateTime.now().millisecondsSinceEpoch}',
+        serverId: 'stream',
+        rawData: {
+          'Name': title ?? 'Direct Stream',
+          'Type': 'Video',
+          'Path': streamUrl,
+          'MediaSources': [
+            {
+              'Id': 'stream_${DateTime.now().millisecondsSinceEpoch}',
+              'Path': streamUrl,
+              'Protocol': 'Http',
+              'Container': streamUrl.contains('m3u8') ? 'm3u8' : 'mp4',
+            }
+          ],
+        },
+      );
+      await manager.playItems([item]);
+    } catch (e) {
+      GetIt.instance<LogService>().log(
+        LogCategory.playback,
+        'PlaybackLauncher: failed to launch stream $streamUrl: $e',
+        level: LogLevel.error,
+      );
+    }
+  }
+}
 
 typedef PlaybackStarter = Future<bool> Function(PlaybackLaunchSession? session);
 
