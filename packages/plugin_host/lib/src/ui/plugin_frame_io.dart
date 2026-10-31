@@ -65,7 +65,8 @@ class _PluginFrameState extends State<PluginFrame> {
   }
 
   void _handleJsEvent(dynamic eventData) async {
-    final currentUrl = (await _webViewController?.getUrl())?.toString() ?? '';
+    final rawUrl = (await _webViewController?.getUrl())?.toString() ?? '';
+    final currentUrl = Uri.tryParse(rawUrl)?.removeFragment().toString() ?? '';
     if (!widget.hostApiHandler.isUrlUnderPluginFilesPath(currentUrl)) {
       return;
     }
@@ -78,10 +79,11 @@ class _PluginFrameState extends State<PluginFrame> {
   }
 
   void _handleJsBridgeMessage(String rawJson) async {
-    final currentUrl = (await _webViewController?.getUrl())?.toString() ?? '';
+    final rawUrl = (await _webViewController?.getUrl())?.toString() ?? '';
+    final currentUrl = Uri.tryParse(rawUrl)?.removeFragment().toString() ?? '';
     if (!widget.hostApiHandler.isUrlUnderPluginFilesPath(currentUrl)) {
       debugPrint(
-        'PluginBridge: Discarded message from unauthorized origin/path: $currentUrl',
+        'PluginBridge: Discarded message from unauthorized origin/path: $rawUrl',
       );
       return;
     }

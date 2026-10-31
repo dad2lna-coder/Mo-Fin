@@ -177,6 +177,30 @@ void main() {
       prefs = _FakePreferences();
     });
 
+    test('handles non-string callbackId gracefully without throwing', () async {
+      final handler = HostApiHandler(
+        pluginId: 'test-plugin',
+        registry: registry,
+        userContextProvider: () => null,
+        prefs: prefs,
+      );
+
+      final requestJson = jsonEncode({
+        'method': 'getHostApiVersion',
+        'callbackId': 12345,
+      });
+
+      final response = await PluginFrameGate.handleHostMessageWithTimeout(
+        handler,
+        requestJson,
+        timeout: const Duration(milliseconds: 500),
+      );
+
+      expect(response['ok'], isTrue);
+      expect(response['result'], {'hostApi': 1});
+      expect(response['callbackId'], '12345');
+    });
+
     test('returns successful response within timeout', () async {
       final handler = HostApiHandler(
         pluginId: 'test-plugin',

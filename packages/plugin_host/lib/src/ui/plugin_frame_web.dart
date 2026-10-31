@@ -50,12 +50,13 @@ class _PluginFrameState extends State<PluginFrame> {
   StreamSubscription<PluginEvent>? _eventSubscription;
 
   late String _nonce;
-  int _loadCount = 0;
+  late PluginFrameGate _gate;
 
   @override
   void initState() {
     super.initState();
     _generateNonce();
+    _gate = PluginFrameGate(nonce: _nonce);
     final count = ++_nextViewTypeCounter;
     _viewType = 'mofin-plugin-frame-${widget.pluginId}-$count';
 
@@ -90,7 +91,7 @@ class _PluginFrameState extends State<PluginFrame> {
   }
 
   web.HTMLIFrameElement _buildIFrame() {
-    _loadCount = 0;
+    _gate = PluginFrameGate(nonce: _nonce);
 
     final iframe = web.HTMLIFrameElement()
       ..style.width = '100%'
@@ -107,12 +108,9 @@ class _PluginFrameState extends State<PluginFrame> {
     iframe.src = '$cleanUrl#mofinNonce=$_nonce';
 
     _loadEventListener = ((web.Event _) {
-      _loadCount++;
-      if (_loadCount == 1) {
+      if (_gate.onIFrameLoad()) {
         widget.onLoadingChanged(false);
       }
-      // On iOS Safari, in-page hash changes fire extra iframe load events.
-      // Subsequent load events must not disable the bridge.
     }).toJS;
 
     iframe.addEventListener('load', _loadEventListener);
@@ -130,7 +128,7 @@ class _PluginFrameState extends State<PluginFrame> {
 
   void _reloadIFrame() {
     _generateNonce();
-    _loadCount = 0;
+    _gate = PluginFrameGate(nonce: _nonce);
     widget.onLoadingChanged(true);
     widget.onError(null);
 
@@ -150,17 +148,13 @@ class _PluginFrameState extends State<PluginFrame> {
     final contentWindow = iframe.contentWindow;
     if (contentWindow == null) return;
 
-    // Check message source is iframe.contentWindow using JS strict equality
-    // and verify origin is 'null' (opaque sandboxed origin)
     final source = event.source;
     final isSourceMatch = source != null && source.strictEquals(contentWindow).toDart;
-    if (!isSourceMatch) return;
-    if (event.origin != 'null') return;
 
     final dataAny = event.data;
     if (dataAny == null) return;
 
-    Map<String, dynamic> envelopeMap;
+    dynamic envelopeMap;
     try {
       final dartified = dataAny.dartify();
       if (dartified is Map) {
@@ -179,9 +173,10 @@ class _PluginFrameState extends State<PluginFrame> {
       return;
     }
 
-    final payloadStr = PluginFrameProtocol.validateIncomingEnvelope(
-      envelopeMap,
-      expectedNonce: _nonce,
+    final payloadStr = _gate.validateIncomingMessage(
+      origin: event.origin,
+      isSourceMatch: isSourceMatch,
+      envelopeMap: envelopeMap,
     );
     // If a message fails the nonce check after the first load, ignore it without crashing (no error UI)
     if (payloadStr == null) return;

@@ -69,7 +69,8 @@ class PluginFrameGate {
   /// Extracts the `callbackId` from a raw JSON bridge request string if present.
   static String? extractCallbackId(String rawJson) {
     final parsed = parseMessagePayload(rawJson);
-    return parsed?['callbackId'] as String?;
+    final id = parsed?['callbackId'];
+    return id is String ? id : id?.toString();
   }
 
   /// Wraps host message dispatch in a 15-second timeout and catches all exceptions.
