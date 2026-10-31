@@ -9,6 +9,7 @@ import 'package:flutter/material.dart';
 import 'package:web/web.dart' as web;
 
 import '../js_bridge/host_api.dart';
+import '../js_bridge/plugin_frame_gate.dart';
 import '../js_bridge/plugin_frame_protocol.dart';
 import '../plugin_service.dart';
 
@@ -50,7 +51,6 @@ class _PluginFrameState extends State<PluginFrame> {
 
   late String _nonce;
   int _loadCount = 0;
-  bool _isBridgeDead = false;
 
   @override
   void initState() {
@@ -91,7 +91,6 @@ class _PluginFrameState extends State<PluginFrame> {
 
   web.HTMLIFrameElement _buildIFrame() {
     _loadCount = 0;
-    _isBridgeDead = false;
 
     final iframe = web.HTMLIFrameElement()
       ..style.width = '100%'
@@ -111,10 +110,9 @@ class _PluginFrameState extends State<PluginFrame> {
       _loadCount++;
       if (_loadCount == 1) {
         widget.onLoadingChanged(false);
-      } else if (_loadCount > 1) {
-        // Subsequent navigation in sandboxed iframe marks bridge dead
-        _isBridgeDead = true;
       }
+      // On iOS Safari, in-page hash changes fire extra iframe load events.
+      // Subsequent load events must not disable the bridge.
     }).toJS;
 
     iframe.addEventListener('load', _loadEventListener);
@@ -133,7 +131,6 @@ class _PluginFrameState extends State<PluginFrame> {
   void _reloadIFrame() {
     _generateNonce();
     _loadCount = 0;
-    _isBridgeDead = false;
     widget.onLoadingChanged(true);
     widget.onError(null);
 
@@ -147,8 +144,6 @@ class _PluginFrameState extends State<PluginFrame> {
   }
 
   void _handleMessageEvent(web.MessageEvent event) async {
-    if (_isBridgeDead) return;
-
     final iframe = _iframe;
     if (iframe == null) return;
 
@@ -158,7 +153,8 @@ class _PluginFrameState extends State<PluginFrame> {
     // Check message source is iframe.contentWindow using JS strict equality
     // and verify origin is 'null' (opaque sandboxed origin)
     final source = event.source;
-    if (source == null || !source.strictEquals(contentWindow).toDart) return;
+    final isSourceMatch = source != null && source.strictEquals(contentWindow).toDart;
+    if (!isSourceMatch) return;
     if (event.origin != 'null') return;
 
     final dataAny = event.data;
@@ -187,9 +183,15 @@ class _PluginFrameState extends State<PluginFrame> {
       envelopeMap,
       expectedNonce: _nonce,
     );
+    // If a message fails the nonce check after the first load, ignore it without crashing (no error UI)
     if (payloadStr == null) return;
 
-    final responseMap = await widget.hostApiHandler.handleMessage(payloadStr);
+    // Wrap widget.hostApiHandler.handleMessage in a 15s timeout
+    final responseMap = await PluginFrameGate.handleHostMessageWithTimeout(
+      widget.hostApiHandler,
+      payloadStr,
+      timeout: const Duration(seconds: 15),
+    );
     final responseEnvelope = PluginFrameProtocol.buildResponseEnvelope(
       nonce: _nonce,
       responseData: responseMap,
@@ -203,8 +205,6 @@ class _PluginFrameState extends State<PluginFrame> {
   }
 
   void _handleJsEvent(dynamic eventData) {
-    if (_isBridgeDead) return;
-
     final iframe = _iframe;
     if (iframe == null) return;
 

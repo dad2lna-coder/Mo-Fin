@@ -6,6 +6,7 @@ import 'package:server_core/server_core.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../js_bridge/host_api.dart';
+import '../js_bridge/plugin_frame_gate.dart';
 import '../plugin_service.dart';
 
 /// Native (IO) implementation of the plugin frame using `flutter_inappwebview`.
@@ -85,7 +86,11 @@ class _PluginFrameState extends State<PluginFrame> {
       return;
     }
 
-    final response = await widget.hostApiHandler.handleMessage(rawJson);
+    final response = await PluginFrameGate.handleHostMessageWithTimeout(
+      widget.hostApiHandler,
+      rawJson,
+      timeout: const Duration(seconds: 15),
+    );
     final responseJson = jsonEncode(response);
 
     if (_webViewController != null) {
