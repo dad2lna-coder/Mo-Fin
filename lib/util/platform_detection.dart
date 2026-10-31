@@ -23,9 +23,7 @@ class PlatformDetection {
   static bool get isAndroid =>
       !kIsWeb && defaultTargetPlatform == TargetPlatform.android;
   static bool get isIOS =>
-      !kIsWeb &&
-      !isAppleTV &&
-      defaultTargetPlatform == TargetPlatform.iOS;
+      !kIsWeb && !isAppleTV && defaultTargetPlatform == TargetPlatform.iOS;
   static int get iosMajorVersion => isIOS ? osMajorVersion() : 0;
   static int? _osMajorCache;
   static int get osMajor => _osMajorCache ??= osMajorVersion();
@@ -391,6 +389,17 @@ class PlatformDetection {
   static bool get useLeanbackUi => isTV;
   static bool get useDesktopUi => !_hasMobileFormFactor && !isTV;
   static bool get useMobileUi => _hasMobileFormFactor && !isTV;
+
+  /// Tests set this to pretend to be iPhone Safari (web, phone-sized). The
+  /// sidebar is then the drawer, not the desktop rail. Null follows the device.
+  @visibleForTesting
+  static bool? debugPhoneWebChrome;
+
+  /// TV, desktop, and wide web keep a sized rail. Phone web uses a drawer.
+  static bool get usesFixedSidebarRail {
+    if (debugPhoneWebChrome == true) return false;
+    return isTV || isDesktop || (isWeb && !useMobileUi);
+  }
 
   /// Offline media is available on phones, tablets, desktops, and Android TV.
   /// Other TV platforms do not currently provide the download backend.

@@ -8,6 +8,7 @@ import 'package:get_it/get_it.dart';
 import 'package:go_router/go_router.dart';
 import 'package:moonfin_design/moonfin_design.dart';
 import 'package:plugin_host/plugin_host.dart';
+import 'package:pointer_interceptor/pointer_interceptor.dart';
 import 'package:server_core/server_core.dart';
 
 import '../../l10n/app_localizations.dart';
@@ -49,7 +50,9 @@ import 'user_menu_dialog.dart';
 
 import 'offline_aware_image.dart';
 import 'paced_network_image.dart';
+
 import 'package:playback_core/playback_core.dart';
+
 import '../../data/models/aggregated_item.dart';
 import '../../data/services/media_server_client_factory.dart';
 import '../../util/focus/dpad_keys.dart';
@@ -721,8 +724,7 @@ class _TopToolbarState extends State<TopToolbar> with RouteAware {
                     final musicNodes =
                         _musicBarFocusNode.descendants
                             .where(
-                              (n) =>
-                                  !n.skipTraversal && _isLaidOutFocusNode(n),
+                              (n) => !n.skipTraversal && _isLaidOutFocusNode(n),
                             )
                             .map((n) {
                               final box =
@@ -775,8 +777,7 @@ class _TopToolbarState extends State<TopToolbar> with RouteAware {
                       if (!n.skipTraversal &&
                           _isLaidOutFocusNode(n) &&
                           !_isDescendantOf(n, _musicBarFocusNode)) {
-                        final box =
-                            n.context!.findRenderObject() as RenderBox?;
+                        final box = n.context!.findRenderObject() as RenderBox?;
                         final pos = box?.localToGlobal(Offset.zero);
                         if (pos != null && pos.dx > 0) {
                           targetNode = n;
@@ -1171,7 +1172,8 @@ class _TopToolbarState extends State<TopToolbar> with RouteAware {
                     baseColor: nextNavColor(),
                     onPressed: () {
                       final route = widget.activeRoute ?? '';
-                      if (route == gamesRoute || route.startsWith('$gamesRoute?')) {
+                      if (route == gamesRoute ||
+                          route.startsWith('$gamesRoute?')) {
                         return;
                       }
                       context.navigateTopLevel(gamesRoute);
@@ -2130,9 +2132,8 @@ class _LibrariesDropdownState extends State<_LibrariesDropdown> {
   }
 
   double _calculateMenuWidth(BuildContext context, double screenWidth) {
-    final baseStyle = (Theme.of(context).textTheme.bodyMedium ??
-            const TextStyle())
-        .copyWith(
+    final baseStyle =
+        (Theme.of(context).textTheme.bodyMedium ?? const TextStyle()).copyWith(
           fontSize: 15,
           fontWeight: FontWeight.w500,
         );
@@ -2142,10 +2143,7 @@ class _LibrariesDropdownState extends State<_LibrariesDropdown> {
     );
     double maxTextWidth = 0.0;
     for (final lib in widget.libraries) {
-      textPainter.text = TextSpan(
-        text: lib.name,
-        style: baseStyle,
-      );
+      textPainter.text = TextSpan(text: lib.name, style: baseStyle);
       textPainter.layout();
       if (textPainter.width > maxTextWidth) {
         maxTextWidth = textPainter.width;
@@ -2255,18 +2253,22 @@ class _LibrariesDropdownState extends State<_LibrariesDropdown> {
       child: content,
     );
 
-    if (!PlatformDetection.isMobile) return follower;
+    if (!PlatformDetection.isMobile) {
+      return PointerInterceptor(child: follower);
+    }
 
-    return Stack(
-      children: [
-        Positioned.fill(
-          child: GestureDetector(
-            behavior: HitTestBehavior.opaque,
-            onTap: () => _hideDropdown(),
+    return PointerInterceptor(
+      child: Stack(
+        children: [
+          Positioned.fill(
+            child: GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: () => _hideDropdown(),
+            ),
           ),
-        ),
-        follower,
-      ],
+          follower,
+        ],
+      ),
     );
   }
 
@@ -2278,16 +2280,11 @@ class _LibrariesDropdownState extends State<_LibrariesDropdown> {
 
     return Container(
       width: _menuWidth,
-      constraints: BoxConstraints(
-        maxHeight: maxMenuHeight,
-      ),
+      constraints: BoxConstraints(maxHeight: maxMenuHeight),
       decoration: BoxDecoration(
         color: widget.surfaceColor,
         borderRadius: AppRadius.circular(12),
-        border: Border.all(
-          color: borderColor,
-          width: 1.2,
-        ),
+        border: Border.all(color: borderColor, width: 1.2),
         boxShadow: [
           if (isNeon)
             BoxShadow(
@@ -2464,14 +2461,15 @@ class _LibraryDropdownItemState extends State<_LibraryDropdownItem> {
               widget.name,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: (Theme.of(context).textTheme.bodyMedium ??
-                      const TextStyle())
-                  .copyWith(
-                    color:
-                        (_isHovered || _isFocused) ? focusColor : Colors.white,
-                    fontSize: 15,
-                    fontWeight: FontWeight.w500,
-                  ),
+              style:
+                  (Theme.of(context).textTheme.bodyMedium ?? const TextStyle())
+                      .copyWith(
+                        color: (_isHovered || _isFocused)
+                            ? focusColor
+                            : Colors.white,
+                        fontSize: 15,
+                        fontWeight: FontWeight.w500,
+                      ),
             ),
           ),
         ),

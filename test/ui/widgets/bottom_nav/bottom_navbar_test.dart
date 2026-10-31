@@ -92,8 +92,9 @@ void main() {
       await tester.pump();
 
       expect(find.byType(DockBarView), findsOneWidget);
-      // Libraries waits for a library to exist, the fake server has none.
-      for (final label in ['Home', 'Search', 'Favorites', 'You']) {
+      // Libraries waits for a library to exist, the fake server has none,
+      // and a waiting pin is not replaced, so Streaming keeps that slot.
+      for (final label in ['Home', 'Search', 'Streaming', 'You']) {
         expect(find.text(label), findsOneWidget, reason: label);
       }
       expect(find.text('Libraries'), findsNothing);

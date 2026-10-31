@@ -197,7 +197,9 @@ void main() {
       );
 
       expect(response['ok'], isTrue);
-      expect(response['result'], {'hostApi': 1});
+      expect(response['result'], {
+        'hostApi': HostApiHandler.currentHostApiVersion,
+      });
       expect(response['callbackId'], '12345');
     });
 
@@ -221,7 +223,9 @@ void main() {
       );
 
       expect(response['ok'], isTrue);
-      expect(response['result'], {'hostApi': 1});
+      expect(response['result'], {
+        'hostApi': HostApiHandler.currentHostApiVersion,
+      });
       expect(response['callbackId'], 'cb_success_123');
     });
 
