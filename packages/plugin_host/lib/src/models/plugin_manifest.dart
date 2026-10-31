@@ -6,14 +6,21 @@ class PluginSlots {
   final bool playback;
   final bool settings;
   final bool events;
+  final bool games;
   final List<String> rawList;
+
+  /// True when this value was parsed from a map, so [toJson] writes a map.
+  /// List manifests stay lists, which is the wire format already in the wild.
+  final bool mapForm;
 
   const PluginSlots({
     this.homeRow = false,
     this.playback = false,
     this.settings = false,
     this.events = false,
+    this.games = false,
     this.rawList = const [],
+    this.mapForm = false,
   });
 
   factory PluginSlots.fromJson(dynamic json) {
@@ -24,32 +31,47 @@ class PluginSlots {
         playback: list.contains('playback'),
         settings: list.contains('settings') || list.contains('settingsPage'),
         events: list.contains('events'),
+        games: list.contains('games'),
         rawList: list,
       );
-    } else if (json is Map<String, dynamic>) {
-      final homeRow = json['homeRow'] as bool? ?? false;
-      final playback = json['playback'] as bool? ?? false;
+    } else if (json is Map) {
+      final map = Map<String, dynamic>.from(json);
+      final homeRow = map['homeRow'] as bool? ?? false;
+      final playback = map['playback'] as bool? ?? false;
       final settings =
-          (json['settings'] as bool? ?? false) || (json['settingsPage'] as bool? ?? false);
-      final events = json['events'] as bool? ?? false;
+          (map['settings'] as bool? ?? false) || (map['settingsPage'] as bool? ?? false);
+      final events = map['events'] as bool? ?? false;
+      final games = map['games'] as bool? ?? false;
       final list = <String>[
         if (homeRow) 'homeRow',
         if (playback) 'playback',
         if (settings) 'settings',
         if (events) 'events',
+        if (games) 'games',
       ];
       return PluginSlots(
         homeRow: homeRow,
         playback: playback,
         settings: settings,
         events: events,
+        games: games,
         rawList: list,
+        mapForm: true,
       );
     }
     return const PluginSlots();
   }
 
   dynamic toJson() {
+    if (mapForm) {
+      return {
+        'homeRow': homeRow,
+        'playback': playback,
+        'settings': settings,
+        'events': events,
+        'games': games,
+      };
+    }
     return rawList.isNotEmpty
         ? rawList
         : [
@@ -57,6 +79,7 @@ class PluginSlots {
             if (playback) 'playback',
             if (settings) 'settings',
             if (events) 'events',
+            if (games) 'games',
           ];
   }
 }
@@ -111,7 +134,7 @@ class PluginManifest {
   /// Required feature/plugin dependencies.
   final List<String> requires;
 
-  /// Slot registrations (homeRow, playback, settings, events).
+  /// Slot registrations (homeRow, playback, settings, events, games).
   final PluginSlots slots;
 
   /// Client entry point files.
@@ -120,7 +143,7 @@ class PluginManifest {
   /// Optional server component string or configuration.
   final String? server;
 
-  /// Minimum Host API version required (must be 1).
+  /// Minimum Host API version required. Host API 2 adds game playback.
   final int minHostApi;
 
   /// Proxy access level ("admin" | "user", default "admin").

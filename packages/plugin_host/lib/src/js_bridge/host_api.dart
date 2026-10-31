@@ -33,11 +33,18 @@ typedef PlayMediaCallback = void Function({
   String? streamUrl,
   String? title,
 });
+typedef PlayGameCallback = Future<bool> Function({
+  required String pluginId,
+  required String libraryId,
+  required String gameId,
+  String? title,
+});
+typedef HostReplyCallback = void Function(String replyId, bool handled);
 typedef ToastCallback = void Function(String message);
 
-/// Handles versioned JavaScript bridge API method calls (`hostApi = 1`).
+/// Handles versioned JavaScript bridge API method calls (`hostApi = 2`).
 class HostApiHandler {
-  static const int currentHostApiVersion = 1;
+  static const int currentHostApiVersion = 2;
 
   final String pluginId;
   final PluginRegistry registry;
@@ -45,6 +52,8 @@ class HostApiHandler {
   final ClientProvider? clientProvider;
   final OpenScreenCallback? onOpenScreen;
   final PlayMediaCallback? onPlayMedia;
+  final PlayGameCallback? onPlayGame;
+  final HostReplyCallback? onHostReply;
   final ToastCallback? onShowToast;
   final dynamic prefs;
   final Dio _dio;
@@ -57,6 +66,8 @@ class HostApiHandler {
     this.clientProvider,
     this.onOpenScreen,
     this.onPlayMedia,
+    this.onPlayGame,
+    this.onHostReply,
     this.onShowToast,
     Dio? dio,
   }) : _dio = dio ?? Dio();
@@ -243,6 +254,34 @@ class HostApiHandler {
         );
         return true;
 
+      case 'playGame':
+        if (!_mayPlayGame) {
+          throw Exception('Access denied');
+        }
+        final libraryId = _boundedId(params['libraryId']);
+        final gameId = _boundedId(params['gameId']);
+        if (libraryId == null || gameId == null) {
+          throw Exception('Invalid playGame parameters');
+        }
+        final title = _optionalTitle(params['title']);
+        final callback = onPlayGame;
+        if (callback == null) return false;
+        return await callback(
+          pluginId: pluginId,
+          libraryId: libraryId,
+          gameId: gameId,
+          title: title,
+        );
+
+      case 'replyHostEvent':
+        final replyId = params['replyId']?.toString() ?? '';
+        if (replyId.isEmpty) {
+          throw Exception('Invalid replyHostEvent parameters');
+        }
+        final handled = params['handled'] == true;
+        onHostReply?.call(replyId, handled);
+        return handled;
+
       case 'showToast':
         final message = params['message'] as String? ?? '';
         if (message.isNotEmpty) {
@@ -400,6 +439,32 @@ class HostApiHandler {
     return res.data;
   }
 
+  bool get _mayPlayGame {
+    final manifest = registry.plugins[pluginId];
+    if (manifest == null || !registry.isPluginEnabled(pluginId)) return false;
+    final games = manifest.slots.games && registry.isSlotEnabled(pluginId, 'games');
+    final playback =
+        manifest.slots.playback && registry.isSlotEnabled(pluginId, 'playback');
+    return games || playback;
+  }
+
+  /// Non-empty ids no longer than 2048 characters. Anything else is rejected.
+  String? _boundedId(dynamic raw) {
+    if (raw is! String) return null;
+    final value = raw.trim();
+    if (value.isEmpty || value.length > 2048) return null;
+    return value;
+  }
+
+  String? _optionalTitle(dynamic raw) {
+    if (raw == null) return null;
+    if (raw is! String || raw.length > 2048) {
+      throw Exception('Invalid playGame parameters');
+    }
+    final value = raw.trim();
+    return value.isEmpty ? null : value;
+  }
+
   /// Injected JavaScript preamble establishing `window.MoFinHost` JavaScript bridge.
   static String getBridgeInjectionScript() {
     return '''
@@ -432,6 +497,8 @@ class HostApiHandler {
             });
           },
 
+          play: (p) => MoFinHost.call('playGame', p),
+
           onEvent: function(callback) {
             if (typeof callback === 'function') {
               this._eventListeners.push(callback);
@@ -439,9 +506,16 @@ class HostApiHandler {
           },
 
           _handleEvent: function(evt) {
+            var handled = false;
             this._eventListeners.forEach(cb => {
-              try { cb(evt); } catch(e) { console.error('Error in event listener:', e); }
+              try {
+                var result = cb(evt);
+                if (result && result.handled === true) handled = true;
+              } catch(e) { console.error('Error in event listener:', e); }
             });
+            if (handled && evt && evt.replyId) {
+              this.call('replyHostEvent', { replyId: evt.replyId, handled: true });
+            }
           },
 
           _handleResponse: function(jsonStr) {

@@ -45,6 +45,26 @@ void main() {
       );
     });
 
+    test('games never consumes a pin slot', () {
+      expect(
+        parsePinnedBottomNavTabs('games,search,libraries,favorites'),
+        [
+          BottomNavTab.search,
+          BottomNavTab.libraries,
+          BottomNavTab.favorites,
+        ],
+      );
+      expect(
+        serializePinnedBottomNavTabs(const [
+          BottomNavTab.games,
+          BottomNavTab.search,
+          BottomNavTab.libraries,
+          BottomNavTab.favorites,
+        ]),
+        'search,libraries,favorites',
+      );
+    });
+
     test('empty or all-unknown lists count as automatic', () {
       expect(isAutomaticBottomNavTabs(''), isTrue);
       expect(isAutomaticBottomNavTabs('podcasts,radio'), isTrue);
@@ -88,13 +108,39 @@ void main() {
     });
 
     test('Seerr only counts once the plugin reports it available', () {
-      const without = BottomNavTabGates(showLibraries: false);
+      const without = BottomNavTabGates(
+        showLibraries: false,
+        showFavorites: false,
+      );
       const withSeerr = BottomNavTabGates(
         showLibraries: false,
+        showFavorites: false,
         seerrAvailable: true,
       );
       expect(without.resolvePins(''), isNot(contains(BottomNavTab.discover)));
       expect(withSeerr.resolvePins(''), contains(BottomNavTab.discover));
+    });
+
+    test('games is offered only with plugins on, a games plugin, and not kids mode', () {
+      expect(const BottomNavTabGates().gamesAvailable, isFalse);
+      expect(
+        const BottomNavTabGates(pluginsEnabled: true).offers(BottomNavTab.games),
+        isFalse,
+      );
+      const ready = BottomNavTabGates(
+        pluginsEnabled: true,
+        hasGamesPlugin: true,
+      );
+      expect(ready.gamesAvailable, isTrue);
+      expect(ready.offers(BottomNavTab.games), isTrue);
+      expect(
+        const BottomNavTabGates(
+          pluginsEnabled: true,
+          hasGamesPlugin: true,
+          kidsMode: true,
+        ).gamesAvailable,
+        isFalse,
+      );
     });
   });
 

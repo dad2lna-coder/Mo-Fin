@@ -27,11 +27,14 @@ class PluginService extends ChangeNotifier {
   final UserContextProvider userContextProvider;
   final OpenScreenCallback? onOpenScreen;
   final PlayMediaCallback? onPlayMedia;
+  final PlayGameCallback? onPlayGame;
   final ToastCallback? onShowToast;
   final ClientProvider? clientProvider;
   final Dio _dio;
 
   bool _pluginsEnabled = false;
+  int _replySeq = 0;
+  final Map<String, Completer<bool>> _replies = {};
 
   PluginService({
     required this.registry,
@@ -40,6 +43,7 @@ class PluginService extends ChangeNotifier {
     this.clientProvider,
     this.onOpenScreen,
     this.onPlayMedia,
+    this.onPlayGame,
     this.onShowToast,
     bool initialPluginsEnabled = false,
     Dio? dio,
@@ -56,6 +60,39 @@ class PluginService extends ChangeNotifier {
       eventType: eventData is Map ? (eventData['type'] as String? ?? '') : '',
       data: eventData,
     ));
+  }
+
+  /// Sends [event] to [pluginId] and waits for `replyHostEvent`.
+  ///
+  /// A plugin that returns `{handled: true}` from an `onEvent` listener, or
+  /// calls `replyHostEvent` itself, completes this with true. Silence within
+  /// [timeout] is treated as not handled.
+  Future<bool> dispatchAndAwaitHandled(
+    String pluginId,
+    Map<String, dynamic> event, {
+    Duration timeout = const Duration(milliseconds: 300),
+  }) async {
+    final replyId = 'r${++_replySeq}';
+    final completer = Completer<bool>();
+    _replies[replyId] = completer;
+    dispatchPluginEvent(pluginId, {
+      ...event,
+      'replyId': replyId,
+    });
+    try {
+      return await completer.future.timeout(timeout);
+    } on TimeoutException {
+      return false;
+    } finally {
+      _replies.remove(replyId);
+    }
+  }
+
+  void completeHostReply(String replyId, bool handled) {
+    final completer = _replies.remove(replyId);
+    if (completer != null && !completer.isCompleted) {
+      completer.complete(handled);
+    }
   }
 
   void setPluginsEnabled(bool enabled) {
@@ -157,6 +194,8 @@ class PluginService extends ChangeNotifier {
       clientProvider: clientProvider,
       onOpenScreen: onOpenScreen,
       onPlayMedia: onPlayMedia,
+      onPlayGame: onPlayGame,
+      onHostReply: completeHostReply,
       onShowToast: onShowToast,
     );
   }

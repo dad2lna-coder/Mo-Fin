@@ -92,6 +92,10 @@ class Destinations {
   static const gameDetail = '/game/:libraryId/:gameId';
   static const gamePlayer = '/game-player/:libraryId/:gameId';
 
+  /// ROM Manager hub. Distinct from [gameLibrary] so `/games/:libraryId` is
+  /// unchanged.
+  static const games = '/games-hub';
+
   // Live TV
   static const liveTv = '/live-tv';
   static const liveTvGuide = '/live-tv/guide';

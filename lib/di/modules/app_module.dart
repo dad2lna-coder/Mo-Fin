@@ -26,6 +26,7 @@ import '../../data/repositories/tmdb_repository.dart';
 import '../../data/repositories/user_views_repository.dart';
 import '../../data/repositories/search_repository.dart';
 import '../../data/repositories/item_mutation_repository.dart';
+import '../../util/game_launch.dart';
 import '../../util/game_library.dart';
 import '../../data/services/background_service.dart';
 import '../../data/services/access_schedule_service.dart';
@@ -275,6 +276,27 @@ void registerAppModule() {
         } else if (streamUrl != null && streamUrl.isNotEmpty) {
           PlaybackLauncher.playStream(streamUrl, title: title);
         }
+      },
+      onPlayGame: ({
+        required pluginId,
+        required libraryId,
+        required gameId,
+        title,
+      }) async {
+        final ctx = appRouter.routerDelegate.navigatorKey.currentContext;
+        if (ctx == null || !ctx.mounted) return false;
+        return playGameFromPlugin(
+          context: ctx,
+          pluginId: pluginId,
+          libraryId: libraryId,
+          gameId: gameId,
+          title: title,
+          dispatch: (event) {
+            if (_getIt.isRegistered<PluginService>()) {
+              _getIt<PluginService>().dispatchPluginEvent(pluginId, event);
+            }
+          },
+        );
       },
       onShowToast: (message) {
         // MOFIN-PLUGIN-HOOK: Toast notification hook

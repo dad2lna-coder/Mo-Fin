@@ -58,6 +58,18 @@ class PluginRegistry extends ChangeNotifier {
         .toList();
   }
 
+  /// The first enabled plugin registered for the games slot, or null.
+  /// Listeners are notified whenever that answer can change.
+  PluginManifest? get gamesSlotPlugin {
+    for (final manifest in _plugins.values) {
+      if (!isPluginEnabled(manifest.id)) continue;
+      if (!manifest.slots.games) continue;
+      if (!isSlotEnabled(manifest.id, 'games')) continue;
+      return manifest;
+    }
+    return null;
+  }
+
   bool isPluginEnabled(String pluginId) {
     if (!(_enabledPlugins[pluginId] ?? true)) return false;
     final manifest = _plugins[pluginId];
@@ -82,6 +94,8 @@ class PluginRegistry extends ChangeNotifier {
         return manifest.slots.playback;
       case 'events':
         return manifest.slots.events;
+      case 'games':
+        return manifest.slots.games;
       default:
         return true;
     }

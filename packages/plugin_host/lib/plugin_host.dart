@@ -10,4 +10,6 @@ export 'src/plugin_service.dart';
 export 'src/ui/plugin_host_strings.dart';
 export 'src/ui/plugin_web_view_screen.dart';
 export 'src/ui/plugin_settings_screen.dart';
+export 'src/ui/plugin_frame_io.dart'
+    if (dart.library.js_interop) 'src/ui/plugin_frame_web.dart';
 export 'src/util/platform_guard.dart';

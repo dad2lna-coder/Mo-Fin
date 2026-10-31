@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:get_it/get_it.dart';
+import 'package:pointer_interceptor/pointer_interceptor.dart';
 
 import '../../preference/preference_constants.dart';
 import '../../preference/user_preferences.dart';
@@ -326,7 +327,8 @@ class _NavigationLayoutState extends State<NavigationLayout>
           // it would hide the field that brought it up.
           child: IgnorePointer(
             ignoring: _keyboardVisible,
-            child: AnimatedSlide(
+            child: PointerInterceptor(
+              child: AnimatedSlide(
               offset: _keyboardVisible ? const Offset(0, 1.2) : Offset.zero,
               duration: const Duration(milliseconds: 200),
               curve: Curves.easeOutCubic,
@@ -343,6 +345,7 @@ class _NavigationLayoutState extends State<NavigationLayout>
                   child: const DownloadProgressBar(),
                 ),
               ),
+            ),
             ),
           ),
         ),
@@ -375,10 +378,12 @@ class _NavigationLayoutState extends State<NavigationLayout>
           ),
         );
       },
-      child: TopToolbar(
-        activeRoute: widget.activeRoute,
-        showBackButton: widget.showBackButton,
-        contentFocusNode: _contentFocusNode,
+      child: PointerInterceptor(
+        child: TopToolbar(
+          activeRoute: widget.activeRoute,
+          showBackButton: widget.showBackButton,
+          contentFocusNode: _contentFocusNode,
+        ),
       ),
     );
     final maxTranslate = TopToolbar.heightFor(context);
@@ -475,10 +480,12 @@ class _NavigationLayoutState extends State<NavigationLayout>
           ),
         );
       },
-      child: LeftSidebar(
-        activeRoute: widget.activeRoute,
-        contentFocusNode: _contentFocusNode,
-        showBackButton: widget.showBackButton,
+      child: PointerInterceptor(
+        child: LeftSidebar(
+          activeRoute: widget.activeRoute,
+          contentFocusNode: _contentFocusNode,
+          showBackButton: widget.showBackButton,
+        ),
       ),
     );
 

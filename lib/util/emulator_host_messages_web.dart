@@ -89,3 +89,15 @@ Object? readPlayer({required String playerUrl, required String name}) {
     return null;
   }
 }
+
+bool evalPlayer({required String source}) {
+  try {
+    final win = _playerWindow('document');
+    if (win == null) return false;
+    win.callMethod('eval'.toJS, source.toJS);
+    return true;
+  } catch (e) {
+    web.console.warn('[moonfin] eval failed: $e'.toJS);
+    return false;
+  }
+}

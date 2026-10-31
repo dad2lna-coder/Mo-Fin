@@ -7,6 +7,7 @@ import 'package:flutter/services.dart';
 import 'package:get_it/get_it.dart';
 import 'package:go_router/go_router.dart';
 import 'package:moonfin_design/moonfin_design.dart';
+import 'package:plugin_host/plugin_host.dart';
 import 'package:server_core/server_core.dart';
 
 import '../../l10n/app_localizations.dart';
@@ -22,6 +23,7 @@ import '../../preference/seerr_preferences.dart';
 import '../../preference/user_preferences.dart';
 import '../../util/audio_artwork_url.dart';
 import '../../util/clock_format.dart';
+import '../../util/games_nav.dart';
 import '../../util/game_library.dart';
 import '../../util/live_tv_library.dart';
 import '../../util/overlay_color_palette.dart';
@@ -186,6 +188,9 @@ class _TopToolbarState extends State<TopToolbar> with RouteAware {
     _prefs.addListener(_onPrefsChanged);
     _viewsRepo.addListener(_onUserViewsChanged);
     GetIt.instance<PluginSyncService>().addListener(_onPrefsChanged);
+    if (GetIt.instance.isRegistered<PluginRegistry>()) {
+      GetIt.instance<PluginRegistry>().addListener(_onPrefsChanged);
+    }
     if (GetIt.instance.isRegistered<AchievementsService>()) {
       GetIt.instance<AchievementsService>().addListener(_onAchievementsChanged);
     }
@@ -265,6 +270,11 @@ class _TopToolbarState extends State<TopToolbar> with RouteAware {
     } catch (_) {}
     try {
       GetIt.instance<PluginSyncService>().removeListener(_onPrefsChanged);
+    } catch (_) {}
+    try {
+      if (GetIt.instance.isRegistered<PluginRegistry>()) {
+        GetIt.instance<PluginRegistry>().removeListener(_onPrefsChanged);
+      }
     } catch (_) {}
     try {
       GetIt.instance<AchievementsService>().removeListener(
@@ -363,7 +373,11 @@ class _TopToolbarState extends State<TopToolbar> with RouteAware {
                 .getAggregatedLibraries()
           : await _viewsRepo.getUserViews();
 
-      unawaited(GetIt.instance<GameLibraryRegistry>().refresh());
+      unawaited(
+        GetIt.instance<GameLibraryRegistry>().refresh().whenComplete(() {
+          if (mounted) setState(() {});
+        }),
+      );
 
       final filtered = useMultiServer
           ? await GetIt.instance<LibraryScopeService>().withoutHiddenLibraries(
@@ -1007,6 +1021,11 @@ class _TopToolbarState extends State<TopToolbar> with RouteAware {
         !kidsMode &&
         _prefs.get(UserPreferences.showSeerrButton) &&
         GetIt.instance<PluginSyncService>().seerrAvailable;
+    final gamesRoute = GamesNav.routeFor(
+      isTv: PlatformDetection.isTV,
+      kidsMode: kidsMode,
+      libraries: _libraries,
+    );
     final l10n = AppLocalizations.of(context);
     final seerrNavLabel = seerrPrefs.labelOrDefault(l10n.seerr);
     // Desktop/macOS keeps the dropdown; inline fan-out is only used where
@@ -1136,6 +1155,26 @@ class _TopToolbarState extends State<TopToolbar> with RouteAware {
                     onPressed: () {
                       if (_isActive(Destinations.directIptv)) return;
                       context.navigateTopLevel(Destinations.directIptv);
+                    },
+                  ),
+                ),
+              ],
+              if (gamesRoute != null) ...[
+                _gap(),
+                _orderButton(
+                  order: (order++).toDouble(),
+                  child: ExpandableIconButton(
+                    key: const ValueKey('toolbar_games'),
+                    forceExpanded: alwaysExpanded,
+                    icon: Icons.sports_esports,
+                    label: l10n.games,
+                    baseColor: nextNavColor(),
+                    onPressed: () {
+                      final route = widget.activeRoute ?? '';
+                      if (route == gamesRoute || route.startsWith('$gamesRoute?')) {
+                        return;
+                      }
+                      context.navigateTopLevel(gamesRoute);
                     },
                   ),
                 ),

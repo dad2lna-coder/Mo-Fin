@@ -100,5 +100,37 @@ void main() {
       expect(map['slots'], contains('homeRow'));
       expect(map['proxyAccess'], equals('admin'));
     });
+    test('games slot round-trips through list and map forms', () {
+      final fromList = PluginSlots.fromJson(['games', 'playback']);
+      expect(fromList.games, isTrue);
+      expect(fromList.playback, isTrue);
+      expect(fromList.toJson(), ['games', 'playback']);
+      expect(PluginSlots.fromJson(fromList.toJson()).games, isTrue);
+
+      final fromMap = PluginSlots.fromJson({
+        'games': true,
+        'homeRow': false,
+      });
+      expect(fromMap.games, isTrue);
+      expect(fromMap.homeRow, isFalse);
+      expect(fromMap.toJson(), {
+        'homeRow': false,
+        'playback': false,
+        'settings': false,
+        'events': false,
+        'games': true,
+      });
+
+      final manifest = PluginManifest(
+        id: 'rom-manager',
+        name: 'ROM Manager',
+        version: '1.0.0',
+        slots: fromList,
+        client: const PluginClientInfo(html: 'index.html'),
+      );
+      final decoded = PluginManifest.fromJson(manifest.toJson());
+      expect(decoded.slots.games, isTrue);
+      expect(decoded.slots.playback, isTrue);
+    });
   });
 }

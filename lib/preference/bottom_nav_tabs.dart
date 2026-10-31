@@ -3,7 +3,7 @@ import 'user_preferences.dart';
 /// Destinations that can be pinned between Home and You on the mobile bottom
 /// navbar. The names are the wire format of [UserPreferences.bottomNavbarTabs],
 /// so renaming one breaks every synced profile that holds it.
-enum BottomNavTab { search, libraries, favorites, genres, liveTv, discover, folders, streaming }
+enum BottomNavTab { search, libraries, favorites, genres, liveTv, discover, folders, streaming, games }
 
 const int kMaxPinnedBottomNavTabs = 3;
 
@@ -25,19 +25,26 @@ final Map<String, BottomNavTab> _byName = {
 
 /// Reads a stored pin list. Unknown names, which a newer client may have
 /// synced, are dropped along with duplicates and anything past the limit.
+/// [BottomNavTab.games] is a fixed item and never consumes a pin slot, so a
+/// stored "games" token is ignored and the rest of the list stays compatible.
 List<BottomNavTab> parsePinnedBottomNavTabs(String raw) {
   final pins = <BottomNavTab>[];
   for (final part in raw.split(',')) {
     final tab = _byName[part.trim().toLowerCase()];
-    if (tab == null || pins.contains(tab)) continue;
+    if (tab == null || tab == BottomNavTab.games || pins.contains(tab)) {
+      continue;
+    }
     pins.add(tab);
     if (pins.length == kMaxPinnedBottomNavTabs) break;
   }
   return pins;
 }
 
-String serializePinnedBottomNavTabs(Iterable<BottomNavTab> tabs) =>
-    tabs.take(kMaxPinnedBottomNavTabs).map((t) => t.name).join(',');
+String serializePinnedBottomNavTabs(Iterable<BottomNavTab> tabs) => tabs
+    .where((t) => t != BottomNavTab.games)
+    .take(kMaxPinnedBottomNavTabs)
+    .map((t) => t.name)
+    .join(',');
 
 /// Whether [raw] leaves the pins to be picked automatically. A list whose
 /// names are all unknown counts, so a profile from a newer client falls back
@@ -57,6 +64,8 @@ class BottomNavTabGates {
   final bool showSeerr;
   final bool seerrAvailable;
   final bool folderView;
+  final bool pluginsEnabled;
+  final bool hasGamesPlugin;
 
   const BottomNavTabGates({
     this.kidsMode = false,
@@ -67,11 +76,15 @@ class BottomNavTabGates {
     this.showSeerr = true,
     this.seerrAvailable = false,
     this.folderView = false,
+    this.pluginsEnabled = false,
+    this.hasGamesPlugin = false,
   });
 
   factory BottomNavTabGates.fromPreferences(
     UserPreferences prefs, {
     required bool seerrAvailable,
+    bool pluginsEnabled = false,
+    bool hasGamesPlugin = false,
   }) {
     return BottomNavTabGates(
       kidsMode: prefs.get(UserPreferences.kidsModeEnabled),
@@ -82,8 +95,13 @@ class BottomNavTabGates {
       showSeerr: prefs.get(UserPreferences.showSeerrButton),
       seerrAvailable: seerrAvailable,
       folderView: prefs.get(UserPreferences.enableFolderView),
+      pluginsEnabled: pluginsEnabled,
+      hasGamesPlugin: hasGamesPlugin,
     );
   }
+
+  /// Plugins are on and a games-slot plugin is loaded, and Kids Mode is off.
+  bool get gamesAvailable => !kidsMode && pluginsEnabled && hasGamesPlugin;
 
   // Kids Mode drops Libraries (the My Media row stands in), Live TV (its route
   // bounces home) and Seerr.
@@ -96,6 +114,7 @@ class BottomNavTabGates {
         BottomNavTab.discover => !kidsMode && showSeerr && seerrAvailable,
         BottomNavTab.folders => folderView,
         BottomNavTab.streaming => true,
+        BottomNavTab.games => gamesAvailable,
       };
 
   /// The tabs the bar shows between Home and You. Automatic pins follow the

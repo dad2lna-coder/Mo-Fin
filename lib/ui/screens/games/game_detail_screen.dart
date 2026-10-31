@@ -30,6 +30,7 @@ import '../../../data/services/retro_artwork/retro_artwork_data_source.dart';
 import '../../../data/services/retro_artwork/retro_artwork_transport.dart';
 import '../../../util/game_artwork_cache.dart';
 import '../../../util/game_cores.dart';
+import '../../../util/game_launch.dart';
 import '../../../util/game_library.dart';
 import '../../../util/platform_detection.dart';
 import '../../../util/tv_image_cache_stub.dart'
@@ -366,28 +367,12 @@ class _GameDetailScreenState extends State<GameDetailScreen> with RouteAware {
             _saveReadiness != _SaveReadiness.available)) {
       return;
     }
-    if (!PlatformDetection.gamesPlaybackSupported ||
-        !gameCoreSupported(game.core)) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(AppLocalizations.of(context).gamePlaybackUnsupported),
-        ),
-      );
-      return;
-    }
-    final biosId = emulatorJsBiosId(game.core, game.bios);
-    context.push(
-      Destinations.gamePlayerOf(
-        widget.libraryId,
-        game.id,
-        core: game.core,
-        romFileName: game.fileName,
-        biosId: biosId,
-        name: game.title,
-        startFresh: fresh,
-        forceEmulatorJs: _usesEmulatorJsOverride(game),
-        hardwareRenderingEnabled: _hardwareRenderingEnabled,
-      ),
+    launchGame(
+      context,
+      widget.libraryId,
+      game,
+      fresh: fresh,
+      hardwareRenderingEnabled: _hardwareRenderingEnabled,
     );
   }
 

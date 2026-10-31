@@ -140,7 +140,7 @@ class _BottomNavTabsScreenState extends State<_BottomNavTabsScreen> {
             adaptiveListSection(
               children: [
                 for (final tab in BottomNavTab.values)
-                  if (!pinned.contains(tab))
+                  if (tab != BottomNavTab.games && !pinned.contains(tab))
                     ListTile(
                       enabled: gates.offers(tab) && !full,
                       leading: icon(tab, enabled: gates.offers(tab) && !full),

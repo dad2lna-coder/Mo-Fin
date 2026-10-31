@@ -54,14 +54,21 @@ List<BottomNavBarItem> resolveBarItems(
 }) {
   final pins = gates
       .resolvePins(rawPins)
+      .where((t) => t != BottomNavTab.games)
       .where((t) => !withoutSearch || t != BottomNavTab.search)
       .toList();
+  final showGames = gates.offers(BottomNavTab.games) &&
+      (isAvailable == null || isAvailable(BottomNavTab.games));
+  final shift = showGames ? 1 : 0;
   final items = <BottomNavBarItem>[const BottomNavBarItem.home()];
+  if (showGames) {
+    items.add(const BottomNavBarItem.tab(BottomNavTab.games, 1));
+  }
   for (var i = 0; i < pins.length; i++) {
     if (isAvailable != null && !isAvailable(pins[i])) continue;
-    items.add(BottomNavBarItem.tab(pins[i], i + 1));
+    items.add(BottomNavBarItem.tab(pins[i], i + 1 + shift));
   }
-  items.add(BottomNavBarItem.you(pins.length + 1));
+  items.add(BottomNavBarItem.you(pins.length + 1 + shift));
   return items;
 }
 
@@ -82,6 +89,7 @@ bool bottomNavTabMatchesRoute(BottomNavTab tab, String route) {
     BottomNavTab.folders =>
       route == Destinations.folderView || under('/folder'),
     BottomNavTab.streaming => under(Destinations.streaming),
+    BottomNavTab.games => under(Destinations.games),
   };
 }
 

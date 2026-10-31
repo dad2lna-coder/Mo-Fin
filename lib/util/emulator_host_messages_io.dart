@@ -17,3 +17,5 @@ Object? callPlayer({
 }) => null;
 
 Object? readPlayer({required String playerUrl, required String name}) => null;
+
+bool evalPlayer({required String source}) => false;

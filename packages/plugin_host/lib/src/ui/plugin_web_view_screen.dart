@@ -17,6 +17,10 @@ class PluginWebViewScreen extends StatefulWidget {
   final dynamic webViewEnvironment;
   final PluginHostStrings strings;
 
+  /// Full-bleed frame with no title bar. The host screen keeps its own chrome,
+  /// including MoFin's bottom bar.
+  final bool chromeless;
+
   const PluginWebViewScreen({
     super.key,
     required this.title,
@@ -25,6 +29,7 @@ class PluginWebViewScreen extends StatefulWidget {
     this.entryUrl,
     this.webViewEnvironment,
     this.strings = const PluginHostStrings(),
+    this.chromeless = false,
   });
 
   @override
@@ -114,22 +119,89 @@ class _PluginWebViewScreenState extends State<PluginWebViewScreen> {
   @override
   Widget build(BuildContext context) {
     if (_isUnsupportedPlatform()) {
+      final message = Padding(
+        padding: const EdgeInsets.all(24.0),
+        child: Text(
+          widget.strings.unsupportedOnDevice,
+          textAlign: TextAlign.center,
+          style: Theme.of(context).textTheme.bodyLarge,
+        ),
+      );
+      if (widget.chromeless) {
+        return ColoredBox(color: Colors.black, child: Center(child: message));
+      }
       return Scaffold(
         appBar: AppBar(title: Text(widget.title)),
-        body: Center(
-          child: Padding(
-            padding: const EdgeInsets.all(24.0),
-            child: Text(
-              widget.strings.unsupportedOnDevice,
-              textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.bodyLarge,
-            ),
-          ),
-        ),
+        body: Center(child: message),
       );
     }
 
     final entryUrl = _resolvedEntryUrl;
+    final body = Focus(
+      focusNode: _tvFocusNode,
+      autofocus: true,
+      onKeyEvent: (node, event) {
+        return KeyEventResult.ignored;
+      },
+      child: Stack(
+        children: [
+          if (_errorMessage == null && entryUrl.isNotEmpty)
+            PluginFrame(
+              entryUrl: entryUrl,
+              pluginId: widget.pluginId,
+              pluginService: widget.pluginService,
+              hostApiHandler: _hostApiHandler,
+              webViewEnvironment: widget.webViewEnvironment,
+              reloadToken: _reloadToken,
+              onLoadingChanged: (loading) {
+                if (mounted) setState(() => _isLoading = loading);
+              },
+              onError: (error) {
+                if (mounted) {
+                  setState(() {
+                    _errorMessage = error != null
+                        ? widget.strings.loadFailedWithError(error)
+                        : null;
+                  });
+                }
+              },
+            ),
+          if (_isLoading && _errorMessage == null)
+            const Center(child: CircularProgressIndicator()),
+          if (_errorMessage != null)
+            Center(
+              child: Padding(
+                padding: const EdgeInsets.all(24.0),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(
+                      Icons.error_outline,
+                      size: 48,
+                      color: Colors.red,
+                    ),
+                    const SizedBox(height: 16),
+                    Text(
+                      _errorMessage!,
+                      textAlign: TextAlign.center,
+                      style: Theme.of(context).textTheme.bodyLarge,
+                    ),
+                    const SizedBox(height: 16),
+                    ElevatedButton(
+                      onPressed: _triggerReload,
+                      child: Text(widget.strings.retry),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+
+    if (widget.chromeless) {
+      return ColoredBox(color: Colors.black, child: body);
+    }
 
     return Scaffold(
       appBar: AppBar(
@@ -142,67 +214,7 @@ class _PluginWebViewScreenState extends State<PluginWebViewScreen> {
           ),
         ],
       ),
-      body: Focus(
-        focusNode: _tvFocusNode,
-        autofocus: true,
-        onKeyEvent: (node, event) {
-          return KeyEventResult.ignored;
-        },
-        child: Stack(
-          children: [
-            if (_errorMessage == null && entryUrl.isNotEmpty)
-              PluginFrame(
-                entryUrl: entryUrl,
-                pluginId: widget.pluginId,
-                pluginService: widget.pluginService,
-                hostApiHandler: _hostApiHandler,
-                webViewEnvironment: widget.webViewEnvironment,
-                reloadToken: _reloadToken,
-                onLoadingChanged: (loading) {
-                  if (mounted) setState(() => _isLoading = loading);
-                },
-                onError: (error) {
-                  if (mounted) {
-                    setState(() {
-                      _errorMessage = error != null
-                          ? widget.strings.loadFailedWithError(error)
-                          : null;
-                    });
-                  }
-                },
-              ),
-            if (_isLoading && _errorMessage == null)
-              const Center(child: CircularProgressIndicator()),
-            if (_errorMessage != null)
-              Center(
-                child: Padding(
-                  padding: const EdgeInsets.all(24.0),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Icon(
-                        Icons.error_outline,
-                        size: 48,
-                        color: Colors.red,
-                      ),
-                      const SizedBox(height: 16),
-                      Text(
-                        _errorMessage!,
-                        textAlign: TextAlign.center,
-                        style: Theme.of(context).textTheme.bodyLarge,
-                      ),
-                      const SizedBox(height: 16),
-                      ElevatedButton(
-                        onPressed: _triggerReload,
-                        child: Text(widget.strings.retry),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-          ],
-        ),
-      ),
+      body: body,
     );
   }
 }

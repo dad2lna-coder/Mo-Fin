@@ -10,7 +10,7 @@ void main() {
         BottomNavBarItem.home(),
         BottomNavBarItem.tab(BottomNavTab.search, 1),
         BottomNavBarItem.tab(BottomNavTab.libraries, 2),
-        BottomNavBarItem.tab(BottomNavTab.favorites, 3),
+        BottomNavBarItem.tab(BottomNavTab.streaming, 3),
         BottomNavBarItem.you(4),
       ]);
     });
@@ -24,7 +24,7 @@ void main() {
       expect(items, const [
         BottomNavBarItem.home(),
         BottomNavBarItem.tab(BottomNavTab.search, 1),
-        BottomNavBarItem.tab(BottomNavTab.favorites, 3),
+        BottomNavBarItem.tab(BottomNavTab.streaming, 3),
         BottomNavBarItem.you(4),
       ]);
     });
@@ -35,7 +35,7 @@ void main() {
         '',
         withoutSearch: true,
       );
-      expect(items.map((i) => i.id), ['home', 'libraries', 'favorites', 'you']);
+      expect(items.map((i) => i.id), ['home', 'libraries', 'streaming', 'you']);
     });
   });
 
@@ -72,6 +72,50 @@ void main() {
           isFalse);
       expect(bottomNavTabMatchesRoute(BottomNavTab.discover, '/seerr/requests'),
           isTrue);
+      expect(bottomNavTabMatchesRoute(BottomNavTab.libraries, '/games-hub'),
+          isFalse);
+      expect(bottomNavTabMatchesRoute(BottomNavTab.games, '/games-hub'), isTrue);
+      expect(bottomNavTabMatchesRoute(BottomNavTab.games, '/games/abc'), isFalse);
+      expect(
+        bottomNavTabMatchesRoute(BottomNavTab.libraries, '/games/abc'),
+        isTrue,
+      );
+    });
+  });
+
+  group('Games', () {
+    test('sits right after Home and does not consume a pin', () {
+      const gates = BottomNavTabGates(
+        pluginsEnabled: true,
+        hasGamesPlugin: true,
+      );
+      final items = resolveBarItems(gates, 'search,libraries,favorites');
+      expect(items, const [
+        BottomNavBarItem.home(),
+        BottomNavBarItem.tab(BottomNavTab.games, 1),
+        BottomNavBarItem.tab(BottomNavTab.search, 2),
+        BottomNavBarItem.tab(BottomNavTab.libraries, 3),
+        BottomNavBarItem.tab(BottomNavTab.favorites, 4),
+        BottomNavBarItem.you(5),
+      ]);
+    });
+
+    test('is absent when no games plugin is available', () {
+      final items = resolveBarItems(
+        const BottomNavTabGates(),
+        'search,libraries,favorites',
+      );
+      expect(items.map((i) => i.tab), isNot(contains(BottomNavTab.games)));
+    });
+
+    test('is hidden in kids mode', () {
+      const gates = BottomNavTabGates(
+        kidsMode: true,
+        pluginsEnabled: true,
+        hasGamesPlugin: true,
+      );
+      final items = resolveBarItems(gates, 'search,libraries,favorites');
+      expect(items.map((i) => i.id), isNot(contains('games')));
     });
   });
 

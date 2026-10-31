@@ -130,5 +130,41 @@ void main() {
       expect(registry.homeRows, hasLength(1));
       expect(registry.settingsEntries, hasLength(1));
     });
+
+    test('gamesSlotPlugin is the first enabled games plugin and notifies', () {
+      var notifications = 0;
+      registry.addListener(() => notifications++);
+
+      const other = PluginManifest(
+        id: 'other',
+        name: 'Other',
+        version: '1.0.0',
+        slots: PluginSlots(homeRow: true),
+        client: PluginClientInfo(html: 'index.html'),
+      );
+      const first = PluginManifest(
+        id: 'rom-a',
+        name: 'ROM A',
+        version: '1.0.0',
+        slots: PluginSlots(games: true),
+        client: PluginClientInfo(html: 'a.html'),
+      );
+      const second = PluginManifest(
+        id: 'rom-b',
+        name: 'ROM B',
+        version: '1.0.0',
+        slots: PluginSlots(games: true),
+        client: PluginClientInfo(html: 'b.html'),
+      );
+      registry.registerManifest(other);
+      registry.registerManifest(first);
+      registry.registerManifest(second);
+
+      expect(registry.gamesSlotPlugin?.id, 'rom-a');
+      final before = notifications;
+      registry.setPluginEnabled('rom-a', false);
+      expect(registry.gamesSlotPlugin?.id, 'rom-b');
+      expect(notifications, greaterThan(before));
+    });
   });
 }

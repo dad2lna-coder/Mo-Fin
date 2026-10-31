@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:collection';
 import 'dart:convert';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
@@ -21,6 +22,7 @@ import '../../../util/focus/gamepad/gamepad_suppressor.dart';
 import '../../../util/focus/gamepad/android_gamepad_channel.dart';
 import '../../../util/desktop_emulator_gamepad.dart';
 import '../../../util/emulator_host_messages.dart';
+import '../../../util/ios_emulator_audio_unlock.dart';
 import '../../../util/insecure_certificates.dart';
 import '../../../util/webview_client_cert.dart';
 import '../../../util/webview_environment.dart';
@@ -310,6 +312,15 @@ class _GameEmulatorScreenState extends State<GameEmulatorScreen>
       }
     } catch (_) {}
 
+    if (_iosNeedsAudioUnlock) {
+      _userScripts.add(
+        UserScript(
+          source: iosEmulatorAudioUnlockScript,
+          injectionTime: UserScriptInjectionTime.AT_DOCUMENT_END,
+        ),
+      );
+    }
+
     final url = games.playerUrl(
       libraryId: widget.libraryId,
       gameId: widget.gameId,
@@ -389,6 +400,21 @@ class _GameEmulatorScreenState extends State<GameEmulatorScreen>
   Future<void> _restoreSystemUi() =>
       GamePlaybackSystemUi.restore(this, immersive: true);
 
+  bool get _iosNeedsAudioUnlock =>
+      PlatformDetection.isIOS ||
+      (kIsWeb && defaultTargetPlatform == TargetPlatform.iOS);
+
+  void _installIosAudioUnlock() {
+    if (!_iosNeedsAudioUnlock) return;
+    if (EmulatorHostMessages.supportsDirectCalls) {
+      EmulatorHostMessages.evalPlayer(source: iosEmulatorAudioUnlockScript);
+      return;
+    }
+    unawaited(
+      _controller?.evaluateJavascript(source: iosEmulatorAudioUnlockScript),
+    );
+  }
+
   void _onPlayerMessage(List<dynamic> args) {
     if (args.isEmpty) return;
     final message = args.first;
@@ -397,6 +423,7 @@ class _GameEmulatorScreenState extends State<GameEmulatorScreen>
       case 'moonfin-ready':
         if (mounted) setState(() => _emulatorReady = true);
         unawaited(_registerGamepads());
+        _installIosAudioUnlock();
         break;
       case 'gamepad':
         // JS-forwarded (iOS): standard Gamepad API indices. Gameplay is read natively by

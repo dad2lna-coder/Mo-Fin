@@ -30,6 +30,7 @@ String bottomNavTabLabel(AppLocalizations l10n, BottomNavTab tab) =>
           : l10n.seerr,
       BottomNavTab.folders => l10n.folders,
       BottomNavTab.streaming => 'Streaming',
+      BottomNavTab.games => l10n.games,
     };
 
 String bottomNavHubActionLabel(
@@ -94,6 +95,8 @@ Widget bottomNavTabIconWidget(
       adaptive(Icons.folder_rounded, Icons.folder_outlined),
     BottomNavTab.streaming =>
       adaptive(Icons.subscriptions_rounded, Icons.subscriptions_outlined),
+    BottomNavTab.games =>
+      adaptive(Icons.sports_esports, Icons.sports_esports_outlined),
     BottomNavTab.genres => Image.asset(
         'assets/icons/genres.png',
         width: size,
@@ -156,6 +159,7 @@ void openBottomNavTab(BuildContext context, BottomNavTab tab) {
     BottomNavTab.discover => Destinations.seerrDiscover,
     BottomNavTab.folders => Destinations.folderView,
     BottomNavTab.streaming => Destinations.streaming,
+    BottomNavTab.games => Destinations.games,
     BottomNavTab.libraries => null,
   };
   if (route == null) return;

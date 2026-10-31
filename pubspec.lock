@@ -1434,6 +1434,13 @@ packages:
       relative: true
     source: path
     version: "0.1.0"
+  plugin_host:
+    dependency: "direct main"
+    description:
+      path: "packages/plugin_host"
+      relative: true
+    source: path
+    version: "0.1.0"
   plugin_platform_interface:
     dependency: "direct dev"
     description:

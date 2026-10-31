@@ -25,6 +25,7 @@ import '../../util/audio_artwork_url.dart';
 import '../../util/clock_format.dart';
 import '../../util/focus/dpad_keys.dart';
 import '../../util/focus/input_mode_tracker.dart';
+import '../../util/games_nav.dart';
 import '../../util/game_library.dart';
 import '../../util/live_tv_library.dart';
 import '../../util/overlay_color_palette.dart';
@@ -343,7 +344,11 @@ class _LeftSidebarState extends State<LeftSidebar> with RouteAware {
                 .getAggregatedLibraries()
           : await _viewsRepo.getUserViews();
 
-      unawaited(GetIt.instance<GameLibraryRegistry>().refresh());
+      unawaited(
+        GetIt.instance<GameLibraryRegistry>().refresh().whenComplete(() {
+          if (mounted) setState(() {});
+        }),
+      );
 
       final filtered = useMultiServer
           ? await GetIt.instance<LibraryScopeService>().withoutHiddenLibraries(
@@ -956,6 +961,12 @@ class _LeftSidebarState extends State<LeftSidebar> with RouteAware {
         !kidsMode &&
         _prefs.get(UserPreferences.syncPlayEnabled) &&
         _prefs.get(UserPreferences.showSyncPlayButton);
+    final gamesRoute = GamesNav.routeFor(
+      isTv: PlatformDetection.isTV,
+      kidsMode: kidsMode,
+      libraries: _libraries,
+    );
+    final hiddenGamesPluginId = GamesNav.gamesPluginId;
     final seerrPrefs = GetIt.instance<SeerrPreferences>();
     final seerrNavLabel = seerrPrefs.labelOrDefault(l10n.seerr);
     final clockBehavior = _prefs.get(UserPreferences.clockBehavior);
@@ -1092,6 +1103,23 @@ class _LeftSidebarState extends State<LeftSidebar> with RouteAware {
                       context.navigateTopLevel(Destinations.directIptv);
                     },
                   ),
+                if (gamesRoute != null)
+                  _SidebarItem(
+                    key: const ValueKey('sidebar-games'),
+                    icon: Icons.sports_esports,
+                    label: l10n.games,
+                    baseColor: nextMainSidebarColor(),
+                    showLabel: _showLabels,
+                    onPressed: () {
+                      _onNavigate();
+                      if (_isActive(gamesRoute)) {
+                        _exitSidebarToContent();
+                        return;
+                      }
+                      _markNavigationAwayFromSidebar();
+                      context.navigateTopLevel(gamesRoute);
+                    },
+                  ),
                 _SidebarItem(
                   key: const ValueKey('sidebar-streaming'),
                   icon: Icons.subscriptions_rounded,
@@ -1146,7 +1174,9 @@ class _LeftSidebarState extends State<LeftSidebar> with RouteAware {
                 if (PlatformDetection.pluginHostSupported &&
                     _prefs.get(UserPreferences.pluginsEnabled) &&
                     GetIt.instance.isRegistered<PluginRegistry>())
-                  ...GetIt.instance<PluginRegistry>().navItems.map((navItem) {
+                  ...GetIt.instance<PluginRegistry>().navItems
+                      .where((navItem) => navItem.pluginId != hiddenGamesPluginId)
+                      .map((navItem) {
                     return _SidebarItem(
                       key: ValueKey('sidebar-plugin-${navItem.id}'),
                       icon: Icons.extension_outlined,

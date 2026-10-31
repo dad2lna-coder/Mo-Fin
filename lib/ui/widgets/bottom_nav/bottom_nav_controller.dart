@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 import 'package:get_it/get_it.dart';
+import 'package:plugin_host/plugin_host.dart';
 import 'package:server_core/server_core.dart';
 
 import '../../../auth/repositories/server_repository.dart';
@@ -20,6 +21,7 @@ import '../../../preference/preference_constants.dart';
 import '../../../preference/user_preferences.dart';
 import '../../../util/game_library.dart';
 import '../../../util/live_tv_library.dart';
+import '../../../util/platform_detection.dart';
 import '../downloads_nav_slot.dart';
 import '../friends_nav_slot.dart';
 import 'bottom_nav_model.dart';
@@ -32,6 +34,7 @@ class BottomNavController extends ChangeNotifier {
     _prefs.addListener(_onPrefsChanged);
     _viewsRepo.addListener(_scheduleLibrariesReload);
     _pluginSync?.addListener(_onPrefsChanged);
+    _pluginRegistry?.addListener(_onPrefsChanged);
     _messages?.addListener(notifyListeners);
     _achievements?.addListener(notifyListeners);
     _savedMedia?.addListener(notifyListeners);
@@ -49,6 +52,8 @@ class BottomNavController extends ChangeNotifier {
   final _userRepo = GetIt.instance<UserRepository>();
   final _viewsRepo = GetIt.instance<UserViewsRepository>();
   final PluginSyncService? _pluginSync = _maybe<PluginSyncService>();
+  final PluginRegistry? _pluginRegistry = _maybe<PluginRegistry>();
+  final PluginService? _pluginService = _maybe<PluginService>();
   final ServerMessagesService? _messages = _maybe<ServerMessagesService>();
   final AchievementsService? _achievements = _maybe<AchievementsService>();
   final SavedMediaPresence? _savedMedia = _maybe<SavedMediaPresence>();
@@ -95,6 +100,10 @@ class BottomNavController extends ChangeNotifier {
   BottomNavTabGates get gates => BottomNavTabGates.fromPreferences(
         _prefs,
         seerrAvailable: _pluginSync?.seerrAvailable ?? false,
+        pluginsEnabled: PlatformDetection.pluginHostSupported &&
+            _prefs.get(UserPreferences.pluginsEnabled) &&
+            (_pluginService?.pluginsEnabled ?? false),
+        hasGamesPlugin: _pluginRegistry?.gamesSlotPlugin != null,
       );
 
   bool get _hasLiveTvLibrary => _libraries.any(isLiveTvLibrary);
@@ -111,6 +120,7 @@ class BottomNavController extends ChangeNotifier {
   bool isAvailable(BottomNavTab tab) => switch (tab) {
         BottomNavTab.libraries => navLibraries.isNotEmpty,
         BottomNavTab.liveTv => _hasLiveTvLibrary,
+        BottomNavTab.games => gates.gamesAvailable,
         _ => true,
       };
 
@@ -183,9 +193,13 @@ class BottomNavController extends ChangeNotifier {
         _prefs.get(UserPreferences.showFriendsButton),
         _prefs.get(UserPreferences.showDownloadsButton),
         _prefs.get(UserPreferences.enableMultiServerLibraries),
+        _prefs.get(UserPreferences.pluginsEnabled),
         _prefs.get(UserPreferences.navbarColor),
         _prefs.get(UserPreferences.navbarOpacity),
         _pluginSync?.seerrAvailable ?? false,
+        PlatformDetection.pluginHostSupported,
+        _pluginService?.pluginsEnabled ?? false,
+        _pluginRegistry?.gamesSlotPlugin?.id ?? '',
       ].join('|');
 
   void _onPrefsChanged() {
@@ -269,6 +283,7 @@ class BottomNavController extends ChangeNotifier {
     try {
       _viewsRepo.removeListener(_scheduleLibrariesReload);
       _pluginSync?.removeListener(_onPrefsChanged);
+      _pluginRegistry?.removeListener(_onPrefsChanged);
       _messages?.removeListener(notifyListeners);
       _achievements?.removeListener(notifyListeners);
       _savedMedia?.removeListener(notifyListeners);

@@ -1,6 +1,6 @@
 # Plugin Host API Reference & Maintenance Guide
 
-This document describes the MoFin Plugin Host API (`hostApi = 1`), Moonbase manifest specification, server routes, JavaScript bridge communication protocol, security model, and maintenance procedures for upstream merges.
+This document describes the MoFin Plugin Host API (`hostApi = 2`), Moonbase manifest specification, server routes, JavaScript bridge communication protocol, security model, and maintenance procedures for upstream merges.
 
 ---
 
@@ -39,10 +39,10 @@ Every MoFin plugin serves a valid `plugin.json` manifest via the Moonbase plugin
 | `description` | String | No | Optional plugin description. |
 | `provides` | Array[String] | No | Feature tags provided by this plugin. |
 | `requires` | Array[String] | No | Capability/plugin dependencies required. A plugin whose requirements are not active remains dormant and fills no slot. |
-| `slots` | Array[String] | Yes | Enabled UI slots: `homeRow`, `playback`, `settings`, `events`. |
+| `slots` | Array[String] or map of booleans | Yes | Enabled UI slots: `homeRow`, `playback`, `settings`, `events`, `games`. |
 | `client` | Object | Yes | Entry files: `{ "html": "client/index.html", "js": "client/app.js" }`. |
 | `server` | String/Object | No | Server component indicator/configuration. |
-| `minHostApi` | Integer | Yes | Minimum Host API version required (must be 1). |
+| `minHostApi` | Integer | Yes | Minimum Host API version required. `2` is required for `playGame`. |
 | `proxyAccess` | String | No | Proxy access level ("admin" \| "user", default "admin"). |
 
 ---
@@ -60,7 +60,7 @@ MoFin client communicates with the server's Moonbase plugin system via these end
 
 ---
 
-## 3. JavaScript Bridge Protocol & Methods (`hostApi = 1`)
+## 3. JavaScript Bridge Protocol & Methods (`hostApi = 2`)
 
 Plugins run in a locked-down WebView and communicate via `window.MoFinHost.call(method, params)`.
 
@@ -72,7 +72,7 @@ const userContext = await window.MoFinHost.call("getUserContext", {});
 ### Bridge Methods Reference
 
 #### 1. `getHostApiVersion`
-Returns current host API version `{ "hostApi": 1 }`.
+Returns current host API version `{ "hostApi": 2 }`.
 
 #### 2. `getUserContext`
 Returns active user identity and server name. **Tokens are never exposed.**
@@ -111,7 +111,21 @@ Registers settings entry or sidebar navigation item. Target URLs must sit under 
 #### 9. `playMedia`
 Triggers playback through MoFin's player engine. `streamUrl` playback is restricted to server-provided URLs.
 
-#### 10. `showToast`
+#### 10. `playGame` (`hostApi` 2)
+Opens MoFin's full-screen emulator. Only a plugin with a `games` or `playback` slot may call it.
+`MoFinHost.play(p)` is `MoFinHost.call('playGame', p)`.
+
+- **Parameters**: `{ "libraryId": "...", "gameId": "...", "title": "optional" }`
+- `libraryId` and `gameId` are required, non-empty, and at most 2048 characters.
+- **Returns**: `true` once the player route is pushed. A missing game is `false` and MoFin shows "Game not found".
+- When the player pops, the host sends `{ "type": "gameExited", "gameId": "..." }`.
+- The native WebView injects `MoFinHost.play`. On Flutter web the plugin iframe is an opaque sandbox, so that preamble cannot be injected. Web plugins call `MoFinHost.call('playGame', p)` through the server-served `bridge.js`.
+
+#### 11. Back from the Games hub
+The host sends `{ "type": "hostBack", "replyId": "..." }`. Reply within 300 ms with
+`MoFinHost.call('replyHostEvent', { replyId, handled: true })`, or return `{ handled: true }` from an `onEvent` listener, to keep the hub. Otherwise MoFin goes Home.
+
+#### 12. `showToast`
 Displays a toast notification in MoFin.
 
 ---

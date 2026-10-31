@@ -37,10 +37,10 @@ void main() {
       );
     });
 
-    test('getHostApiVersion returns current version 1', () async {
+    test('getHostApiVersion returns current version 2', () async {
       final res = await handler.handleMessage('{"method": "getHostApiVersion"}');
       expect(res['ok'], isTrue);
-      expect(res['result']['hostApi'], equals(1));
+      expect(res['result']['hostApi'], equals(2));
     });
 
     test('getUserContext returns user and server info WITHOUT token', () async {
@@ -229,7 +229,118 @@ void main() {
       expect(unknownMethod['ok'], isFalse);
       expect(unknownMethod['error'], contains('Unknown host API method'));
     });
+
+    test('playGame is denied without a games or playback slot', () async {
+      final res = await handler.handleMessage('''
+      {
+        "method": "playGame",
+        "params": { "libraryId": "lib", "gameId": "game" }
+      }
+      ''');
+      expect(res['ok'], isFalse);
+      expect(res['error'], contains('Access denied'));
+    });
+
+    test('playGame rejects bad parameters', () async {
+      final games = _gamesHandler(registry, prefs);
+
+      final missing = await games.handleMessage('{"method":"playGame","params":{}}');
+      expect(missing['ok'], isFalse);
+      expect(missing['error'], contains('Invalid playGame parameters'));
+
+      final empty = await games.handleMessage(
+        '{"method":"playGame","params":{"libraryId":"  ","gameId":"game"}}',
+      );
+      expect(empty['ok'], isFalse);
+      expect(empty['error'], contains('Invalid playGame parameters'));
+
+      final tooLong = 'a' * 2049;
+      final longId = await games.handleMessage(
+        '{"method":"playGame","params":{"libraryId":"$tooLong","gameId":"game"}}',
+      );
+      expect(longId['ok'], isFalse);
+      expect(longId['error'], contains('Invalid playGame parameters'));
+
+      final badTitle = await games.handleMessage(
+        '{"method":"playGame","params":{"libraryId":"lib","gameId":"game","title":1}}',
+      );
+      expect(badTitle['ok'], isFalse);
+      expect(badTitle['error'], contains('Invalid playGame parameters'));
+    });
+
+    test('playGame returns the callback result', () async {
+      String? seenLibrary;
+      String? seenGame;
+      String? seenTitle;
+      final allow = _gamesHandler(
+        registry,
+        prefs,
+        onPlayGame: ({
+          required pluginId,
+          required libraryId,
+          required gameId,
+          title,
+        }) async {
+          seenLibrary = libraryId;
+          seenGame = gameId;
+          seenTitle = title;
+          return gameId == 'ok';
+        },
+      );
+
+      final yes = await allow.handleMessage(
+        '{"method":"playGame","params":{"libraryId":" lib ","gameId":"ok","title":" Mario "}}',
+      );
+      expect(yes['ok'], isTrue);
+      expect(yes['result'], isTrue);
+      expect(seenLibrary, 'lib');
+      expect(seenGame, 'ok');
+      expect(seenTitle, 'Mario');
+
+      final no = await allow.handleMessage(
+        '{"method":"playGame","params":{"libraryId":"lib","gameId":"missing"}}',
+      );
+      expect(no['ok'], isTrue);
+      expect(no['result'], isFalse);
+
+      final noCallback = _gamesHandler(registry, prefs);
+      final unanswered = await noCallback.handleMessage(
+        '{"method":"playGame","params":{"libraryId":"lib","gameId":"ok"}}',
+      );
+      expect(unanswered['ok'], isTrue);
+      expect(unanswered['result'], isFalse);
+    });
+
+    test('preamble exposes play as playGame', () {
+      final script = HostApiHandler.getBridgeInjectionScript();
+      expect(script, contains("play: (p) => MoFinHost.call('playGame', p)"));
+      expect(script, contains('playGame'));
+    });
   });
+}
+
+HostApiHandler _gamesHandler(
+  PluginRegistry registry,
+  SharedPreferences prefs, {
+  PlayGameCallback? onPlayGame,
+}) {
+  registry.registerManifest(
+    const PluginManifest(
+      id: 'rom-manager',
+      name: 'ROM Manager',
+      version: '1.0.0',
+      slots: PluginSlots(games: true),
+      client: PluginClientInfo(html: 'index.html'),
+    ),
+  );
+  return HostApiHandler(
+    pluginId: 'rom-manager',
+    registry: registry,
+    userContextProvider: () => null,
+    clientProvider: () => _MockClient('https://server.test'),
+    prefs: prefs,
+    onPlayGame: onPlayGame,
+  );
 }
 
 class _MockClient {

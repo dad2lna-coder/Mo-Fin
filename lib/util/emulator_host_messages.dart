@@ -35,4 +35,9 @@ abstract class EmulatorHostMessages {
     required String playerUrl,
     required String name,
   }) => impl.readPlayer(playerUrl: playerUrl, name: name);
+
+  /// Runs [source] inside the player frame. Web only; native players inject
+  /// the same script through the WebView controller.
+  static bool evalPlayer({required String source}) =>
+      impl.evalPlayer(source: source);
 }
