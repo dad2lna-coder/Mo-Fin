@@ -939,7 +939,11 @@ class _NativeGamePlayerScreenState extends State<NativeGamePlayerScreen>
     final coreId = libretroCoreId(widget.core);
     if (coreId == null || !nativeCanPlay(widget.core)) {
       _releaseGameplayArtworkBlock();
-      setState(() => _error = 'This system is not supported yet.');
+      setState(
+        () => _error =
+            gamePlaybackBlockedMessage(widget.core) ??
+            'This system is not supported yet.',
+      );
       return;
     }
     try {
@@ -1034,19 +1038,48 @@ class _NativeGamePlayerScreenState extends State<NativeGamePlayerScreen>
         );
       }
 
-      for (final bios in detail.bios) {
-        final String biosFileName;
-        try {
-          biosFileName = sanitizeDownloadFileName(bios.fileName);
-        } on FormatException catch (e) {
-          _setFatalError(
-            'A required BIOS file has an invalid name and cannot be downloaded. (${e.message})',
-          );
-          return;
+      var dreamcastRealBios = false;
+      if (widget.core == 'dreamcast') {
+        // Only dc_boot.bin and dc_flash.bin, under dc/. An empty list is the
+        // HLE path, not a failure.
+        for (final bios in dreamcastBiosToInstall(detail.bios)) {
+          final relative = dreamcastBiosRelativePath(bios.fileName);
+          if (relative == null) continue;
+          final String biosFileName;
+          try {
+            biosFileName = sanitizeDownloadFileName(relative.split('/').last);
+          } on FormatException catch (e) {
+            _setFatalError(
+              'A required BIOS file has an invalid name and cannot be downloaded. (${e.message})',
+            );
+            return;
+          }
+          final biosFile = File(p.join(systemDir.path, 'dc', biosFileName));
+          await biosFile.parent.create(recursive: true);
+          if (!await biosFile.exists()) {
+            await games.downloadBios(
+              widget.libraryId,
+              bios.id,
+              biosFile.path,
+            );
+          }
+          dreamcastRealBios = true;
         }
-        final biosFile = File(p.join(systemDir.path, biosFileName));
-        if (!await biosFile.exists()) {
-          await games.downloadBios(widget.libraryId, bios.id, biosFile.path);
+      } else {
+        for (final bios in detail.bios) {
+          final String biosFileName;
+          try {
+            biosFileName = sanitizeDownloadFileName(bios.fileName);
+          } on FormatException catch (e) {
+            _setFatalError(
+              'A required BIOS file has an invalid name and cannot be downloaded. (${e.message})',
+            );
+            return;
+          }
+          final biosFile = File(p.join(systemDir.path, biosFileName));
+          if (!await biosFile.exists()) {
+            await games.downloadBios(widget.libraryId, bios.id, biosFile.path);
+          }
         }
       }
       if (!mounted) return;
@@ -1082,6 +1115,11 @@ class _NativeGamePlayerScreenState extends State<NativeGamePlayerScreen>
       }
       // Preserve stored values while filling missing options with app defaults.
       settingsJson = withCoreOptionDefaults(coreId, settingsJson);
+      settingsJson = withFlycastHleBios(
+        coreId,
+        settingsJson,
+        realBios: dreamcastRealBios,
+      );
       // Last check before starting the one-per-process native session: if the
       // screen was unmounted while settings were loading, starting it now
       // would leave a session running with nothing left to tear it down.

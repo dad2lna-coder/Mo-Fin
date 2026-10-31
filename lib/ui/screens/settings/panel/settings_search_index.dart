@@ -1815,7 +1815,7 @@ List<_SettingsSearchEntry> _buildSettingsSearchIndex({
         keywords: ['rotate', 'landscape', 'portrait', 'games'],
       ),
     if (supportsCoreDownloads && usesNativeGameBackend)
-      emulatorCores.screen(keywords: ['retroarch', 'games', 'systems', 'amiga', 'commodore', 'puae', 'kickstart']),
+      emulatorCores.screen(keywords: ['retroarch', 'games', 'systems', 'amiga', 'commodore', 'puae', 'kickstart', 'dreamcast', 'flycast']),
     if (usesNativeGameBackend)
       downloadedGames.screen(keywords: ['roms', 'storage']),
 

@@ -28,6 +28,7 @@ const Map<String, String> _coreLicenseNames = {
   'mednafen_vb': 'Mednafen (Virtual Boy core)',
   'fbneo': 'FinalBurn Neo (Arcade core)',
   'puae': 'PUAE (Commodore Amiga core)',
+  'flycast': 'Flycast (Dreamcast core)',
 };
 
 /// Adds the emulator cores present on this device to LicenseRegistry so they

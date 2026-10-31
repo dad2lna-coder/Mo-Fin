@@ -259,6 +259,12 @@ class _GameEmulatorScreenState extends State<GameEmulatorScreen>
   }
 
   Future<void> _prepare() async {
+    final blocked = gamePlaybackBlockedMessage(widget.core);
+    if (blocked != null) {
+      _releaseGameplayArtworkBlock();
+      if (mounted) setState(() => _error = blocked);
+      return;
+    }
     final games = _client.gamesApi;
     if (games == null) {
       _releaseGameplayArtworkBlock();

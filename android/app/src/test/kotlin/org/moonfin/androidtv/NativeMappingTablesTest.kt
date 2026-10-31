@@ -136,4 +136,58 @@ class NativeMappingTablesTest {
         assertEquals(NativeMappingTables.RETRO_A, table[KeyEvent.KEYCODE_DPAD_CENTER])
         assertEquals(NativeMappingTables.RETRO_L2, table[KeyEvent.KEYCODE_BUTTON_L2])
     }
+
+    @Test
+    fun `flycast keeps the gamepad on the dreamcast face buttons triggers and start`() {
+        val table = NativeMappingTables.DEFAULT
+        // RetroPad A/B/X/Y are what Flycast maps to Dreamcast A/B/X/Y.
+        assertEquals(NativeMappingTables.RETRO_A, table[KeyEvent.KEYCODE_BUTTON_A])
+        assertEquals(NativeMappingTables.RETRO_B, table[KeyEvent.KEYCODE_BUTTON_B])
+        assertEquals(NativeMappingTables.RETRO_X, table[KeyEvent.KEYCODE_BUTTON_X])
+        assertEquals(NativeMappingTables.RETRO_Y, table[KeyEvent.KEYCODE_BUTTON_Y])
+        assertEquals(NativeMappingTables.RETRO_L2, table[KeyEvent.KEYCODE_BUTTON_L2])
+        assertEquals(NativeMappingTables.RETRO_R2, table[KeyEvent.KEYCODE_BUTTON_R2])
+        // Remote confirm is Dreamcast A. Play, swallowed for every other core, is Start.
+        assertEquals(NativeMappingTables.RETRO_A, table[KeyEvent.KEYCODE_DPAD_CENTER])
+        assertEquals(
+            NativeMappingTables.RETRO_START,
+            NativeMappingTables.dreamcastPadIndex(
+                "flycast",
+                KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE,
+                table[KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE],
+            ),
+        )
+        assertEquals(
+            NativeMappingTables.RETRO_START,
+            NativeMappingTables.dreamcastPadIndex(
+                "flycast",
+                KeyEvent.KEYCODE_MEDIA_PLAY,
+                NativeMappingTables.SWALLOW,
+            ),
+        )
+    }
+
+    @Test
+    fun `dreamcast play mapping does not apply to other cores or a user binding`() {
+        assertEquals(
+            NativeMappingTables.SWALLOW,
+            NativeMappingTables.dreamcastPadIndex(
+                "snes9x",
+                KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE,
+                NativeMappingTables.SWALLOW,
+            ),
+        )
+        assertEquals(
+            NativeMappingTables.RETRO_A,
+            NativeMappingTables.dreamcastPadIndex(
+                "flycast",
+                KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE,
+                NativeMappingTables.RETRO_A,
+            ),
+        )
+        assertEquals(
+            NativeMappingTables.NONE,
+            NativeMappingTables.dreamcastPadIndex(null, KeyEvent.KEYCODE_MEDIA_PLAY, NativeMappingTables.NONE),
+        )
+    }
 }

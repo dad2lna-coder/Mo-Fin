@@ -621,6 +621,35 @@ TouchPadLayout touchPadLayoutFor(
         _tab(TouchCluster.shoulderRight, 'R', RetroPadId.r, vbGrey),
       ]);
       pills.addAll([_pill('SELECT', sel), _pill('START', start)]);
+    case 'dreamcast':
+      // Flycast: libretro B/A/Y/X are Dreamcast A/B/X/Y. L2 and R2 are the
+      // analog triggers (a digital press is full deflection). The left stick
+      // is the analog stick; Start is the only system button.
+      faceCenterOnDpad = false;
+      L.add(_cross(TouchCluster.left, 0, tall ? 0 : -80, 128));
+      L.add(
+        _stick(
+          TouchCluster.left,
+          'Analog',
+          0,
+          tall ? 118 : 50,
+          42,
+          digital: !analog,
+        ),
+      );
+      F.addAll(
+        _face('diamond', [
+          ('Y', _bit(x), const Color(0xFFF4F1EA), null),
+          ('B', _bit(a), const Color(0xFFF4F1EA), null),
+          ('A', _bit(b), const Color(0xFFE23B2F), null),
+          ('X', _bit(y), const Color(0xFFF4F1EA), null),
+        ]),
+      );
+      sh.addAll([
+        _tab(TouchCluster.shoulderLeft, 'L', RetroPadId.l2, grey),
+        _tab(TouchCluster.shoulderRight, 'R', RetroPadId.r2, grey),
+      ]);
+      pills.add(_pill('START', start));
     case 'amiga':
       // PUAE reads libretro B as fire 1 and libretro A as fire 2. Those are
       // the A and B buttons on a gamepad (see NativeMappingTables). The right

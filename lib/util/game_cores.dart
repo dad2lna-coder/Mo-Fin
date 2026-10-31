@@ -246,6 +246,17 @@ const List<GameCore> gameCoreCatalog = [
     approxSizeMb: 6,
     emulatorJsSystemCores: {'amiga'},
   ),
+  // Not bundled on Apple, and EmulatorJS has no Dreamcast core. Android
+  // (phones and Fire TV, including a 32-bit userland) and desktop download
+  // the plain `flycast` build; arm64-v8a and armeabi-v7a both publish that
+  // name. Web and iOS get a message instead of a player that can only fail.
+  GameCore(
+    coreId: 'flycast',
+    system: 'Sega Dreamcast',
+    approxSizeMb: 5,
+    needsJit: true,
+    emulatorJsSystemCores: {'dreamcast'},
+  ),
 ];
 
 /// The cores offered in the download manager. Kept as a named view for its
@@ -421,6 +432,15 @@ const Map<String, Map<String, String>> coreOptionDefaults = {
   // Right analog is the mouse. Left at the core default ("both") would turn
   // the left stick into a mouse as well, so the joystick stays on the d-pad.
   'puae': {'puae_analogmouse': 'right'},
+  // Native 640x480, threaded rendering, no widescreen stretch. Those are the
+  // Fire TV defaults: the Cube and sticks stay stable at the Dreamcast's own
+  // resolution, and a widescreen hack blows the 4:3 frame out on a 16:9 TV.
+  // Flycast still registers these under the reicast_ prefix.
+  'flycast': {
+    'reicast_internal_resolution': '640x480',
+    'reicast_threaded_rendering': 'enabled',
+    'reicast_widescreen_hack': 'disabled',
+  },
 };
 
 /// Windows-only additions to [coreOptionDefaults].
@@ -540,6 +560,78 @@ String? emulatorJsBiosId(String core, List<GameBios> bios) {
   return bios.first.id;
 }
 
+/// Dreamcast BIOS files Flycast reads from `<systemDir>/dc/`. Anything else
+/// in the server's list is ignored. Missing both is not an error: Flycast
+/// boots its HLE BIOS.
+const Set<String> dreamcastBiosFileNames = {'dc_boot.bin', 'dc_flash.bin'};
+
+/// `dc/dc_boot.bin` or `dc/dc_flash.bin` for a BIOS the server named, or null
+/// when [fileName] is not one of those. Matching is on the base name, so a
+/// path prefix the server already included does not change the folder.
+String? dreamcastBiosRelativePath(String fileName) {
+  final base = fileName.split(RegExp(r'[/\\]')).last.trim().toLowerCase();
+  if (!dreamcastBiosFileNames.contains(base)) return null;
+  return 'dc/$base';
+}
+
+/// The Dreamcast BIOS files to download, one per recognized name. Empty when
+/// the server listed none, which is the HLE path.
+List<GameBios> dreamcastBiosToInstall(Iterable<GameBios> bios) {
+  final chosen = <String, GameBios>{};
+  for (final file in bios) {
+    final relative = dreamcastBiosRelativePath(file.fileName);
+    if (relative == null) continue;
+    chosen.putIfAbsent(relative, () => file);
+  }
+  return chosen.values.toList(growable: false);
+}
+
+/// Turns HLE on when no real BIOS was installed. A stored user value wins,
+/// and a present `dc_boot.bin` / `dc_flash.bin` leaves the option unset so
+/// Flycast uses the files.
+Map<String, String>? withFlycastHleBios(
+  String coreId,
+  Map<String, String>? settings, {
+  required bool realBios,
+}) {
+  if (coreId != 'flycast' || realBios) return settings;
+  return {'reicast_hle_bios': 'enabled', ...?settings};
+}
+
+/// Shown instead of a failed player where Dreamcast cannot run. EmulatorJS
+/// has no Dreamcast core, and iOS, tvOS, macOS, and the web build do not
+/// ship Flycast.
+const String dreamcastAndroidTvMessage = 'Dreamcast plays on Android/TV';
+
+/// Android, Windows, and Linux can download Flycast. Everywhere else cannot.
+bool dreamcastPlaysOnThisPlatform({
+  required bool web,
+  required bool ios,
+  required bool appleTv,
+  required bool macos,
+}) => !web && !ios && !appleTv && !macos;
+
+/// This process can download and run Flycast.
+bool get dreamcastNativePlatform => dreamcastPlaysOnThisPlatform(
+  web: PlatformDetection.isWeb,
+  ios: PlatformDetection.isIOS,
+  appleTv: PlatformDetection.isAppleTV,
+  macos: PlatformDetection.isMacOS,
+);
+
+/// The sentence to show when [core] cannot be played here, or null when it
+/// can. Dreamcast is the only system with a dedicated message; every other
+/// unsupported case keeps the generic one.
+String? gamePlaybackBlockedMessage(String core) {
+  if (core == 'dreamcast' && !gameCoreSupported(core)) {
+    return dreamcastAndroidTvMessage;
+  }
+  return null;
+}
+
+/// EmulatorJS cores this app can hand a system to. Dreamcast is absent.
+bool emulatorJsCanPlay(String core) => core != 'dreamcast';
+
 /// True for the Commodore Amiga system id or its bare name. Folder names the
 /// server already spelled out ("Commodore Amiga") match too.
 bool isAmigaSystemId(String value) {
@@ -577,12 +669,25 @@ bool nativeCanPlay(String core) {
 /// is used when it's selected, supports the system, and its core is actually
 /// available. Android and desktop otherwise fall back to EmulatorJS instead of
 /// opening the native player only to report that its core is not installed.
-bool usesNativeGameBackendFor(String core) => resolveNativeGameBackend(
-  nativeSelected: usesNativeGameBackend,
-  nativeSupported: nativeCanPlay(core),
-  emulatorAvailable: emulatorJsAvailable,
-  nativeCoreAvailable: _nativeCoreIsAvailable(core),
-);
+bool usesNativeGameBackendFor(String core) {
+  // No EmulatorJS Dreamcast core exists, so the WebView is not a fallback.
+  // A missing download stays on the native player, which asks for the core,
+  // instead of opening a page that can only fail.
+  if (core == 'dreamcast' && dreamcastNativePlatform) {
+    return resolveNativeGameBackend(
+      nativeSelected: true,
+      nativeSupported: nativeCanPlay(core),
+      emulatorAvailable: false,
+      nativeCoreAvailable: _nativeCoreIsAvailable(core),
+    );
+  }
+  return resolveNativeGameBackend(
+    nativeSelected: usesNativeGameBackend,
+    nativeSupported: nativeCanPlay(core),
+    emulatorAvailable: emulatorJsAvailable && emulatorJsCanPlay(core),
+    nativeCoreAvailable: _nativeCoreIsAvailable(core),
+  );
+}
 
 /// Pure routing decision shared with focused tests.
 ///
@@ -635,9 +740,11 @@ bool _nativeCoreIsAvailable(String core) {
 
 /// Whether the game can be played at all here: natively, or through EmulatorJS
 /// where that backend exists. tvOS and Linux have no WebView, so only their
-/// bundled or mapped native cores are playable.
-bool gameCoreSupported(String core) =>
-    nativeCanPlay(core) || emulatorJsAvailable;
+/// bundled or mapped native cores are playable. Dreamcast is native-only.
+bool gameCoreSupported(String core) {
+  if (core == 'dreamcast') return dreamcastNativePlatform;
+  return nativeCanPlay(core) || emulatorJsAvailable;
+}
 
 /// The downloaded-core file name for a libretro core id on this platform.
 String coreFileName(String coreId) {
@@ -655,14 +762,18 @@ String coreFileName(String coreId) {
 String? coreDownloadUrl(String coreId) {
   final target = currentBuildbotTarget();
   if (target == null) return null;
-  return 'https://buildbot.libretro.com/nightly/${target.dir}/${_buildbotCoreName(coreId)}${target.suffix}';
+  return 'https://buildbot.libretro.com/nightly/${target.dir}/${buildbotCoreName(coreId)}${target.suffix}';
 }
 
 /// The buildbot file name for a core, which usually matches the id. Android
-/// only publishes Nintendo 64 as the GLES build, so it needs a different name
-/// there while the downloaded file still lands under the plain id.
-String _buildbotCoreName(String coreId) {
-  if (coreId == 'mupen64plus_next' && PlatformDetection.isAndroid) {
+/// only publishes Nintendo 64 as the GLES3 build, so it needs a different name
+/// there while the downloaded file still lands under the plain id. Flycast is
+/// the plain id on both `android/latest/arm64-v8a` and
+/// `android/latest/armeabi-v7a`; [currentBuildbotTarget] selects the ABI, so
+/// a 32-bit Fire TV userland does not need a renamed zip.
+String buildbotCoreName(String coreId, {bool? android}) {
+  final onAndroid = android ?? PlatformDetection.isAndroid;
+  if (coreId == 'mupen64plus_next' && onAndroid) {
     return 'mupen64plus_next_gles3';
   }
   return coreId;

@@ -77,6 +77,9 @@ class LibretroBridge(
   private var advertisedInputDescriptors: List<NativeInputDescriptor> = emptyList()
   private var loadedCore: String? = null
 
+  /** The libretro core id of the loaded session, or null when nothing is up. */
+  fun loadedCoreId(): String? = loadedCore
+
   // Gates the per-edge "button" EventChannel message: during gameplay the
   // overlay is closed and Dart has nothing to do with these, so nothing
   // crosses the channel. Only overlay navigation (open pause menu, controller

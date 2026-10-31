@@ -1,0 +1,5 @@
+Flycast libretro core - licensed under the GNU General Public License v2.0
+
+Flycast is a multiplatform Sega Dreamcast, Naomi, Naomi 2 and Atomiswave
+emulator. The libretro core is licensed under GPL-2.0.
+Source: https://github.com/flyinghead/flycast

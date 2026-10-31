@@ -65,6 +65,27 @@ void main() {
       isTrue,
     );
   });
+  test('Dreamcast pad is A/B/X/Y, analog triggers, the stick, and Start', () {
+    final layout = touchPadLayoutFor('dreamcast', analogPorts: 1);
+    int maskOf(String label) =>
+        layout.controls.firstWhere((c) => c.label == label).mask;
+    expect(maskOf('A'), 1 << RetroPadId.b);
+    expect(maskOf('B'), 1 << RetroPadId.a);
+    expect(maskOf('X'), 1 << RetroPadId.y);
+    expect(maskOf('Y'), 1 << RetroPadId.x);
+    expect(maskOf('L'), 1 << RetroPadId.l2);
+    expect(maskOf('R'), 1 << RetroPadId.r2);
+    expect(maskOf('START'), 1 << RetroPadId.start);
+    final stick = layout.controls.firstWhere((c) => c.label == 'Analog');
+    expect(stick.kind, TouchControlKind.stick);
+    expect(stick.digital, isFalse);
+    expect(stick.rightStick, isFalse);
+    expect(
+      layout.controls.any((c) => c.kind == TouchControlKind.dpad),
+      isTrue,
+    );
+  });
+
   test('RetroPadId uses libretro names, unlike RetroPadButton', () {
     expect(RetroPadId.b, 0);
     expect(RetroPadId.a, 8);

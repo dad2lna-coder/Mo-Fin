@@ -24,10 +24,11 @@ bool launchGame(
   VoidCallback? onPopped,
 }) {
   if (!context.mounted) return false;
+  final blocked = gamePlaybackBlockedMessage(game.core);
   if (!PlatformDetection.gamesPlaybackSupported || !gameCoreSupported(game.core)) {
     final l10n = AppLocalizations.of(context);
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(l10n.gamePlaybackUnsupported)),
+      SnackBar(content: Text(blocked ?? l10n.gamePlaybackUnsupported)),
     );
     return false;
   }

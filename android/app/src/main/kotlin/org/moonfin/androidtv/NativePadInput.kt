@@ -947,7 +947,12 @@ internal class NativePadInput(
 
     private fun tableFor(profileId: String): IntArray = NativeMappingTables.custom(customMappings[profileId])
 
-    private fun indexFor(table: IntArray, keyCode: Int): Int = NativeMappingTables.indexFor(table, keyCode)
+    private fun indexFor(table: IntArray, keyCode: Int): Int =
+        NativeMappingTables.dreamcastPadIndex(
+            bridge.loadedCoreId(),
+            keyCode,
+            NativeMappingTables.indexFor(table, keyCode),
+        )
 
     /**
      * A portless remote/keyboard shares one PadState, so its table cannot live on
@@ -1222,6 +1227,26 @@ internal object NativeMappingTables {
 
     fun indexFor(table: IntArray, keyCode: Int): Int =
         if (keyCode in 0 until TABLE_SIZE) table[keyCode] else NONE
+
+    /**
+     * Dreamcast pad on top of an existing RetroPad table.
+     *
+     * A gamepad already lines up: BUTTON_A/B/X/Y are RetroPad A/B/X/Y, which
+     * Flycast reads as Dreamcast A/B/X/Y; L2/R2 are the analog triggers (the
+     * motion path sends pressure, and a digital press is full deflection);
+     * the left stick is the analog stick; BUTTON_START is Start. A TV remote
+     * has d-pad and confirm (Dreamcast A) from the default table, but no
+     * Start key. Play is Start. A binding the user already chose wins, and
+     * every other core keeps the swallowed media keys.
+     */
+    fun dreamcastPadIndex(coreId: String?, keyCode: Int, mapped: Int): Int {
+        if (coreId != "flycast") return mapped
+        if (mapped != NONE && mapped != SWALLOW) return mapped
+        return when (keyCode) {
+            KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE, KeyEvent.KEYCODE_MEDIA_PLAY -> RETRO_START
+            else -> mapped
+        }
+    }
 }
 
 /**

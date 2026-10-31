@@ -128,6 +128,7 @@ void main() {
         'nds': 'melonds',
         'arcade': 'fbneo',
         'amiga': 'puae',
+        'dreamcast': 'flycast',
       };
 
       for (final entry in expected.entries) {
@@ -282,6 +283,106 @@ void main() {
         macosBundledCores,
       );
     });
+
+    test('Dreamcast maps to Flycast and is not an EmulatorJS core', () {
+      expect(libretroCoreId('dreamcast'), 'flycast');
+      expect(emulatorJsCanPlay('dreamcast'), isFalse);
+      expect(emulatorJsCanPlay('nes'), isTrue);
+      expect(emulatorJsCanPlay('mame'), isTrue);
+      final flycast = gameCoreCatalog.singleWhere(
+        (core) => core.coreId == 'flycast',
+      );
+      expect(flycast.emulatorJsSystemCores, {'dreamcast'});
+      expect(flycast.needsJit, isTrue);
+      expect(flycast.bundledOnApple, isFalse);
+      expect(flycast.bundledOnMacOS, isFalse);
+      expect(appleBundledCores.contains('flycast'), isFalse);
+      expect(macosBundledCores.contains('flycast'), isFalse);
+    });
+
+    test('Flycast buildbot name is plain flycast on arm64 and armv7', () {
+      // Both Android ABIs publish flycast_libretro_android.so.zip. The ABI
+      // directory is chosen separately, so a 32-bit Fire TV userland still
+      // downloads this name.
+      expect(buildbotCoreName('flycast', android: true), 'flycast');
+      expect(buildbotCoreName('flycast', android: false), 'flycast');
+      expect(
+        buildbotCoreName('mupen64plus_next', android: true),
+        'mupen64plus_next_gles3',
+      );
+      expect(buildbotCoreName('mupen64plus_next', android: false), 'mupen64plus_next');
+    });
+
+    test('Dreamcast BIOS lands under dc/ and anything else is left alone', () {
+      expect(dreamcastBiosRelativePath('dc_boot.bin'), 'dc/dc_boot.bin');
+      expect(dreamcastBiosRelativePath('DC_FLASH.BIN'), 'dc/dc_flash.bin');
+      expect(
+        dreamcastBiosRelativePath(r'bios\dc_boot.bin'),
+        'dc/dc_boot.bin',
+      );
+      expect(dreamcastBiosRelativePath('scph1001.bin'), isNull);
+      expect(dreamcastBiosRelativePath('dc/readme.txt'), isNull);
+
+      GameBios bios(String id, String fileName) =>
+          GameBios(id: id, fileName: fileName, sizeBytes: 1);
+      final listed = dreamcastBiosToInstall([
+        bios('boot', 'dc_boot.bin'),
+        bios('boot-again', 'DC_BOOT.BIN'),
+        bios('flash', 'dc_flash.bin'),
+        bios('other', 'scph1001.bin'),
+      ]);
+      expect(listed.map((file) => file.id), ['boot', 'flash']);
+      expect(dreamcastBiosToInstall(const []), isEmpty);
+    });
+
+    test('web and iOS cannot play Dreamcast; Android can', () {
+      expect(
+        dreamcastPlaysOnThisPlatform(
+          web: true,
+          ios: false,
+          appleTv: false,
+          macos: false,
+        ),
+        isFalse,
+      );
+      expect(
+        dreamcastPlaysOnThisPlatform(
+          web: false,
+          ios: true,
+          appleTv: false,
+          macos: false,
+        ),
+        isFalse,
+      );
+      expect(
+        dreamcastPlaysOnThisPlatform(
+          web: false,
+          ios: false,
+          appleTv: true,
+          macos: false,
+        ),
+        isFalse,
+      );
+      expect(
+        dreamcastPlaysOnThisPlatform(
+          web: false,
+          ios: false,
+          appleTv: false,
+          macos: true,
+        ),
+        isFalse,
+      );
+      expect(
+        dreamcastPlaysOnThisPlatform(
+          web: false,
+          ios: false,
+          appleTv: false,
+          macos: false,
+        ),
+        isTrue,
+      );
+      expect(dreamcastAndroidTvMessage, 'Dreamcast plays on Android/TV');
+    });
   });
 
   group('Android routing', () {
@@ -362,6 +463,23 @@ void main() {
         'lr-opaque-token',
       );
     });
+
+    test('Dreamcast stays on Flycast even when the core is not installed', () {
+      expect(gameCoreSupported('dreamcast'), isTrue);
+      expect(gamePlaybackBlockedMessage('dreamcast'), isNull);
+      expect(usesNativeGameBackendFor('dreamcast'), isTrue);
+      expect(nativeCanPlay('dreamcast'), isTrue);
+    });
+
+    test('Dreamcast stays native when EmulatorJS is the preferred backend', () async {
+      await GetIt.instance<PreferenceStore>().set(
+        UserPreferences.useNativeEmulator,
+        false,
+      );
+
+      expect(usesNativeGameBackendFor('nes'), isFalse);
+      expect(usesNativeGameBackendFor('dreamcast'), isTrue);
+    });
   });
 
   group('macOS routing', () {
@@ -382,6 +500,27 @@ void main() {
     test('macOS still plays a core it actually bundles', () {
       expect(macosBundledCores.contains('fceumm'), isTrue);
       expect(usesNativeGameBackendFor('nes'), isTrue);
+    });
+  });
+
+  group('iOS routing', () {
+    setUp(() {
+      debugDefaultTargetPlatformOverride = TargetPlatform.iOS;
+    });
+
+    tearDown(() {
+      debugDefaultTargetPlatformOverride = null;
+    });
+
+    test('Dreamcast is refused with the Android/TV message', () {
+      expect(gameCoreSupported('dreamcast'), isFalse);
+      expect(nativeCanPlay('dreamcast'), isFalse);
+      expect(
+        gamePlaybackBlockedMessage('dreamcast'),
+        'Dreamcast plays on Android/TV',
+      );
+      expect(gamePlaybackBlockedMessage('nes'), isNull);
+      expect(gameCoreSupported('nes'), isTrue);
     });
   });
 
@@ -599,6 +738,36 @@ void _coreOptionDefaultsTests() {
         'both',
       );
       expect(withCoreOptionDefaults('snes9x', null), isNull);
+    });
+
+    test('Flycast defaults to native resolution, threaded, no widescreen', () {
+      final merged = withCoreOptionDefaults('flycast', null)!;
+      expect(merged['reicast_internal_resolution'], '640x480');
+      expect(merged['reicast_threaded_rendering'], 'enabled');
+      expect(merged['reicast_widescreen_hack'], 'disabled');
+      expect(
+        withCoreOptionDefaults('flycast', {
+          'reicast_internal_resolution': '1280x960',
+        })!['reicast_internal_resolution'],
+        '1280x960',
+      );
+      expect(
+        withFlycastHleBios('flycast', merged, realBios: false)!['reicast_hle_bios'],
+        'enabled',
+      );
+      expect(
+        withFlycastHleBios('flycast', merged, realBios: true)!.containsKey(
+          'reicast_hle_bios',
+        ),
+        isFalse,
+      );
+      expect(
+        withFlycastHleBios('flycast', {
+          'reicast_hle_bios': 'disabled',
+        }, realBios: false)!['reicast_hle_bios'],
+        'disabled',
+      );
+      expect(withFlycastHleBios('snes9x', null, realBios: false), isNull);
     });
 
     test('Windows defaults N64 to the software renderer', () {
