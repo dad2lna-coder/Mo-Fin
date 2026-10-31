@@ -105,6 +105,16 @@ void main() {
       expect(emptyClientHandler.isUrlUnderPluginFilesPath('files/index.html'), isFalse);
     });
 
+    test('a plugin-files URL with fragment containing .. is accepted once the fragment is stripped', () {
+      final rawUrl = 'https://server.test/Moonfin/Plugins/test-plugin/files/index.html#a..b';
+      final strippedUrl = Uri.tryParse(rawUrl)?.removeFragment().toString() ?? '';
+
+      // With fragment intact, isUrlUnderPluginFilesPath blocks it because of .. in fragment
+      expect(handler.isUrlUnderPluginFilesPath(rawUrl), isFalse);
+      // Once fragment is stripped, it is properly accepted
+      expect(handler.isUrlUnderPluginFilesPath(strippedUrl), isTrue);
+    });
+
     test('supports sub-path (base-path) servers in isUrlUnderPluginFilesPath and resolvePluginFileUrl', () {
       final subPathHandler = HostApiHandler(
         pluginId: 'test-plugin',

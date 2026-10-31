@@ -155,7 +155,8 @@ class HostApiHandler {
 
     final method = request['method'] as String? ?? '';
     final params = (request['params'] as Map<String, dynamic>?) ?? {};
-    final callbackId = request['callbackId'] as String?;
+    final id = request['callbackId'];
+    final callbackId = id is String ? id : id?.toString();
 
     try {
       final result = await _executeMethod(method, params);
