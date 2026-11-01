@@ -32,6 +32,7 @@ import '../../../util/game_artwork_cache.dart';
 import '../../../util/game_cores.dart';
 import '../../../util/game_launch.dart';
 import '../../../util/game_library.dart';
+import '../../../util/game_local_data.dart';
 import '../../../util/platform_detection.dart';
 import '../../../util/tv_image_cache_stub.dart'
     if (dart.library.io) '../../../util/tv_image_cache_io.dart';
@@ -367,13 +368,23 @@ class _GameDetailScreenState extends State<GameDetailScreen> with RouteAware {
             _saveReadiness != _SaveReadiness.available)) {
       return;
     }
-    launchGame(
+    final launched = launchGame(
       context,
       widget.libraryId,
       game,
       fresh: fresh,
       hardwareRenderingEnabled: _hardwareRenderingEnabled,
     );
+    if (launched) {
+      unawaited(GameLocalData.instance.recordRecent(widget.libraryId, game.id));
+    }
+  }
+
+  Future<void> _toggleFavorite() async {
+    final game = _game;
+    if (game == null) return;
+    await GameLocalData.instance.toggleFavorite(widget.libraryId, game.id);
+    if (mounted) setState(() {});
   }
 
   Future<void> _toggleHardwareRendering() async {
@@ -461,6 +472,8 @@ class _GameDetailScreenState extends State<GameDetailScreen> with RouteAware {
 
   @override
   Widget build(BuildContext context) {
+    final isFav = _game != null &&
+        GameLocalData.instance.isFavorite(widget.libraryId, _game!.id);
     return Scaffold(
       extendBodyBehindAppBar: true,
       appBar: AppBar(
@@ -473,6 +486,17 @@ class _GameDetailScreenState extends State<GameDetailScreen> with RouteAware {
           onKeyEvent: _handleAppBarKeyEvent,
           child: const BackButton(),
         ),
+        actions: [
+          if (_game != null)
+            IconButton(
+              icon: Icon(
+                isFav ? Icons.star : Icons.star_border,
+                color: isFav ? Colors.amber : Colors.white,
+              ),
+              tooltip: isFav ? 'Remove from favorites' : 'Add to favorites',
+              onPressed: _toggleFavorite,
+            ),
+        ],
       ),
       body: _buildBody(),
     );

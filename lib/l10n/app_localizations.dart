@@ -223,7 +223,7 @@ abstract class AppLocalizations {
   /// The application title
   ///
   /// In en, this message translates to:
-  /// **'Moonfin'**
+  /// **'MoFin'**
   String get appTitle;
 
   /// Badge on an anime episode that is filler, meaning it is not adapted from the source manga
@@ -20164,13 +20164,13 @@ abstract class AppLocalizations {
   /// **'Play games with native cores instead of the EmulatorJS web player'**
   String get useNativeEmulatorSubtitle;
 
-  /// Web setting. iPhone and iPad Safari always open games as their own page.
+  /// Web settings toggle. When on, retro games leave MoFin and open the emulator as the whole browser tab. iPhone and iPad Safari always do this.
   ///
   /// In en, this message translates to:
   /// **'Open games full page'**
   String get openGamesFullPage;
 
-  /// Explains that iOS Safari ignores the toggle and other browsers opt in.
+  /// Subtitle for the Open games full page setting. iPhone, iPad, and Safari should stay in English.
   ///
   /// In en, this message translates to:
   /// **'iPhone and iPad Safari always leave MoFin and open the player on its own page. Turn this on in other browsers to do the same.'**
@@ -26237,6 +26237,18 @@ abstract class AppLocalizations {
   /// **'You'**
   String get navYou;
 
+  /// No description provided for @cinemaSkipPrerolls.
+  ///
+  /// In en, this message translates to:
+  /// **'Cinema Mode Skip Button'**
+  String get cinemaSkipPrerolls;
+
+  /// No description provided for @cinemaSkipPrerollsDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Show a Skip button during Cinema Mode trailers, commercials, and other pre-rolls.'**
+  String get cinemaSkipPrerollsDescription;
+
   /// Settings entry and screen for options that shape the details page
   ///
   /// In en, this message translates to:
@@ -26590,6 +26602,108 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Length'**
   String get librarySortLength;
+
+  /// Title for the plugin host settings tile
+  ///
+  /// In en, this message translates to:
+  /// **'Plugins'**
+  String get pluginsTitle;
+
+  /// Subtitle for the plugin host settings tile
+  ///
+  /// In en, this message translates to:
+  /// **'Web plugin host system and installed plugins'**
+  String get pluginsSubtitle;
+
+  /// Label for enabling the plugin host system switch
+  ///
+  /// In en, this message translates to:
+  /// **'Enable Plugin Host System'**
+  String get pluginsEnableHost;
+
+  /// Description for enabling the plugin host system switch
+  ///
+  /// In en, this message translates to:
+  /// **'Allows web-based plugins to run from the media server.'**
+  String get pluginsEnableHostDescription;
+
+  /// Message shown when plugin host WebView is unsupported on current device
+  ///
+  /// In en, this message translates to:
+  /// **'Plugins are not supported on this device.'**
+  String get pluginsUnsupportedOnDevice;
+
+  /// Status text for active plugins
+  ///
+  /// In en, this message translates to:
+  /// **'Active'**
+  String get pluginsStatusActive;
+
+  /// Subtitle details for plugin tile in settings
+  ///
+  /// In en, this message translates to:
+  /// **'ID: {id} | v{version} | Status: {status}'**
+  String pluginsSubtitleDetails(String id, String version, String status);
+
+  /// Subtitle for plugin settings entry
+  ///
+  /// In en, this message translates to:
+  /// **'Plugin: {pluginId}'**
+  String pluginsEntrySubtitle(String pluginId);
+
+  /// Tooltip for reloading plugins button
+  ///
+  /// In en, this message translates to:
+  /// **'Reload Plugins'**
+  String get pluginsReload;
+
+  /// Header for server plugins count
+  ///
+  /// In en, this message translates to:
+  /// **'Server Plugins ({count})'**
+  String pluginsServerPluginsCount(int count);
+
+  /// Text shown when no plugins are active
+  ///
+  /// In en, this message translates to:
+  /// **'No plugins currently active on this server.'**
+  String get pluginsNoActivePlugins;
+
+  /// Tooltip for open plugin button
+  ///
+  /// In en, this message translates to:
+  /// **'Open Plugin'**
+  String get pluginsOpenPlugin;
+
+  /// Message when plugin host system is disabled
+  ///
+  /// In en, this message translates to:
+  /// **'Plugin Host System is currently disabled.'**
+  String get pluginsHostDisabled;
+
+  /// Message when a plugin is not loaded or active
+  ///
+  /// In en, this message translates to:
+  /// **'Plugin \"{pluginId}\" is not loaded or active.'**
+  String pluginsNotLoaded(String pluginId);
+
+  /// Error message when plugin entry URL is unauthorized
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to load plugin: Unauthorized entry URL.'**
+  String get pluginsUnauthorizedEntryUrl;
+
+  /// Error message when plugin fails to load with details
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to load plugin: {error}'**
+  String pluginsLoadFailedWithError(String error);
+
+  /// Generic reload button or tooltip
+  ///
+  /// In en, this message translates to:
+  /// **'Reload'**
+  String get reload;
 }
 
 class _AppLocalizationsDelegate
