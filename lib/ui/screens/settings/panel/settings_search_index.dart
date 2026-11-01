@@ -1807,6 +1807,13 @@ List<_SettingsSearchEntry> _buildSettingsSearchIndex({
         subtitle: l10n.useNativeEmulatorSubtitle,
         keywords: ['games', 'retroarch', 'amiga', 'commodore'],
       ),
+    if (PlatformDetection.isWeb)
+      playback.leaf(
+        'pref_open_games_full_page',
+        l10n.openGamesFullPage,
+        subtitle: l10n.openGamesFullPageSubtitle,
+        keywords: ['ios', 'safari', 'ipad', 'emulator', 'memory'],
+      ),
     if (usesOnScreenControls)
       playback.leaf(
         'pref_game_playback_orientation',

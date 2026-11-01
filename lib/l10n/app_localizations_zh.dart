@@ -11114,6 +11114,13 @@ class AppLocalizationsZh extends AppLocalizations {
   String get useNativeEmulatorSubtitle => '使用原生内核运行游戏，而非 EmulatorJS 网页播放器';
 
   @override
+  String get openGamesFullPage => 'Open games full page';
+
+  @override
+  String get openGamesFullPageSubtitle =>
+      'iPhone and iPad Safari always leave MoFin and open the player on its own page. Turn this on in other browsers to do the same.';
+
+  @override
   String get emulatorCores => '模拟器内核';
 
   @override

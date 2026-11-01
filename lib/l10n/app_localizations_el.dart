@@ -11552,6 +11552,13 @@ class AppLocalizationsEl extends AppLocalizations {
       'Παίξτε παιχνίδια με εγγενείς πυρήνες αντί για το πρόγραμμα αναπαραγωγής ιστού EmulatorJS';
 
   @override
+  String get openGamesFullPage => 'Open games full page';
+
+  @override
+  String get openGamesFullPageSubtitle =>
+      'iPhone and iPad Safari always leave MoFin and open the player on its own page. Turn this on in other browsers to do the same.';
+
+  @override
   String get emulatorCores => 'Πυρήνες Εξομοιωτή';
 
   @override

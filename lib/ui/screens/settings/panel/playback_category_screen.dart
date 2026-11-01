@@ -84,7 +84,9 @@ class _PlaybackCategoryScreen extends StatelessWidget {
                   ),
                 ],
               ),
-              if (canToggleGameBackend || usesNativeGameBackend) ...[
+              if (canToggleGameBackend ||
+                  usesNativeGameBackend ||
+                  PlatformDetection.isWeb) ...[
                 _SectionHeader(l10n.games),
                 adaptiveListSection(
                   children: [
@@ -94,6 +96,13 @@ class _PlaybackCategoryScreen extends StatelessWidget {
                         title: l10n.useNativeEmulator,
                         subtitle: l10n.useNativeEmulatorSubtitle,
                         icon: Icons.sports_esports,
+                      ),
+                    if (PlatformDetection.isWeb)
+                      SwitchPreferenceTile(
+                        preference: UserPreferences.openGamesFullPage,
+                        title: l10n.openGamesFullPage,
+                        subtitle: l10n.openGamesFullPageSubtitle,
+                        icon: Icons.open_in_browser,
                       ),
                     if (usesOnScreenControls)
                       EnumPreferenceTile<GamePlaybackOrientation>(

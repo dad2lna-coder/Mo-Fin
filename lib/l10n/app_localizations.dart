@@ -20164,6 +20164,18 @@ abstract class AppLocalizations {
   /// **'Play games with native cores instead of the EmulatorJS web player'**
   String get useNativeEmulatorSubtitle;
 
+  /// Web setting. iPhone and iPad Safari always open games as their own page.
+  ///
+  /// In en, this message translates to:
+  /// **'Open games full page'**
+  String get openGamesFullPage;
+
+  /// Explains that iOS Safari ignores the toggle and other browsers opt in.
+  ///
+  /// In en, this message translates to:
+  /// **'iPhone and iPad Safari always leave MoFin and open the player on its own page. Turn this on in other browsers to do the same.'**
+  String get openGamesFullPageSubtitle;
+
   /// No description provided for @emulatorCores.
   ///
   /// In en, this message translates to:

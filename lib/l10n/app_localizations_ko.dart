@@ -11086,6 +11086,13 @@ class AppLocalizationsKo extends AppLocalizations {
       'EmulatorJS 웹 플레이어 대신 네이티브 코어로 게임을 플레이합니다';
 
   @override
+  String get openGamesFullPage => 'Open games full page';
+
+  @override
+  String get openGamesFullPageSubtitle =>
+      'iPhone and iPad Safari always leave MoFin and open the player on its own page. Turn this on in other browsers to do the same.';
+
+  @override
   String get emulatorCores => '에뮬레이터 코어';
 
   @override

@@ -11599,6 +11599,13 @@ class AppLocalizationsFr extends AppLocalizations {
       'Jouer avec des cores natifs au lieu du lecteur web EmulatorJS';
 
   @override
+  String get openGamesFullPage => 'Open games full page';
+
+  @override
+  String get openGamesFullPageSubtitle =>
+      'iPhone and iPad Safari always leave MoFin and open the player on its own page. Turn this on in other browsers to do the same.';
+
+  @override
   String get emulatorCores => 'Cores d\'émulateur';
 
   @override

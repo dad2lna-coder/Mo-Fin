@@ -24,6 +24,7 @@ import '../../../util/desktop_emulator_gamepad.dart';
 import '../../../util/emulator_host_messages.dart';
 import '../../../util/ios_emulator_audio_unlock.dart';
 import '../../../util/insecure_certificates.dart';
+import '../../../util/web_game_full_page_launch.dart';
 import '../../../util/webview_client_cert.dart';
 import '../../../util/webview_environment.dart';
 import '../../../util/system_ui.dart';
@@ -270,6 +271,29 @@ class _GameEmulatorScreenState extends State<GameEmulatorScreen>
       _releaseGameplayArtworkBlock();
       setState(() => _error = 'This server does not support games.');
       return;
+    }
+
+    // Direct /game-player links on iOS Safari (and opted-in browsers) must not
+    // mount the iframe. launchGame already left the page before pushing this
+    // route; this covers a reload of the player URL itself.
+    if (webGameFullPageEnabled() && browserCanLeavePage()) {
+      final route = routerLocationOf(context);
+      final left = await openGameFullPage(
+        libraryId: widget.libraryId,
+        gameId: widget.gameId,
+        core: widget.core,
+        romFileName: widget.romFileName,
+        biosId: widget.biosId,
+        gameName: widget.gameName,
+        startFresh: widget.startFresh,
+        returnRoute: route,
+        games: games,
+      );
+      if (!mounted) return;
+      if (left) {
+        _releaseGameplayArtworkBlock();
+        return;
+      }
     }
 
     final ejsDefaults = {

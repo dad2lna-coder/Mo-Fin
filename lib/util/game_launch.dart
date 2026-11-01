@@ -10,10 +10,15 @@ import '../preference/user_preferences.dart';
 import '../ui/navigation/destinations.dart';
 import 'game_cores.dart';
 import 'platform_detection.dart';
+import 'web_game_full_page_launch.dart';
 
 /// Pushes MoFin's full-screen game player and returns true once that route is
 /// on the stack. The push is not awaited, so the caller returns while the
 /// player is up. [onPopped] runs when the player is popped back.
+///
+/// On web, iOS/iPadOS Safari (and other browsers when "Open games full page"
+/// is on) does not push. It assigns the player document so the Flutter app,
+/// including its iframe, is unloaded.
 bool launchGame(
   BuildContext context,
   String libraryId,
@@ -21,11 +26,13 @@ bool launchGame(
   bool fresh = false,
   bool? hardwareRenderingEnabled,
   String? name,
+  String? pluginId,
   VoidCallback? onPopped,
 }) {
   if (!context.mounted) return false;
   final blocked = gamePlaybackBlockedMessage(game.core);
-  if (!PlatformDetection.gamesPlaybackSupported || !gameCoreSupported(game.core)) {
+  if (!PlatformDetection.gamesPlaybackSupported ||
+      !gameCoreSupported(game.core)) {
     final l10n = AppLocalizations.of(context);
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text(blocked ?? l10n.gamePlaybackUnsupported)),
@@ -33,7 +40,27 @@ bool launchGame(
     return false;
   }
 
-  final hardware = hardwareRenderingEnabled ??
+  final displayName = (name != null && name.isNotEmpty) ? name : game.title;
+  if (webGameFullPageEnabled() && browserCanLeavePage() && _hasGamesApi()) {
+    final route = routerLocationOf(context);
+    unawaited(
+      openGameFullPage(
+        libraryId: libraryId,
+        gameId: game.id,
+        core: game.core,
+        romFileName: game.fileName,
+        biosId: emulatorJsBiosId(game.core, game.bios),
+        gameName: displayName,
+        startFresh: fresh,
+        pluginId: pluginId,
+        returnRoute: route,
+      ),
+    );
+    return true;
+  }
+
+  final hardware =
+      hardwareRenderingEnabled ??
       (GetIt.instance.isRegistered<UserPreferences>()
           ? GetIt.instance<UserPreferences>().get(
               UserPreferences.useHardwareRendering,
@@ -46,7 +73,7 @@ bool launchGame(
       core: game.core,
       romFileName: game.fileName,
       biosId: emulatorJsBiosId(game.core, game.bios),
-      name: (name != null && name.isNotEmpty) ? name : game.title,
+      name: displayName,
       startFresh: fresh,
       forceEmulatorJs: game.userBackendOverride == 'emulatorjs',
       hardwareRenderingEnabled: hardware == true,
@@ -58,8 +85,20 @@ bool launchGame(
   return true;
 }
 
+bool _hasGamesApi() {
+  try {
+    if (!GetIt.instance.isRegistered<MediaServerClient>()) return false;
+    return GetIt.instance<MediaServerClient>().gamesApi != null;
+  } catch (_) {
+    return false;
+  }
+}
+
 /// Host `playGame` handoff: load the game, push the player, and tell the
 /// plugin when the player pops. A missing game shows "Game not found".
+///
+/// A full-page launch unloads this document, so [onPopped] does not run. The
+/// plugin reloads with the rest of MoFin when the player comes back.
 Future<bool> playGameFromPlugin({
   required BuildContext context,
   required String pluginId,
@@ -86,9 +125,9 @@ Future<bool> playGameFromPlugin({
     const message = 'Game not found';
     toast?.call(message);
     if (context.mounted) {
-      ScaffoldMessenger.maybeOf(context)?.showSnackBar(
-        const SnackBar(content: Text(message)),
-      );
+      ScaffoldMessenger.maybeOf(
+        context,
+      )?.showSnackBar(const SnackBar(content: Text(message)));
     }
     return false;
   }
@@ -98,6 +137,7 @@ Future<bool> playGameFromPlugin({
     libraryId,
     game,
     name: title,
+    pluginId: pluginId,
     onPopped: () {
       dispatch?.call({'type': 'gameExited', 'gameId': gameId});
     },

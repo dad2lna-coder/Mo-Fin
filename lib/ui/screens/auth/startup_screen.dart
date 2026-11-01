@@ -13,6 +13,7 @@ import '../../../auth/store/credential_store.dart';
 import '../../../data/services/connectivity_service.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../../util/pin_code_util.dart';
+import '../../../util/web_game_browser.dart';
 import '../../../preference/preference_constants.dart';
 import '../../navigation/destinations.dart';
 import '../../widgets/adaptive/adaptive_dialog.dart';
@@ -98,7 +99,7 @@ class _StartupScreenState extends State<StartupScreen>
 
     if (widget.bootstrapActiveSession && session.activeUserId != null) {
       await _waitForNetworkSettle();
-      if (mounted) context.go(Destinations.home);
+      if (mounted) _goHome();
       return;
     }
 
@@ -163,7 +164,7 @@ class _StartupScreenState extends State<StartupScreen>
       }
 
       await _waitForNetworkSettle();
-      if (mounted) context.go(Destinations.home);
+      if (mounted) _goHome();
     } else {
       if (mounted) {
         if (targetServerId != null && targetServerId.isNotEmpty) {
@@ -175,6 +176,13 @@ class _StartupScreenState extends State<StartupScreen>
         }
       }
     }
+  }
+
+  /// A full-page game stores the Games tab, plugin screen, or open game in
+  /// sessionStorage. Land there instead of Home when that snapshot is waiting.
+  void _goHome() {
+    final route = consumeWebGameReturnRoute();
+    context.go(route ?? Destinations.home);
   }
 
   Future<void> _showSecureStorageWarning() async {

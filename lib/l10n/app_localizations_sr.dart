@@ -11536,6 +11536,13 @@ class AppLocalizationsSr extends AppLocalizations {
       'Играјте игре помоћу изворних језгара уместо веб-плејера Емулатор Џеј-Ес (EmulatorJS)';
 
   @override
+  String get openGamesFullPage => 'Open games full page';
+
+  @override
+  String get openGamesFullPageSubtitle =>
+      'iPhone and iPad Safari always leave MoFin and open the player on its own page. Turn this on in other browsers to do the same.';
+
+  @override
   String get emulatorCores => 'Језгра емулатора';
 
   @override

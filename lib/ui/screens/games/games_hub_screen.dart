@@ -10,9 +10,9 @@ import '../../navigation/destinations.dart';
 import '../../widgets/navigation_layout.dart';
 
 /// Full-screen ROM Manager. No title bar; MoFin's own navigation chrome stays
-/// so the bottom bar (or the toolbar, on web) is still there. The plugin frame
-/// is pushed under the player rather than replaced, so iOS Safari keeps the
-/// iframe alive while a game is running.
+/// so the bottom bar (or the toolbar, on web) is still there. On iPhone and
+/// iPad Safari the game itself replaces this page, so the plugin iframe and
+/// the emulator are not in memory at the same time.
 class GamesHubScreen extends StatefulWidget {
   const GamesHubScreen({
     super.key,

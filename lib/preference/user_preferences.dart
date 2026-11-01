@@ -1237,6 +1237,14 @@ class UserPreferences extends ChangeNotifier {
     defaultValue: true,
   );
 
+  /// Web only. When on, games leave MoFin and open the player as the whole
+  /// tab. iPhone and iPad Safari always do this, whatever this is set to.
+  /// Not synced: it belongs to this browser.
+  static final openGamesFullPage = Preference(
+    key: 'pref_open_games_full_page',
+    defaultValue: false,
+  );
+
   static final seriesThumbnailsEnabled = Preference(
     key: 'pref_enable_series_thumbnails',
     defaultValue: false,
