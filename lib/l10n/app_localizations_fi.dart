@@ -19,7 +19,7 @@ class AppLocalizationsFi extends AppLocalizations {
   String get animeMarkerMixed => 'Mixed';
 
   @override
-  String get animeMarkerAnimeCanon => 'Animen kaanon';
+  String get animeMarkerAnimeCanon => 'Animen Kaanon';
 
   @override
   String get animeMarkerMangaCanon => 'Manga Kaanon';
@@ -81,24 +81,25 @@ class AppLocalizationsFi extends AppLocalizations {
       'Hyväksy napauttamalla selaimessasi tai skannaa tämä toisella laitteella';
 
   @override
-  String get timesUpTitle => 'Time\'s up';
+  String get timesUpTitle => 'Aika loppui';
 
   @override
-  String get timesUpMessage => 'This account isn\'t available right now.';
+  String get timesUpMessage =>
+      'Tätä tiliä ei ole tällä hetkellä käytettävissä.';
 
   @override
   String timesUpResumesToday(String time) {
-    return 'You can use it again today at $time.';
+    return 'Voit käyttää sitä uudelleen tänään klo $time.';
   }
 
   @override
   String timesUpResumesTomorrow(String time) {
-    return 'You can use it again tomorrow at $time.';
+    return 'Voit käyttää sitä uudelleen huomenna klo $time.';
   }
 
   @override
   String timesUpResumesOn(String day, String time) {
-    return 'You can use it again on $day at $time.';
+    return 'Voit käyttää sitä uudelleen $day klo $time.';
   }
 
   @override
@@ -211,7 +212,7 @@ class AppLocalizationsFi extends AppLocalizations {
   String get detailScreenStyleMoonfin => 'Klassinen';
 
   @override
-  String get detailScreenStyleModern => 'Modern';
+  String get detailScreenStyleModern => 'Moderni';
 
   @override
   String get detailScreenStyleSpotlight => 'Esittelyssä';
@@ -227,7 +228,7 @@ class AppLocalizationsFi extends AppLocalizations {
   String get spotlightChaptersExtras => 'Kappaleet ja Lisämateriaalit';
 
   @override
-  String get spotlightFileDetails => 'Tiedoston tiedot';
+  String get spotlightFileDetails => 'Tiedoston Tiedot';
 
   @override
   String get spotlightSimilarRecommendations => 'Samankaltaiset ja Suositukset';
@@ -5083,11 +5084,11 @@ class AppLocalizationsFi extends AppLocalizations {
   String get enablePinCode => 'Ota PIN-koodi käyttöön';
 
   @override
-  String get pinSynced => 'PIN synced';
+  String get pinSynced => 'PIN-koodi synkronoitu';
 
   @override
   String get pinResetFailed =>
-      'The PIN on the server could not be cleared. If it is still set, ask a server administrator to remove it.';
+      'Palvelimen PIN-koodia ei voitu poistaa. Jos se on edelleen asetettuna, pyydä palvelimen järjestelmänvalvojaa poistamaan se.';
 
   @override
   String get requirePinToAccess => 'Vaadi PIN-koodi päästäksesi tilillesi';
@@ -7860,7 +7861,7 @@ class AppLocalizationsFi extends AppLocalizations {
 
   @override
   String adminRemoveDeviceConfirm(String name) {
-    return 'Poistetaanko laite \'$name\'? Käyttäjän on kirjauduttava tällä laitteella uudelleen sisään.';
+    return 'Poistetaanko laite \"$name\"? Käyttäjän on kirjauduttava tällä laitteella uudelleen sisään.';
   }
 
   @override
@@ -8781,10 +8782,10 @@ class AppLocalizationsFi extends AppLocalizations {
   }
 
   @override
-  String get adminLastExecution => 'Viimeinen teloitus';
+  String get adminLastExecution => 'Viimeisin Suoritus';
 
   @override
-  String get adminTriggers => 'Liipaisimet';
+  String get adminTriggers => 'Ajastimet';
 
   @override
   String get adminAddTrigger => 'Lisää triggeri';
@@ -9118,14 +9119,14 @@ class AppLocalizationsFi extends AppLocalizations {
       'Määritä, milloin sisältö merkitään osittain tai kokonaan toistetuksi.';
 
   @override
-  String get adminMinResumePercentage => 'Minimi jatkamisprosentti';
+  String get adminMinResumePercentage => 'Pienin jatkamisprosentti';
 
   @override
   String get adminMinResumeSubtitle =>
       'Sisältöä on toistettava tämän prosenttiosuuden yli, jotta edistyminen tallentuu';
 
   @override
-  String get adminMaxResumePercentage => 'Maksimi jatkamisprosentti';
+  String get adminMaxResumePercentage => 'Suurin jatkamisprosentti';
 
   @override
   String get adminMaxResumeSubtitle =>
@@ -9141,11 +9142,11 @@ class AppLocalizationsFi extends AppLocalizations {
 
   @override
   String get adminMinAudiobookResume =>
-      'Äänikirjan ansioluettelon vähimmäisprosentti';
+      'Äänikirjan jatkamisen vähimmäisprosenttiosuus';
 
   @override
   String get adminMaxAudiobookResume =>
-      'Äänikirjan ansioluettelon enimmäisprosentti';
+      'Äänikirjan jatkamisen enimmäisprosenttiosuus';
 
   @override
   String get adminNetworkingLoadFailed =>
@@ -9171,7 +9172,7 @@ class AppLocalizationsFi extends AppLocalizations {
   String get adminPublicHttpsPort => 'Julkinen HTTPS-portti';
 
   @override
-  String get adminBaseUrl => 'Perus-URL-osoite';
+  String get adminBaseUrl => 'Perus-URL';
 
   @override
   String get adminBaseUrlHint => 'esim. /jellyfin';
@@ -9183,13 +9184,13 @@ class AppLocalizationsFi extends AppLocalizations {
   String get adminEnableHttps => 'Ota HTTPS käyttöön';
 
   @override
-  String get adminLocalNetwork => 'Paikallinen verkko';
+  String get adminLocalNetwork => 'Lähiverkko';
 
   @override
-  String get adminLocalNetworkAddresses => 'Paikalliset verkko-osoitteet';
+  String get adminLocalNetworkAddresses => 'Lähiverkko osoitteet';
 
   @override
-  String get adminKnownProxies => 'Tunnetut välityspalvelimet';
+  String get adminKnownProxies => 'Ehdotetut proxyt';
 
   @override
   String get adminRemoteIpFilter => 'Etä-IP-suodatin';
@@ -10319,7 +10320,7 @@ class AppLocalizationsFi extends AppLocalizations {
 
   @override
   String get adminStreamingBitrateLimit =>
-      'Etäasiakkaan bittinopeusrajoitus (Mbps)';
+      'Etäasiakkaan bittinopeus rajoitin (Mbps)';
 
   @override
   String get adminStreamingBitrateLimitHint =>
@@ -10415,7 +10416,7 @@ class AppLocalizationsFi extends AppLocalizations {
   String get adminTaskRun => 'Suorita';
 
   @override
-  String get adminTaskDetailLastExecution => 'Viimeinen teloitus';
+  String get adminTaskDetailLastExecution => 'Viimeisin Suoritus';
 
   @override
   String get adminTaskDetailStarted => 'Aloitettu';
@@ -12535,33 +12536,34 @@ class AppLocalizationsFi extends AppLocalizations {
 
   @override
   String get webDiagnosticsNonWebNote =>
-      'Tämä diagnostiikkareitti on tarkoitettu verkkorakennuksiin. Jos näet tämän toisella alustalla, nämä tarkistukset eivät välttämättä päde.';
+      'Tämä vianmääritysohje on tarkoitettu verkkosovelluksille. Jos näet tämän viestin jollain muulla alustalla, nämä tarkistukset eivät välttämättä koske sitä.';
 
   @override
-  String get backToServerSelect => 'Takaisin palvelimeen Valitse';
+  String get backToServerSelect => 'Takaisin palvelinvalintaan';
 
   @override
-  String get signOutAllUsers => 'Kirjaudu ulos kaikista käyttäjistä';
+  String get signOutAllUsers => 'Kirjaa kaikki käyttäjät ulos';
 
   @override
   String get voiceSearchPermissionPermanentlyDenied =>
-      'Mikrofonin käyttöoikeus evätään pysyvästi. Ota se käyttöön järjestelmäasetuksissa.';
+      'Mikrofonin käyttöoikeus on kielletty pysyvästi. Ota se käyttöön järjestelmäasetuksissa.';
 
   @override
   String get voiceSearchPermissionRequired =>
-      'Äänihaku vaatii mikrofonin luvan.';
+      'Äänihaku edellyttää mikrofonin käyttöoikeutta.';
 
   @override
-  String get voiceSearchNoMatch => 'Ei saanut kiinni siitä. Yritä uudelleen.';
+  String get voiceSearchNoMatch => 'En saanut selvää. Yritä uudestaan.';
 
   @override
   String get voiceSearchNoSpeechDetected => 'Puhetta ei havaittu.';
 
   @override
-  String get voiceSearchMicrophoneError => 'Mikrofonivirhe.';
+  String get voiceSearchMicrophoneError => 'Mikrofonivika.';
 
   @override
-  String get voiceSearchNeedsInternet => 'Äänihaku vaatii Internetiä.';
+  String get voiceSearchNeedsInternet =>
+      'Äänihaku edellyttää internetyhteyttä.';
 
   @override
   String get voiceSearchServiceBusy =>
@@ -12569,7 +12571,7 @@ class AppLocalizationsFi extends AppLocalizations {
 
   @override
   String get microphonePermissionPermanentlyDenied =>
-      'Mikrofonin käyttöoikeus evätään pysyvästi.';
+      'Mikrofonin käyttöoikeus on evätty pysyvästi.';
 
   @override
   String get microphonePermissionDenied => 'Mikrofonin käyttöoikeus on evätty.';
@@ -13960,7 +13962,7 @@ class AppLocalizationsFi extends AppLocalizations {
     String libraryName,
     String failedPath,
   ) {
-    return 'Kirjastosi \'$libraryName\' on määritetty tallentamaan kuvitus suoraan mediakansioihin (\'Tallenna kuvitus mediakansioihin\' on käytössä). Jellyfin on kuitenkin testannut kirjoitusoikeudet, eikä sillä ole oikeutta kirjoittaa tiedostoja tähän hakemistoon:\n\n$failedPath';
+    return 'Kirjastosi \"$libraryName\" on määritetty tallentamaan kuvitus suoraan mediakansioihin (\'Tallenna kuvitus mediakansioihin\' on käytössä). Jellyfin on kuitenkin testannut kirjoitusoikeudet, eikä sillä ole oikeutta kirjoittaa tiedostoja tähän hakemistoon:\n\n$failedPath';
   }
 
   @override
@@ -15117,6 +15119,13 @@ class AppLocalizationsFi extends AppLocalizations {
   String get navYou => 'You';
 
   @override
+  String get cinemaSkipPrerolls => 'Elokuvamoodin ohituspainike';
+
+  @override
+  String get cinemaSkipPrerollsDescription =>
+      'Näytä Ohita-painike Cinema-tilan elokuvatrailereiden, mainosten ja muiden esittelyvideoiden aikana.';
+
+  @override
   String get detailsPage => 'Tietosivu';
 
   @override
@@ -15313,4 +15322,69 @@ class AppLocalizationsFi extends AppLocalizations {
 
   @override
   String get librarySortLength => 'Pituus';
+
+  @override
+  String get pluginsTitle => 'Plugins';
+
+  @override
+  String get pluginsSubtitle => 'Web plugin host system and installed plugins';
+
+  @override
+  String get pluginsEnableHost => 'Enable Plugin Host System';
+
+  @override
+  String get pluginsEnableHostDescription =>
+      'Allows web-based plugins to run from the media server.';
+
+  @override
+  String get pluginsUnsupportedOnDevice =>
+      'Plugins are not supported on this device.';
+
+  @override
+  String get pluginsStatusActive => 'Active';
+
+  @override
+  String pluginsSubtitleDetails(String id, String version, String status) {
+    return 'ID: $id | v$version | Status: $status';
+  }
+
+  @override
+  String pluginsEntrySubtitle(String pluginId) {
+    return 'Plugin: $pluginId';
+  }
+
+  @override
+  String get pluginsReload => 'Reload Plugins';
+
+  @override
+  String pluginsServerPluginsCount(int count) {
+    return 'Server Plugins ($count)';
+  }
+
+  @override
+  String get pluginsNoActivePlugins =>
+      'No plugins currently active on this server.';
+
+  @override
+  String get pluginsOpenPlugin => 'Open Plugin';
+
+  @override
+  String get pluginsHostDisabled => 'Plugin Host System is currently disabled.';
+
+  @override
+  String pluginsNotLoaded(String pluginId) {
+    return 'Plugin \"$pluginId\" is not loaded or active.';
+  }
+
+  @override
+  String get pluginsUnauthorizedEntryUrl =>
+      'Failed to load plugin: Unauthorized entry URL.';
+
+  @override
+  String pluginsLoadFailedWithError(String error) {
+    return 'Failed to load plugin: $error';
+  }
+
+  @override
+  String get reload => 'Reload';
 }

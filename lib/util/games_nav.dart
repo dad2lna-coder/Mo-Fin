@@ -10,7 +10,8 @@ import 'platform_detection.dart';
 /// Where the Games item in the sidebar and toolbar should open.
 ///
 /// The plugin host stays off on TV. A TV with a game library opens the native
-/// browser; everywhere else Games is the ROM Manager hub.
+/// browser; Android phones and Fire TV also open the native browser.
+/// Everywhere else Games is the ROM Manager hub (iOS, iPad, web).
 class GamesNav {
   static String? routeFor({
     required bool isTv,
@@ -18,7 +19,7 @@ class GamesNav {
     required List<AggregatedLibrary> libraries,
   }) {
     if (kidsMode) return null;
-    if (isTv) {
+    if (isTv || PlatformDetection.isAndroid) {
       for (final lib in libraries) {
         if (!isGameLibrary(lib.id, lib.collectionType, lib.name)) continue;
         return libraryRoute(

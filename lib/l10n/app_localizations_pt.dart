@@ -15099,6 +15099,13 @@ class AppLocalizationsPt extends AppLocalizations {
   String get navYou => 'You';
 
   @override
+  String get cinemaSkipPrerolls => 'Cinema Mode Skip Button';
+
+  @override
+  String get cinemaSkipPrerollsDescription =>
+      'Show a Skip button during Cinema Mode trailers, commercials, and other pre-rolls.';
+
+  @override
   String get detailsPage => 'Details Page';
 
   @override
@@ -15294,6 +15301,71 @@ class AppLocalizationsPt extends AppLocalizations {
 
   @override
   String get librarySortLength => 'Length';
+
+  @override
+  String get pluginsTitle => 'Plugins';
+
+  @override
+  String get pluginsSubtitle => 'Web plugin host system and installed plugins';
+
+  @override
+  String get pluginsEnableHost => 'Enable Plugin Host System';
+
+  @override
+  String get pluginsEnableHostDescription =>
+      'Allows web-based plugins to run from the media server.';
+
+  @override
+  String get pluginsUnsupportedOnDevice =>
+      'Plugins are not supported on this device.';
+
+  @override
+  String get pluginsStatusActive => 'Active';
+
+  @override
+  String pluginsSubtitleDetails(String id, String version, String status) {
+    return 'ID: $id | v$version | Status: $status';
+  }
+
+  @override
+  String pluginsEntrySubtitle(String pluginId) {
+    return 'Plugin: $pluginId';
+  }
+
+  @override
+  String get pluginsReload => 'Reload Plugins';
+
+  @override
+  String pluginsServerPluginsCount(int count) {
+    return 'Server Plugins ($count)';
+  }
+
+  @override
+  String get pluginsNoActivePlugins =>
+      'No plugins currently active on this server.';
+
+  @override
+  String get pluginsOpenPlugin => 'Open Plugin';
+
+  @override
+  String get pluginsHostDisabled => 'Plugin Host System is currently disabled.';
+
+  @override
+  String pluginsNotLoaded(String pluginId) {
+    return 'Plugin \"$pluginId\" is not loaded or active.';
+  }
+
+  @override
+  String get pluginsUnauthorizedEntryUrl =>
+      'Failed to load plugin: Unauthorized entry URL.';
+
+  @override
+  String pluginsLoadFailedWithError(String error) {
+    return 'Failed to load plugin: $error';
+  }
+
+  @override
+  String get reload => 'Reload';
 }
 
 /// The translations for Portuguese, as used in Brazil (`pt_BR`).
@@ -26731,13 +26803,6 @@ class AppLocalizationsPtBr extends AppLocalizationsPt {
   @override
   String get useNativeEmulatorSubtitle =>
       'Use o emulador nativo do dispositivo quando disponível';
-
-  @override
-  String get openGamesFullPage => 'Open games full page';
-
-  @override
-  String get openGamesFullPageSubtitle =>
-      'iPhone and iPad Safari always leave MoFin and open the player on its own page. Turn this on in other browsers to do the same.';
 
   @override
   String get emulatorCores => 'Núcleos do emulador';
@@ -40222,13 +40287,6 @@ class AppLocalizationsPtPt extends AppLocalizationsPt {
   @override
   String get useNativeEmulatorSubtitle =>
       'Executar jogos com núcleos nativos em vez do leitor web EmulatorJS';
-
-  @override
-  String get openGamesFullPage => 'Open games full page';
-
-  @override
-  String get openGamesFullPageSubtitle =>
-      'iPhone and iPad Safari always leave MoFin and open the player on its own page. Turn this on in other browsers to do the same.';
 
   @override
   String get emulatorCores => 'Núcleos do emulador';

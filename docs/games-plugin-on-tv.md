@@ -17,4 +17,6 @@ cover three things the phone hub does not:
    The native player already does this; the plugin-on-TV path should reuse
    that routing instead of inventing a second one.
 
-Until that exists, TV Games stays on `GameLibraryScreen`.
+Android and Fire TV use the native `GamesBrowserScreen` which matches the iOS
+ROM Manager layout. tvOS stays on `GameLibraryScreen`. The WebView idea stays
+deferred.

@@ -40,6 +40,7 @@ import '../screens/browse/music_library_screen.dart';
 import '../../data/models/tmdb_item_ref.dart';
 import '../screens/detail/item_detail_screen.dart';
 import '../screens/games/game_library_screen.dart';
+import '../screens/games/games_browser_screen.dart';
 import '../screens/games/games_hub_screen.dart';
 import '../screens/games/game_system_screen.dart';
 import '../screens/games/game_detail_screen.dart';
@@ -513,11 +514,18 @@ final appRouter = GoRouter(
       path: Destinations.gameLibrary,
       builder: (context, state) {
         final libraryId = state.pathParameters['libraryId']!;
-        return GameLibraryScreen(
-          key: ValueKey('game-lib-$libraryId'),
-          libraryId: libraryId,
-          title: state.uri.queryParameters['title'],
-        );
+        final title = state.uri.queryParameters['title'];
+        return PlatformDetection.isAndroid
+            ? GamesBrowserScreen(
+                key: ValueKey('game-browser-$libraryId'),
+                libraryId: libraryId,
+                title: title,
+              )
+            : GameLibraryScreen(
+                key: ValueKey('game-lib-$libraryId'),
+                libraryId: libraryId,
+                title: title,
+              );
       },
     ),
     GoRoute(
