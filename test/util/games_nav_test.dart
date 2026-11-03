@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:get_it/get_it.dart';
+import 'package:jellyfin_preference/jellyfin_preference.dart';
 import 'package:moonfin/data/models/aggregated_library.dart';
 import 'package:moonfin/preference/user_preferences.dart';
 import 'package:moonfin/ui/navigation/destinations.dart';
@@ -20,18 +21,21 @@ void main() {
         'pluginsEnabled': true,
         'kidsModeEnabled': false,
       });
-      final sharedPreferences = await SharedPreferences.getInstance();
+      final store = PreferenceStore();
+      await store.init();
 
       GetIt.instance.reset();
-      registry = PluginRegistry();
+      registry = PluginRegistry(prefs: store);
       GetIt.instance.registerSingleton<PluginRegistry>(registry);
 
-      prefs = UserPreferences(sharedPreferences);
+      prefs = UserPreferences(store);
+      await prefs.set(UserPreferences.pluginsEnabled, true);
+      await prefs.set(UserPreferences.kidsModeEnabled, false);
       GetIt.instance.registerSingleton<UserPreferences>(prefs);
 
       final pluginService = PluginService(
         registry: registry,
-        prefs: sharedPreferences,
+        prefs: store,
         userContextProvider: () => null,
         clientProvider: () => null,
         initialPluginsEnabled: true,
@@ -45,16 +49,18 @@ void main() {
       debugDefaultTargetPlatformOverride = null;
     });
 
-    final testLibraries = [
+    final List<AggregatedLibrary> testLibraries = [
       const AggregatedLibrary(
         id: 'retro-games',
         name: 'Retro Games',
         collectionType: 'games',
+        serverId: 'server-1',
       ),
       const AggregatedLibrary(
         id: 'movies',
         name: 'Movies',
         collectionType: 'movies',
+        serverId: 'server-1',
       ),
     ];
 
@@ -146,6 +152,7 @@ void main() {
             id: 'movies',
             name: 'Movies',
             collectionType: 'movies',
+            serverId: 'server-1',
           ),
         ],
       );
