@@ -41,6 +41,10 @@ void main() {
         initialPluginsEnabled: true,
       );
       GetIt.instance.registerSingleton<PluginService>(pluginService);
+
+      GetIt.instance.registerSingleton<GameLibraryRegistry>(
+        GameLibraryRegistry()..seed(['retro-games']),
+      );
     });
 
     tearDown(() {
