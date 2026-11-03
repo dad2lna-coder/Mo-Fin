@@ -8,8 +8,14 @@ void main() {
       debugDefaultTargetPlatformOverride = null;
     });
 
-    test('isPluginHostSupported returns false when isTv is true', () {
+    test('isPluginHostSupported returns false when isTv is true on iOS/tvOS', () {
+      debugDefaultTargetPlatformOverride = TargetPlatform.iOS;
       expect(isPluginHostSupported(isTv: true), isFalse);
+    });
+
+    test('isPluginHostSupported returns true on Android TV / Fire TV when isTv is true', () {
+      debugDefaultTargetPlatformOverride = TargetPlatform.android;
+      expect(isPluginHostSupported(isTv: true), isTrue);
     });
 
     test('isPluginHostSupported returns false on Linux', () {
