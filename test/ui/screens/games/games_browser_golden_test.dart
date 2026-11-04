@@ -176,7 +176,7 @@ void main() {
 
     // Pin the top-bar clock: a golden recorded at 5:37 AM would fail on the
     // next run at any other minute.
-    await withClock(Clock.fixed(DateTime(2026, 11, 4, 10, 24)), () async {
+    await withClock(Clock.fixed(DateTime(2026, 11, 4, 22, 24)), () async {
       await tester.binding.setSurfaceSize(const Size(1920, 1080));
       await tester.pumpWidget(
         MaterialApp(
