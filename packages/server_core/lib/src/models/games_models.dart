@@ -282,13 +282,37 @@ class GameSummary {
   final String core;
   final String fileName;
 
+  /// How many ROM files the server folded into this one game entry, when it
+  /// says. Null on servers that don't report it, which is every server today:
+  /// the value exists so the grid can show a "2 Versions" badge as soon as the
+  /// response carries it, without a model change.
+  final int? versionsCount;
+
+  /// `best` when the entry's chosen file is a cheat or trainer ROM, `some`
+  /// when only another version is. Null when the server says nothing, so no
+  /// badge is drawn rather than a wrong one.
+  final String? cheatFlag;
+
+  /// Same best/some rule as [cheatFlag], for hacked ROMs.
+  final String? hackFlag;
+
   const GameSummary({
     required this.id,
     required this.title,
     required this.system,
     required this.core,
     required this.fileName,
+    this.versionsCount,
+    this.cheatFlag,
+    this.hackFlag,
   });
+
+  /// Whether this entry deserves a "N Versions" badge.
+  bool get hasMultipleVersions => (versionsCount ?? 0) > 1;
+
+  bool get isCheat => cheatFlag == 'best' || cheatFlag == 'some';
+
+  bool get isHack => hackFlag == 'best' || hackFlag == 'some';
 
   factory GameSummary.fromJson(Map<String, dynamic> json) => GameSummary(
         id: (json['id'] as String?) ?? '',
@@ -296,7 +320,21 @@ class GameSummary {
         system: (json['system'] as String?) ?? '',
         core: (json['core'] as String?) ?? '',
         fileName: (json['fileName'] as String?) ?? '',
+        versionsCount: _intValue(json['versionsCount'] ?? json['versions']),
+        cheatFlag: _flagValue(json['cheat']),
+        hackFlag: _flagValue(json['hack']),
       );
+}
+
+/// The plugin's tag flags are `"best"`/`"some"`, but a bare boolean is just as
+/// easy for a server to send, and both mean "show the badge".
+String? _flagValue(dynamic raw) {
+  if (raw is String) {
+    final value = raw.trim().toLowerCase();
+    return value.isEmpty ? null : value;
+  }
+  if (raw is bool) return raw ? 'some' : null;
+  return null;
 }
 
 class GameBios {

@@ -79,6 +79,59 @@ void main() {
     });
   });
 
+  group('GameSummary badges', () {
+    test('says nothing when the server sends no version or tag fields', () {
+      final game = GameSummary.fromJson(const {
+        'id': 'g',
+        'title': 'Metroid',
+        'system': 'nes',
+        'core': 'fceumm',
+        'fileName': 'metroid.nes',
+      });
+
+      expect(game.versionsCount, isNull);
+      expect(game.hasMultipleVersions, isFalse);
+      expect(game.isCheat, isFalse);
+      expect(game.isHack, isFalse);
+    });
+
+    test('reads the plugin card fields', () {
+      final game = GameSummary.fromJson(const {
+        'id': 'g',
+        'title': 'Metroid',
+        'system': 'nes',
+        'core': 'fceumm',
+        'fileName': 'metroid.nes',
+        'versions': 3,
+        'cheat': 'some',
+        'hack': 'best',
+      });
+
+      expect(game.versionsCount, 3);
+      expect(game.hasMultipleVersions, isTrue);
+      expect(game.isCheat, isTrue);
+      expect(game.isHack, isTrue);
+    });
+
+    test('accepts versionsCount and a bare boolean flag', () {
+      final game = GameSummary.fromJson(const {
+        'id': 'g',
+        'title': 'Metroid',
+        'system': 'nes',
+        'core': 'fceumm',
+        'fileName': 'metroid.nes',
+        'versionsCount': 1,
+        'cheat': true,
+        'hack': false,
+      });
+
+      expect(game.versionsCount, 1);
+      expect(game.hasMultipleVersions, isFalse);
+      expect(game.isCheat, isTrue);
+      expect(game.isHack, isFalse);
+    });
+  });
+
   group('sanitizeDownloadFileName', () {
     test('accepts an ordinary file name', () {
       expect(

@@ -24,7 +24,7 @@ void main() {
       final store = PreferenceStore();
       await store.init();
 
-      GetIt.instance.reset();
+      await GetIt.instance.reset();
       registry = PluginRegistry(prefs: store);
       GetIt.instance.registerSingleton<PluginRegistry>(registry);
 
@@ -47,8 +47,8 @@ void main() {
       );
     });
 
-    tearDown(() {
-      GetIt.instance.reset();
+    tearDown(() async {
+      await GetIt.instance.reset();
       PlatformDetection.setTvMode(false);
       debugDefaultTargetPlatformOverride = null;
     });
@@ -87,7 +87,7 @@ void main() {
       expect(GamesNav.hubAvailable, isTrue);
     });
 
-    test('routeFor returns Destinations.games on Fire TV when games plugin registered', () {
+    test('routeFor prefers the native browser on Fire TV even with a games plugin', () {
       debugDefaultTargetPlatformOverride = TargetPlatform.android;
       PlatformDetection.setTvMode(true);
 
@@ -103,6 +103,29 @@ void main() {
 
       final route = GamesNav.routeFor(
         isTv: true,
+        kidsMode: false,
+        libraries: testLibraries,
+      );
+
+      expect(route, '/games/retro-games?title=Retro+Games');
+    });
+
+    test('routeFor keeps the plugin hub on phones when a games plugin registered', () {
+      debugDefaultTargetPlatformOverride = TargetPlatform.android;
+      PlatformDetection.setTvMode(false);
+
+      registry.registerManifest(
+        const PluginManifest(
+          id: 'rom-manager',
+          name: 'ROM Manager',
+          version: '1.0.0',
+          slots: PluginSlots(games: true),
+          client: PluginClientInfo(html: 'index.html'),
+        ),
+      );
+
+      final route = GamesNav.routeFor(
+        isTv: false,
         kidsMode: false,
         libraries: testLibraries,
       );

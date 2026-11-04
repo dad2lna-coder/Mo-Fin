@@ -165,8 +165,9 @@ void main() {
     await tester.pump();
     await tester.pump();
 
-    // On TV, first item autofocuses
-    expect(find.text('Downloaded Storage'), findsNothing);
+    // On TV the sidebar starts expanded so the stats cards are always visible.
+    expect(find.text('Downloaded Storage'), findsOneWidget);
+    expect(find.text('Total Games'), findsOneWidget);
 
     // Send Left arrow key on the first console
     await tester.sendKeyEvent(LogicalKeyboardKey.arrowLeft);

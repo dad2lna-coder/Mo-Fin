@@ -9,9 +9,13 @@ import 'platform_detection.dart';
 
 /// Where the Games item in the sidebar and toolbar should open.
 ///
-/// When a games plugin (such as ROM Manager) is available, Games opens the hub
-/// ([Destinations.games]). Otherwise, it falls back to the native game library
-/// browser if one is available in [libraries].
+/// Phones and the web keep the games plugin's hub ([Destinations.games]).
+/// Televisions go to the native library browser instead, because the hub is a
+/// webview: it has no D-pad focus model, no remote Back handling and no 10-foot
+/// type. The plugin stays installed and its other rows keep working.
+///
+/// Without a usable hub — or on a TV — this falls back to the native game
+/// library browser if one is available in [libraries].
 class GamesNav {
   static String? routeFor({
     required bool isTv,
@@ -19,7 +23,7 @@ class GamesNav {
     required List<AggregatedLibrary> libraries,
   }) {
     if (kidsMode) return null;
-    if (hubAvailable) {
+    if (hubAvailable && !isTv) {
       return Destinations.games;
     }
     for (final lib in libraries) {
