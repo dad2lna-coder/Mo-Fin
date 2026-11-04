@@ -1038,6 +1038,16 @@ class _NativeGamePlayerScreenState extends State<NativeGamePlayerScreen>
         );
       }
 
+      // Arcade cores read a clone or hack's parent set from the same directory as the
+      // loaded zip, so the parent archives belong beside the game's own zip rather than in
+      // the shared system directory. A parent that fails to download only costs that one
+      // set its parent files, which is worth logging but not worth refusing to start the
+      // game the user asked for.
+      if (isArcadeFamilyCore(widget.core)) {
+        await _downloadParentSets(games, detail, cacheDir);
+        if (!mounted) return;
+      }
+
       var dreamcastRealBios = false;
       if (widget.core == 'dreamcast') {
         // Only dc_boot.bin and dc_flash.bin, under dc/. An empty list is the
@@ -1294,6 +1304,43 @@ class _NativeGamePlayerScreenState extends State<NativeGamePlayerScreen>
   /// largest file" like every other system does would destroy the set.
   /// 7z is not readable here yet.
   ///
+  /// Downloads an arcade clone or hack's parent romset archives next to the game's own
+  /// zip. The server lists them on the game detail (nearest parent first) because the
+  /// emulator looks a parent's files up beside the loaded archive, not in the BIOS folder.
+  /// Each file is skipped when already present, and a failure is logged rather than thrown:
+  /// the archive itself may still boot.
+  Future<void> _downloadParentSets(
+    GamesApi games,
+    GameDetail detail,
+    Directory cacheDir,
+  ) async {
+    for (final parent in detail.parents) {
+      final String parentFileName;
+      try {
+        parentFileName = sanitizeDownloadFileName(parent.fileName);
+      } on FormatException catch (e) {
+        debugPrint(
+          '[NativeGamePlayerScreen] Skipping parent romset with an unusable '
+          'name: ${e.message}',
+        );
+        continue;
+      }
+
+      final parentFile = File(p.join(cacheDir.path, parentFileName));
+      try {
+        if (await parentFile.exists()) continue;
+        setState(() => _status = 'Downloading $parentFileName...');
+        await games.downloadBios(widget.libraryId, parent.id, parentFile.path);
+      } catch (e) {
+        debugPrint(
+          '[NativeGamePlayerScreen] Could not download parent romset '
+          '$parentFileName: $e',
+        );
+      }
+    }
+    if (mounted) setState(() => _status = 'Downloading...');
+  }
+
   /// The file's signature decides, not its name: a server unpacks a single-ROM
   /// archive itself and sends the raw ROM under the archive's own name, so a
   /// download called .zip is often a plain ROM already.

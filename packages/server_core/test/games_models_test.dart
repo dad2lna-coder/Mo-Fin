@@ -62,6 +62,37 @@ void main() {
       expect(game.supportsCoreOverrides, isTrue);
     });
 
+    test('parses parent romset archives and defaults them to empty', () {
+      final clone = GameDetail.fromJson(const {
+        'id': 'game5',
+        'title': 'Donkey Kong Christmas Remix',
+        'system': 'Arcade',
+        'core': 'arcade',
+        'fileName': 'dkchrmx.zip',
+        'sizeBytes': 69035,
+        'bios': [],
+        'parents': [
+          {'id': 'abc', 'fileName': 'dkong.zip', 'sizeBytes': 22302},
+        ],
+      });
+      expect(clone.parents, hasLength(1));
+      expect(clone.parents.single.fileName, 'dkong.zip');
+      expect(clone.parents.single.id, 'abc');
+      expect(clone.parents.single.sizeBytes, 22302);
+
+      // Older servers omit the field entirely; that must read as "no parents".
+      final plain = GameDetail.fromJson(const {
+        'id': 'game6',
+        'title': 'Pac-Man',
+        'system': 'Arcade',
+        'core': 'arcade',
+        'fileName': 'pacman.zip',
+        'sizeBytes': 14145,
+        'bios': [],
+      });
+      expect(plain.parents, isEmpty);
+    });
+
     test('backend override support is independent of arcade core support', () {
       final game = GameDetail.fromJson(const {
         'id': 'game4',

@@ -399,6 +399,14 @@ class GameDetail {
   final int sizeBytes;
   final List<GameBios> bios;
 
+  /// Parent romset archives an arcade clone or hack needs in the same folder as
+  /// its own archive, nearest parent first. Arcade cores read a parent set's
+  /// files from beside the loaded zip, which is why these are not part of
+  /// [bios]: BIOS files go to the shared system directory, parents do not.
+  /// Empty on servers that predate parent support, and for a set that has no
+  /// parent.
+  final List<GameBios> parents;
+
   // Optional libretro-database metadata; any field may be null (coverage is uneven).
   final String? genre;
   final String? developer;
@@ -418,6 +426,7 @@ class GameDetail {
     required this.fileName,
     required this.sizeBytes,
     required this.bios,
+    this.parents = const [],
     this.recommendedCore,
     this.availableCores = const [],
     bool? supportsCoreOverrides,
@@ -455,6 +464,10 @@ class GameDetail {
     fileName: (json['fileName'] as String?) ?? '',
     sizeBytes: (json['sizeBytes'] as num?)?.toInt() ?? 0,
     bios: ((json['bios'] as List?) ?? const [])
+        .whereType<Map>()
+        .map((m) => GameBios.fromJson(m.cast<String, dynamic>()))
+        .toList(growable: false),
+    parents: ((json['parents'] as List?) ?? const [])
         .whereType<Map>()
         .map((m) => GameBios.fromJson(m.cast<String, dynamic>()))
         .toList(growable: false),
