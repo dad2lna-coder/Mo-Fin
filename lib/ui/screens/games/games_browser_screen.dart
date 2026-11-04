@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:clock/clock.dart';
 import 'package:custom_tv_text_field/custom_tv_text_field.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -220,8 +221,10 @@ class _GamesBrowserScreenState extends State<GamesBrowserScreen>
   }
 
   void _updateClock() {
+    // `clock.now()` so a golden test can pin the time of day instead of
+    // recording whatever minute the suite happened to run in.
     final label = formatClockTime(
-      DateTime.now(),
+      clock.now(),
       use24Hour: _prefs.get(UserPreferences.use24HourClock),
     );
     if (mounted && label != _clockLabel) setState(() => _clockLabel = label);
@@ -437,7 +440,10 @@ class _GamesBrowserScreenState extends State<GamesBrowserScreen>
     try {
       final gamesApi = _client.gamesApi;
       if (gamesApi == null) return;
-      final games = await gamesApi.getGames(widget.libraryId, system: system.id);
+      final games = await gamesApi.getGames(
+        widget.libraryId,
+        system: system.id,
+      );
       if (!mounted || _systems[_selectedSystemIndex].id != system.id) return;
 
       final textIndexes = <String, GameBrowseTextIndex>{};
@@ -473,11 +479,14 @@ class _GamesBrowserScreenState extends State<GamesBrowserScreen>
     // Filter by tab
     if (_currentTab == _BrowserTab.favorites) {
       games = games
-          .where((g) => GameLocalData.instance.isFavorite(widget.libraryId, g.id))
+          .where(
+            (g) => GameLocalData.instance.isFavorite(widget.libraryId, g.id),
+          )
           .toList();
     } else if (_currentTab == _BrowserTab.recent) {
       games = games.where((g) {
-        return GameLocalData.instance.recentIndex(widget.libraryId, g.id) != null;
+        return GameLocalData.instance.recentIndex(widget.libraryId, g.id) !=
+            null;
       }).toList();
     }
 
@@ -1122,8 +1131,7 @@ class _GamesBrowserScreenState extends State<GamesBrowserScreen>
                     onChanged: (letter) =>
                         setState(() => _letterFilter = letter),
                     letterFocusNodes: _letterFocusNodes,
-                    onNavigateUp: () =>
-                        _filterFocusNode.requestFocus(),
+                    onNavigateUp: () => _filterFocusNode.requestFocus(),
                   ),
                 ],
                 const SizedBox(height: 14),
@@ -1420,7 +1428,9 @@ class _GamesBrowserScreenState extends State<GamesBrowserScreen>
                   boxShadow: (isSelected || hasFocus)
                       ? [
                           BoxShadow(
-                            color: AppColorScheme.accent.withValues(alpha: 0.35),
+                            color: AppColorScheme.accent.withValues(
+                              alpha: 0.35,
+                            ),
                             blurRadius: 18,
                             spreadRadius: 1,
                           ),
@@ -1674,10 +1684,10 @@ class _GamesBrowserScreenState extends State<GamesBrowserScreen>
         const spacing = 16.0;
         final sidePadding = isTV ? 28.0 : 16.0;
         final availableWidth = constraints.maxWidth - sidePadding * 2;
-        final crossAxisCount = ((availableWidth + spacing) /
-                (preferredCardWidth + spacing))
-            .floor()
-            .clamp(2, 20);
+        final crossAxisCount =
+            ((availableWidth + spacing) / (preferredCardWidth + spacing))
+                .floor()
+                .clamp(2, 20);
         final cardWidth =
             (availableWidth - spacing * (crossAxisCount - 1)) / crossAxisCount;
         final imageHeight = cardWidth * RetroArtworkShape.portraitHeightRatio;
@@ -1759,7 +1769,8 @@ class _GamesBrowserScreenState extends State<GamesBrowserScreen>
                         return KeyEventResult.handled;
                       }
 
-                      if (event.logicalKey == LogicalKeyboardKey.mediaPlayPause) {
+                      if (event.logicalKey ==
+                          LogicalKeyboardKey.mediaPlayPause) {
                         unawaited(_playGame(game));
                         return KeyEventResult.handled;
                       }
@@ -1791,11 +1802,7 @@ class _GamesBrowserScreenState extends State<GamesBrowserScreen>
                     },
                     onTap: () => _openGameDetail(game),
                   ),
-                  Positioned(
-                    left: 6,
-                    top: 6,
-                    child: _GameBadges(game: game),
-                  ),
+                  Positioned(left: 6, top: 6, child: _GameBadges(game: game)),
                 ],
               ),
             );
@@ -2157,7 +2164,8 @@ class _ConsoleFan extends StatelessWidget {
                 for (var i = 0; i < _count; i++)
                   Positioned(
                     top: 0,
-                    left: constraints.maxWidth / 2 -
+                    left:
+                        constraints.maxWidth / 2 -
                         cardWidth / 2 +
                         (i - 1) * cardWidth * 0.42,
                     child: Transform.rotate(
@@ -2338,9 +2346,7 @@ class _GamesSidebar extends StatelessWidget {
         children: [
           SizedBox(
             height: 34,
-            child: FittedBox(
-              child: MoFinBrand(onDark: true, height: 26),
-            ),
+            child: FittedBox(child: MoFinBrand(onDark: true, height: 26)),
           ),
         ],
       );
@@ -2348,13 +2354,7 @@ class _GamesSidebar extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(
-          children: [
-            Flexible(
-              child: MoFinBrand(onDark: true, height: 26),
-            ),
-          ],
-        ),
+        Row(children: [Flexible(child: MoFinBrand(onDark: true, height: 26))]),
         const SizedBox(height: 6),
         Text(
           'EMULATION',

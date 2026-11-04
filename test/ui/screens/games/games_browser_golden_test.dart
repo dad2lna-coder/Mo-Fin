@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:clock/clock.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -71,8 +72,7 @@ Future<void> _loadFonts() async {
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  final enabled =
-      Platform.environment['MOONFIN_TV_GAMES_GOLDEN'] == '1';
+  final enabled = Platform.environment['MOONFIN_TV_GAMES_GOLDEN'] == '1';
 
   testWidgets('TV Games screen matches the mockup at 1080p', skip: !enabled, (
     tester,
@@ -108,11 +108,36 @@ void main() {
     );
 
     const systems = [
-      GameSystem(id: 'nes', name: 'Nintendo Entertainment System', core: 'fceumm', gameCount: 42),
-      GameSystem(id: 'snes', name: 'Super Nintendo', core: 'snes9x', gameCount: 31),
-      GameSystem(id: 'genesis', name: 'Sega Genesis', core: 'genesis_plus_gx', gameCount: 28),
-      GameSystem(id: 'psx', name: 'PlayStation', core: 'pcsx_rearmed', gameCount: 19),
-      GameSystem(id: 'gba', name: 'Game Boy Advance', core: 'mgba', gameCount: 24),
+      GameSystem(
+        id: 'nes',
+        name: 'Nintendo Entertainment System',
+        core: 'fceumm',
+        gameCount: 42,
+      ),
+      GameSystem(
+        id: 'snes',
+        name: 'Super Nintendo',
+        core: 'snes9x',
+        gameCount: 31,
+      ),
+      GameSystem(
+        id: 'genesis',
+        name: 'Sega Genesis',
+        core: 'genesis_plus_gx',
+        gameCount: 28,
+      ),
+      GameSystem(
+        id: 'psx',
+        name: 'PlayStation',
+        core: 'pcsx_rearmed',
+        gameCount: 19,
+      ),
+      GameSystem(
+        id: 'gba',
+        name: 'Game Boy Advance',
+        core: 'mgba',
+        gameCount: 24,
+      ),
     ];
     final games = [
       for (final name in [
@@ -138,34 +163,43 @@ void main() {
         ),
     ];
     when(() => api.getSystems('retro')).thenAnswer((_) async => systems);
-    when(() => api.getGames('retro', system: 'nes')).thenAnswer((_) async => games);
-    when(() => api.getGames('retro', system: 'snes')).thenAnswer((_) async => const []);
-    when(() => api.getGames('retro', system: 'genesis')).thenAnswer((_) async => const []);
-    when(() => api.getGames('retro', system: 'psx')).thenAnswer((_) async => const []);
-    when(() => api.getGames('retro', system: 'gba')).thenAnswer((_) async => const []);
+    when(() => api.getGames('retro', system: 'nes'))
+        .thenAnswer((_) async => games);
+    when(() => api.getGames('retro', system: 'snes'))
+        .thenAnswer((_) async => const []);
+    when(() => api.getGames('retro', system: 'genesis'))
+        .thenAnswer((_) async => const []);
+    when(() => api.getGames('retro', system: 'psx'))
+        .thenAnswer((_) async => const []);
+    when(() => api.getGames('retro', system: 'gba'))
+        .thenAnswer((_) async => const []);
 
-    await tester.binding.setSurfaceSize(const Size(1920, 1080));
-    await tester.pumpWidget(
-      MaterialApp(
-        theme: AppTheme.buildTheme(ThemeRegistry.active),
-        localizationsDelegates: AppLocalizations.localizationsDelegates,
-        supportedLocales: AppLocalizations.supportedLocales,
-        home: GamesBrowserScreen(
-          libraryId: 'retro',
-          logoService: RomManagerLogoService(
-            dio: Dio()..httpClientAdapter = _LogoAdapter(),
+    // Pin the top-bar clock: a golden recorded at 5:37 AM would fail on the
+    // next run at any other minute.
+    await withClock(Clock.fixed(DateTime(2026, 11, 4, 10, 24)), () async {
+      await tester.binding.setSurfaceSize(const Size(1920, 1080));
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.buildTheme(ThemeRegistry.active),
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: GamesBrowserScreen(
+            libraryId: 'retro',
+            logoService: RomManagerLogoService(
+              dio: Dio()..httpClientAdapter = _LogoAdapter(),
+            ),
           ),
         ),
-      ),
-    );
-    await tester.pump();
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 300));
-    await tester.pump(const Duration(milliseconds: 300));
+      );
+      await tester.pump();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+      await tester.pump(const Duration(milliseconds: 300));
 
-    await expectLater(
-      find.byType(GamesBrowserScreen),
-      matchesGoldenFile('../goldens/tv_games_browser.png'),
-    );
+      await expectLater(
+        find.byType(GamesBrowserScreen),
+        matchesGoldenFile('../goldens/tv_games_browser.png'),
+      );
+    });
   });
 }
