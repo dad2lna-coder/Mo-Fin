@@ -183,6 +183,10 @@ class _GamesBrowserScreenState extends State<GamesBrowserScreen>
   /// screen on them.
   bool _sideMenuOpen = false;
 
+  /// On a TV the sidebar stays expanded so the Total Games and Storage cards
+  /// from the design are visible without opening it. Phones keep the rail.
+  late bool _sidebarPinned = PlatformDetection.isTV;
+
   // Sidebar stats
   int _cachedBytes = 0;
   int? _freeBytes;
@@ -556,6 +560,8 @@ class _GamesBrowserScreenState extends State<GamesBrowserScreen>
     return games;
   }
 
+  bool get _sidebarVisible => _sideMenuOpen || _sidebarPinned;
+
   int get _totalGamesCount =>
       _systems.fold<int>(0, (sum, system) => sum + system.gameCount);
 
@@ -579,9 +585,10 @@ class _GamesBrowserScreenState extends State<GamesBrowserScreen>
       _scaffoldKey.currentState?.closeDrawer();
       return;
     }
-    if (!_sideMenuOpen) return;
+    if (!_sideMenuOpen && !_sidebarPinned) return;
     setState(() {
       _sideMenuOpen = false;
+      _sidebarPinned = false;
     });
     if (!restoreFocus) return;
     if (_systems.isNotEmpty &&
@@ -1082,14 +1089,14 @@ class _GamesBrowserScreenState extends State<GamesBrowserScreen>
                         AnimatedContainer(
                           duration: const Duration(milliseconds: 180),
                           curve: Curves.easeOutCubic,
-                          width: _sideMenuOpen ? 288 : 76,
+                          width: _sidebarVisible ? 288 : 76,
                           child: ClipRect(
                             child: OverflowBox(
                               alignment: Alignment.centerLeft,
-                              minWidth: _sideMenuOpen ? 288 : 76,
-                              maxWidth: _sideMenuOpen ? 288 : 76,
+                              minWidth: _sidebarVisible ? 288 : 76,
+                              maxWidth: _sidebarVisible ? 288 : 76,
                               child: _GamesSidebar(
-                                open: _sideMenuOpen,
+                                open: _sidebarVisible,
                                 screen: this,
                               ),
                             ),

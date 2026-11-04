@@ -171,8 +171,8 @@ void main() {
   ) async {
     await pumpTv(tester);
 
-    // The rail starts collapsed; Left from the first console opens it.
-    expect(find.text('Total Games'), findsNothing);
+    // The sidebar starts expanded on TV, so the cards are visible at once.
+    expect(find.text('Total Games'), findsOneWidget);
     await tester.sendKeyEvent(LogicalKeyboardKey.arrowLeft);
     await tester.pumpAndSettle();
 
