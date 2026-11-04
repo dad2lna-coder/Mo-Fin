@@ -72,17 +72,29 @@ class _FakeGamesApi extends GamesApi {
     String? system,
   }) async => const [];
 
+  /// The detail [getGame] answers with, so a test can model an arcade clone and
+  /// its parent romsets instead of the plain single-file ROM below.
+  GameDetail detail = const GameDetail(
+    id: 'game1',
+    title: 'Test Game',
+    system: 'snes',
+    core: 'snes',
+    fileName: 'game.sfc',
+    sizeBytes: 3,
+    bios: [],
+  );
+
+  /// Every destination path this fake was asked to download, ROM or BIOS, in
+  /// call order, so a test can check where the player actually put a file.
+  final List<String> romDownloads = <String>[];
+  final List<String> biosDownloads = <String>[];
+
+  /// BIOS ids whose download must fail, to check a missing parent never stops
+  /// an otherwise playable game.
+  final Set<String> failingBiosIds = <String>{};
+
   @override
-  Future<GameDetail?> getGame(String libraryId, String gameId) async =>
-      const GameDetail(
-        id: 'game1',
-        title: 'Test Game',
-        system: 'snes',
-        core: 'snes',
-        fileName: 'game.sfc',
-        sizeBytes: 3,
-        bios: [],
-      );
+  Future<GameDetail?> getGame(String libraryId, String gameId) async => detail;
 
   @override
   Future<GameDetail?> setGameCoreOverride(
@@ -124,6 +136,7 @@ class _FakeGamesApi extends GamesApi {
     String destPath, {
     void Function(int received, int total)? onProgress,
   }) async {
+    romDownloads.add(destPath);
     await File(destPath).writeAsBytes([1, 2, 3]);
   }
 
@@ -132,7 +145,13 @@ class _FakeGamesApi extends GamesApi {
     String libraryId,
     String biosId,
     String destPath,
-  ) async {}
+  ) async {
+    biosDownloads.add(destPath);
+    if (failingBiosIds.contains(biosId)) {
+      throw StateError('download failed');
+    }
+    await File(destPath).writeAsBytes([4, 5, 6]);
+  }
 
   /// Server-side saves, so a test can seed what a previous session stored and
   /// then read back what this session wrote.
@@ -213,6 +232,7 @@ class _FakeNativeGamePlayer implements NativeGamePlayer {
 
   /// The settings the screen resolved for this game and handed to the core.
   Map<String, String>? loadOptions;
+  String? loadedRomPath;
   bool? hardwareRenderingEnabled;
   List<GameCoreOption> options = const [];
 
@@ -228,6 +248,7 @@ class _FakeNativeGamePlayer implements NativeGamePlayer {
     bool hardwareRenderingEnabled = true,
   }) async {
     loadOptions = options;
+    loadedRomPath = romPath;
     this.hardwareRenderingEnabled = hardwareRenderingEnabled;
     return const GameLoadInfo(
       textureId: 7,
@@ -1087,6 +1108,175 @@ void main() {
       // The core-wide document is a fallback, not a merge: once this game has
       // its own settings, that is what it plays with.
       expect(player.loadOptions, {'lives': '5'});
+    } finally {
+      debugDefaultTargetPlatformOverride = null;
+    }
+  });
+
+  testWidgets(
+    'an arcade clone downloads its parent romset beside the game zip',
+    (tester) async {
+      // FBNeo reads a clone or hack's parent files from the same directory as
+      // the loaded archive, so dkchrmx.zip is useless without dkong.zip next to
+      // it. The server lists the parent on the detail; the player must place it
+      // in the game's own cache folder, not the shared system directory.
+      debugDefaultTargetPlatformOverride = TargetPlatform.macOS;
+      try {
+        gamesApi.detail = const GameDetail(
+          id: 'game1',
+          title: 'Donkey Kong Christmas Remix',
+          system: 'Arcade',
+          core: 'arcade',
+          fileName: 'dkchrmx.zip',
+          sizeBytes: 69035,
+          bios: [],
+          parents: [
+            GameBios(id: 'parent-dkong', fileName: 'dkong.zip', sizeBytes: 22302),
+          ],
+        );
+
+        final router = GoRouter(
+          initialLocation: '/game',
+          routes: [
+            GoRoute(
+              path: '/game',
+              builder: (context, state) => NativeGamePlayerScreen(
+                libraryId: 'lib1',
+                gameId: 'game1',
+                core: 'arcade',
+                startFresh: true,
+                player: player,
+              ),
+            ),
+          ],
+        );
+
+        await tester.pumpWidget(
+          MaterialApp.router(
+            routerConfig: router,
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            supportedLocales: AppLocalizations.supportedLocales,
+          ),
+        );
+        for (var i = 0; i < 60 && find.byType(Texture).evaluate().isEmpty; i++) {
+          await tester.runAsync(
+            () => Future<void>.delayed(const Duration(milliseconds: 20)),
+          );
+          await tester.pump(const Duration(milliseconds: 20));
+        }
+        expect(find.byType(Texture), findsOneWidget);
+
+        final romPath = gamesApi.romDownloads.single;
+        expect(romPath.endsWith('/dkchrmx.zip'), isTrue);
+        final gameDir = romPath.substring(0, romPath.lastIndexOf('/'));
+
+        // The parent lands in the very folder the game zip was downloaded to,
+        // which is what FBNeo searches for a clone's missing files.
+        final parentPath = '$gameDir/dkong.zip';
+        expect(gamesApi.biosDownloads, [parentPath]);
+        final parentExists = await tester.runAsync(
+          () => File(parentPath).exists(),
+        );
+        expect(parentExists, isTrue);
+
+        // The archive itself is what the core is handed, untouched.
+        expect(player.loadedRomPath, romPath);
+      } finally {
+        debugDefaultTargetPlatformOverride = null;
+      }
+    },
+  );
+
+  testWidgets('a parent romset that fails to download does not stop the game', (
+    tester,
+  ) async {
+    debugDefaultTargetPlatformOverride = TargetPlatform.macOS;
+    try {
+      gamesApi.detail = const GameDetail(
+        id: 'game1',
+        title: 'Donkey Kong Christmas Remix',
+        system: 'Arcade',
+        core: 'arcade',
+        fileName: 'dkchrmx.zip',
+        sizeBytes: 69035,
+        bios: [],
+        parents: [
+          GameBios(id: 'brokendkong', fileName: 'dkong.zip', sizeBytes: 22302),
+        ],
+      );
+      gamesApi.failingBiosIds.add('brokendkong');
+
+      final router = GoRouter(
+        initialLocation: '/game',
+        routes: [
+          GoRoute(
+            path: '/game',
+            builder: (context, state) => NativeGamePlayerScreen(
+              libraryId: 'lib1',
+              gameId: 'game1',
+              core: 'arcade',
+              startFresh: true,
+              player: player,
+            ),
+          ),
+        ],
+      );
+
+      await tester.pumpWidget(
+        MaterialApp.router(
+          routerConfig: router,
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+        ),
+      );
+      for (var i = 0; i < 60 && find.byType(Texture).evaluate().isEmpty; i++) {
+        await tester.runAsync(
+          () => Future<void>.delayed(const Duration(milliseconds: 20)),
+        );
+        await tester.pump(const Duration(milliseconds: 20));
+      }
+
+      expect(find.byType(Texture), findsOneWidget);
+    } finally {
+      debugDefaultTargetPlatformOverride = null;
+    }
+  });
+
+  testWidgets('a non-arcade game downloads no parent romsets', (tester) async {
+    debugDefaultTargetPlatformOverride = TargetPlatform.macOS;
+    try {
+      final router = GoRouter(
+        initialLocation: '/game',
+        routes: [
+          GoRoute(
+            path: '/game',
+            builder: (context, state) => NativeGamePlayerScreen(
+              libraryId: 'lib1',
+              gameId: 'game1',
+              core: 'snes',
+              startFresh: true,
+              player: player,
+            ),
+          ),
+        ],
+      );
+
+      await tester.pumpWidget(
+        MaterialApp.router(
+          routerConfig: router,
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+        ),
+      );
+      for (var i = 0; i < 60 && find.byType(Texture).evaluate().isEmpty; i++) {
+        await tester.runAsync(
+          () => Future<void>.delayed(const Duration(milliseconds: 20)),
+        );
+        await tester.pump(const Duration(milliseconds: 20));
+      }
+
+      expect(find.byType(Texture), findsOneWidget);
+      expect(gamesApi.biosDownloads, isEmpty);
     } finally {
       debugDefaultTargetPlatformOverride = null;
     }
