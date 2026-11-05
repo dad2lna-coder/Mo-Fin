@@ -285,6 +285,83 @@ void main() {
     await adapter.allCancelled.future;
     expect(adapter.active, 0);
   });
+
+  test('getGamesPage reads the page envelope and still slices a bare array', () async {
+    final dio = Dio();
+    dio.interceptors.add(
+      InterceptorsWrapper(
+        onRequest: (options, handler) {
+          expect(options.path, '/Moonfin/Games/retro/Games');
+          expect(options.queryParameters['system'], 'Arcade');
+          expect(options.queryParameters['offset'], 100);
+          expect(options.queryParameters['limit'], 100);
+          expect(options.queryParameters.containsKey('generation'), isFalse);
+          handler.resolve(
+            Response(
+              requestOptions: options,
+              data: {
+                'items': [
+                  {
+                    'id': 'a',
+                    'title': 'Asteroids',
+                    'system': 'Arcade',
+                    'core': 'mame',
+                    'fileName': 'asteroid.zip',
+                  },
+                ],
+                'total': 6670,
+                'offset': 100,
+                'limit': 100,
+              },
+            ),
+          );
+        },
+      ),
+    );
+    final api = MoonbaseGamesApi(
+      dio,
+      () => 'http://redstar.example:8101',
+      () => 'test-token',
+      ServerType.jellyfin,
+    );
+
+    final page = await api.getGamesPage(
+      'retro',
+      system: 'Arcade',
+      offset: 100,
+      limit: 100,
+    );
+    expect(page.total, 6670);
+    expect(page.offset, 100);
+    expect(page.limit, 100);
+    expect(page.items.single.title, 'Asteroids');
+
+    final legacy = GamePage.fromResponse(
+      [
+        {'id': 'z', 'title': 'Zelda', 'system': 'nes', 'core': 'fceumm', 'fileName': 'zelda.nes'},
+        {'id': 'm', 'title': 'Mario', 'system': 'nes', 'core': 'fceumm', 'fileName': 'mario.nes'},
+        {'id': 'k', 'title': 'Kid', 'system': 'nes', 'core': 'fceumm', 'fileName': 'kid.nes'},
+      ],
+      offset: 1,
+      limit: 1,
+    );
+    expect(legacy.total, 3);
+    expect(legacy.items.single.id, 'm');
+
+    final manifest = GameArtworkManifest.fromJson({
+      'generation': 'g1',
+      'entries': [
+        {'gameId': 'a', 'artwork': {}},
+      ],
+      'total': 6670,
+      'offset': 100,
+      'limit': 100,
+    });
+    expect(manifest.total, 6670);
+    expect(manifest.offset, 100);
+    expect(manifest.entries.single.gameId, 'a');
+    expect(GameArtworkManifest.fromJson({'generation': 'g', 'entries': []}).total, isNull);
+  });
 }
 
 class _BlockingArtworkAdapter implements HttpClientAdapter {

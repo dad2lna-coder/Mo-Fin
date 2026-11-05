@@ -73,6 +73,8 @@ class MoonbaseGamesApi implements GamesApi {
     required String systemId,
     String? knownGeneration,
     Object? cancellationOwner,
+    int? offset,
+    int? limit,
   }) async {
     final owner = cancellationOwner ?? _defaultArtworkRequestOwner;
     final cancelToken = _beginArtworkRequest(owner);
@@ -83,6 +85,8 @@ class MoonbaseGamesApi implements GamesApi {
           'system': systemId,
           if (knownGeneration != null && knownGeneration.isNotEmpty)
             'generation': knownGeneration,
+          if (offset != null) 'offset': offset,
+          if (limit != null) 'limit': limit,
         },
         cancelToken: cancelToken,
         options: Options(
@@ -171,6 +175,28 @@ class MoonbaseGamesApi implements GamesApi {
     return _asList(
       response.data,
     ).map((m) => GameSummary.fromJson(m)).toList(growable: false);
+  }
+
+  @override
+  Future<GamePage> getGamesPage(
+    String libraryId, {
+    String? system,
+    int offset = 0,
+    int limit = GamePage.defaultLimit,
+  }) async {
+    final response = await _dio.get(
+      '/Moonfin/Games/${Uri.encodeComponent(libraryId)}/Games',
+      queryParameters: {
+        if (system != null && system.isNotEmpty) 'system': system,
+        'offset': offset,
+        'limit': limit,
+      },
+    );
+    return GamePage.fromResponse(
+      response.data,
+      offset: offset,
+      limit: limit,
+    );
   }
 
   @override

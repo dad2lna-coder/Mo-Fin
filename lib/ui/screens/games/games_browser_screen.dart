@@ -131,10 +131,21 @@ class _GamesBrowserScreenState extends State<GamesBrowserScreen>
   List<GameSystem> _systems = const [];
   int _selectedSystemIndex = 0;
 
-  // Games for the selected console
+  // Games for the selected console. One page is loaded up front; more follow
+  // as the grid scrolls, so a large console is not parsed in one shot.
+  static const int _gamesPageSize = 100;
+  static const int _gamesPrefetchTail = 18;
+  static const double _gamesScrollTailPx = 720;
+
   bool _loadingGames = false;
+  bool _loadingMoreGames = false;
   List<GameSummary> _allSystemGames = const [];
   Map<String, GameBrowseTextIndex> _textIndexes = {};
+  int _gamesEpoch = 0;
+  int _gamesTotal = 0;
+  bool _gamesComplete = true;
+  String? _loadedSystemId;
+  final ScrollController _contentScrollController = ScrollController();
 
   // Filters and tabs
   _BrowserTab _currentTab = _BrowserTab.all;
@@ -210,6 +221,7 @@ class _GamesBrowserScreenState extends State<GamesBrowserScreen>
   @override
   void initState() {
     super.initState();
+    _contentScrollController.addListener(_onContentScroll);
     _logoService = widget.logoService ?? RomManagerLogoService();
     GameLocalData.instance.ensureLoaded().then((_) {
       if (mounted) setState(() {});
@@ -327,6 +339,8 @@ class _GamesBrowserScreenState extends State<GamesBrowserScreen>
     }
     _searchController.dispose();
     _searchFocusNode.dispose();
+    _contentScrollController.removeListener(_onContentScroll);
+    _contentScrollController.dispose();
     _carouselController.dispose();
     for (final node in _carouselFocusNodes) {
       node.dispose();
@@ -436,43 +450,171 @@ class _GamesBrowserScreenState extends State<GamesBrowserScreen>
     _loadGamesForSystem(system);
   }
 
+  @override
+  void trackGridItemFocus(int index, bool hasFocus) {
+    super.trackGridItemFocus(index, hasFocus);
+    if (!hasFocus) return;
+    if (index >= _allSystemGames.length - _gamesPrefetchTail) {
+      _maybeLoadNextGamesPage();
+    }
+  }
+
+  void _onContentScroll() {
+    if (!_contentScrollController.hasClients) return;
+    final position = _contentScrollController.position;
+    if (!position.hasContentDimensions) return;
+    if (position.maxScrollExtent - position.pixels <= _gamesScrollTailPx) {
+      _maybeLoadNextGamesPage();
+    }
+  }
+
+  bool get _needsFullCatalog {
+    if (_currentTab != _BrowserTab.all) return true;
+    if (_currentSort != _BrowserSort.nameAsc) return true;
+    if (_letterFilter.isNotEmpty) return true;
+    if (gameBrowseQueryWords(_searchController.text).isNotEmpty) return true;
+    return false;
+  }
+
+  void _scheduleCatalogDrain() {
+    if (!_needsFullCatalog ||
+        _gamesComplete ||
+        _loadingGames ||
+        _loadingMoreGames) {
+      return;
+    }
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      _maybeLoadNextGamesPage();
+    });
+  }
+
+  void _scheduleViewportFill() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || _gamesComplete || _loadingGames || _loadingMoreGames) {
+        return;
+      }
+      if (!_contentScrollController.hasClients) return;
+      final position = _contentScrollController.position;
+      if (!position.hasContentDimensions) return;
+      // The first page did not fill the screen, so fetch another rather than
+      // waiting for a scroll that cannot happen.
+      if (position.maxScrollExtent <= position.viewportDimension + 1) {
+        _maybeLoadNextGamesPage();
+      }
+    });
+  }
+
   Future<void> _loadGamesForSystem(GameSystem system) async {
+    final epoch = ++_gamesEpoch;
     setState(() {
       _loadingGames = true;
+      _loadingMoreGames = false;
+      _allSystemGames = const [];
+      _textIndexes = {};
+      _gamesTotal = 0;
+      _gamesComplete = false;
+      _loadedSystemId = system.id;
     });
+    cleanupGridFocusNodes(0);
+    await _fetchGamesPage(system, 0, epoch);
+  }
+
+  void _maybeLoadNextGamesPage() {
+    if (_loadingGames || _loadingMoreGames || _gamesComplete) return;
+    final systemId = _loadedSystemId;
+    if (systemId == null) return;
+    GameSystem? system;
+    for (final candidate in _systems) {
+      if (candidate.id == systemId) {
+        system = candidate;
+        break;
+      }
+    }
+    if (system == null) return;
+    if (_gamesTotal > 0 && _allSystemGames.length >= _gamesTotal) {
+      _gamesComplete = true;
+      return;
+    }
+    _loadingMoreGames = true;
+    unawaited(_fetchGamesPage(system, _allSystemGames.length, _gamesEpoch));
+  }
+
+  Future<void> _fetchGamesPage(GameSystem system, int offset, int epoch) async {
+    final gamesApi = _client.gamesApi;
+    if (gamesApi == null) {
+      if (mounted && epoch == _gamesEpoch) {
+        setState(() {
+          _loadingGames = false;
+          _loadingMoreGames = false;
+        });
+      }
+      return;
+    }
 
     try {
-      final gamesApi = _client.gamesApi;
-      if (gamesApi == null) return;
-      final games = await gamesApi.getGames(
+      final page = await gamesApi.getGamesPage(
         widget.libraryId,
         system: system.id,
+        offset: offset,
+        limit: _gamesPageSize,
       );
-      if (!mounted || _systems[_selectedSystemIndex].id != system.id) return;
+      if (!mounted || epoch != _gamesEpoch) return;
+      if (_systems[_selectedSystemIndex].id != system.id) return;
 
-      final textIndexes = <String, GameBrowseTextIndex>{};
-      for (final g in games) {
-        textIndexes[g.id] = GameBrowseTextIndex(
-          g.title,
-          alternateText: g.fileName,
+      final merged = offset == 0
+          ? page.items
+          : <GameSummary>[..._allSystemGames, ...page.items];
+      final indexes = offset == 0
+          ? <String, GameBrowseTextIndex>{}
+          : Map<String, GameBrowseTextIndex>.of(_textIndexes);
+      for (final game in page.items) {
+        indexes[game.id] = GameBrowseTextIndex(
+          game.title,
+          alternateText: game.fileName,
         );
       }
-
+      final complete = page.items.isEmpty || merged.length >= page.total;
       setState(() {
-        _allSystemGames = games;
-        _textIndexes = textIndexes;
+        _allSystemGames = merged;
+        _textIndexes = indexes;
+        _gamesTotal = page.total;
+        _gamesComplete = complete;
         _loadingGames = false;
+        _loadingMoreGames = false;
+        _loadedSystemId = system.id;
       });
+      cleanupGridFocusNodes(merged.length);
+      unawaited(_refreshArtworkPage(system.id, page.offset, page.limit));
+      if (!complete) {
+        _scheduleViewportFill();
+      }
+    } catch (_) {
+      // A failed later page leaves the rows already on screen in place.
+      if (!mounted || epoch != _gamesEpoch) return;
+      setState(() {
+        _loadingGames = false;
+        _loadingMoreGames = false;
+      });
+    }
+  }
 
-      _retroArtworkDataSource?.refreshSystem(
+  Future<void> _refreshArtworkPage(
+    String systemId,
+    int offset,
+    int limit,
+  ) async {
+    final source = _retroArtworkDataSource;
+    if (source == null) return;
+    try {
+      await source.refreshSystem(
         libraryId: widget.libraryId,
-        systemId: system.id,
+        systemId: systemId,
+        offset: offset,
+        limit: limit,
       );
-    } catch (e) {
-      if (!mounted) return;
-      setState(() {
-        _loadingGames = false;
-      });
+    } catch (_) {
+      // Art for this page stays missing; the grid itself does not reset.
     }
   }
 
@@ -1112,6 +1254,7 @@ class _GamesBrowserScreenState extends State<GamesBrowserScreen>
   }
 
   Widget _buildMainContent() {
+    _scheduleCatalogDrain();
     final filteredGames = _getFilteredAndSortedGames();
     final isTV = PlatformDetection.isTV;
 
@@ -1121,6 +1264,7 @@ class _GamesBrowserScreenState extends State<GamesBrowserScreen>
         _buildTopBar(),
         Expanded(
           child: SingleChildScrollView(
+            controller: _contentScrollController,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -1128,7 +1272,7 @@ class _GamesBrowserScreenState extends State<GamesBrowserScreen>
                 const SizedBox(height: 10),
                 _buildConsoleCarousel(),
                 const SizedBox(height: 20),
-                _buildSectionHeader(filteredGames.length),
+                _buildSectionHeader(_headerGameCount(filteredGames)),
                 const SizedBox(height: 12),
                 _buildTabsAndSortRow(),
                 if (_letterFilterVisible) ...[
@@ -1293,6 +1437,15 @@ class _GamesBrowserScreenState extends State<GamesBrowserScreen>
             _handleCarouselArrowKeyEvent(event, isNext: isNext),
       ),
     );
+  }
+
+  int _headerGameCount(List<GameSummary> filtered) {
+    final unfiltered =
+        _currentTab == _BrowserTab.all &&
+        _letterFilter.isEmpty &&
+        gameBrowseQueryWords(_searchController.text).isEmpty;
+    if (unfiltered && _gamesTotal > 0) return _gamesTotal;
+    return filtered.length;
   }
 
   Widget _buildSectionHeader(int visibleCount) {

@@ -23,6 +23,13 @@ class _MockMediaServerClient extends Mock implements MediaServerClient {}
 
 class _MockGamesApi extends Mock implements GamesApi {}
 
+GamePage _pageOf(List<GameSummary> games) => GamePage(
+  items: games,
+  total: games.length,
+  offset: 0,
+  limit: GamePage.defaultLimit,
+);
+
 /// Answers the plugin's logos route with a 1x1 PNG so the carousel has a real
 /// `data:` URI to draw.
 class _LogoAdapter implements HttpClientAdapter {
@@ -123,11 +130,21 @@ void main() {
 
     when(() => gamesApi.getSystems('retro')).thenAnswer((_) async => systems);
     when(
-      () => gamesApi.getGames('retro', system: 'nes'),
-    ).thenAnswer((_) async => nesGames);
+      () => gamesApi.getGamesPage(
+        'retro',
+        system: 'nes',
+        offset: any(named: 'offset'),
+        limit: any(named: 'limit'),
+      ),
+    ).thenAnswer((_) async => _pageOf(nesGames));
     when(
-      () => gamesApi.getGames('retro', system: 'snes'),
-    ).thenAnswer((_) async => const []);
+      () => gamesApi.getGamesPage(
+        'retro',
+        system: 'snes',
+        offset: any(named: 'offset'),
+        limit: any(named: 'limit'),
+      ),
+    ).thenAnswer((_) async => _pageOf(const []));
   });
 
   tearDown(() async {
@@ -383,7 +400,14 @@ void main() {
     await tester.sendKeyEvent(LogicalKeyboardKey.arrowRight);
     await tester.pumpAndSettle();
     expect(focusedLabel(), 'console_carousel_1');
-    verify(() => gamesApi.getGames('retro', system: 'snes')).called(1);
+    verify(
+      () => gamesApi.getGamesPage(
+        'retro',
+        system: 'snes',
+        offset: any(named: 'offset'),
+        limit: any(named: 'limit'),
+      ),
+    ).called(1);
     // Super Nintendo has no games in this fixture, so the empty state shows.
     expect(find.text('No games found'), findsOneWidget);
     expect(find.text('| 0 Games'), findsOneWidget);

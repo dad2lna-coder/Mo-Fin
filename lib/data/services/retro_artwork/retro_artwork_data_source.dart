@@ -262,9 +262,14 @@ abstract interface class RetroArtworkDataSource {
 
   /// Fetches only [systemId]'s manifest. Legacy returns an empty snapshot and
   /// never contacts a manifest endpoint.
+  ///
+  /// [offset] and [limit] ask for one page of that system. Omit both to refresh
+  /// the whole system, which is what existing callers do.
   Future<RetroArtworkSystemSnapshot> refreshSystem({
     required String libraryId,
     required String systemId,
+    int? offset,
+    int? limit,
   });
 
   RetroArtworkImageReference? imageFor(String gameId, {String role = 'boxart'});
@@ -364,6 +369,12 @@ class ManifestArtworkAdapter implements RetroArtworkDataSource {
   bool _routeCovered = false;
   bool _resumeRefreshScheduled = false;
   int _refreshEpoch = 0;
+  String? _refreshLibraryId;
+  String? _refreshSystemId;
+
+  /// Pages already merged into [_snapshot]. A timed or resume refresh replays
+  /// these instead of pulling the whole system.
+  final List<({int offset, int limit})> _pagedWindows = [];
   int _priorityEpoch = 0;
   int? _priorityPlanGeneration;
   bool _priorityDrainActive = false;
@@ -406,10 +417,13 @@ class ManifestArtworkAdapter implements RetroArtworkDataSource {
   Future<RetroArtworkSystemSnapshot> refreshSystem({
     required String libraryId,
     required String systemId,
+    int? offset,
+    int? limit,
   }) async {
     final existing = _snapshot;
     final sameSystem =
         existing?.libraryId == libraryId && existing?.systemId == systemId;
+    final paged = offset != null || limit != null;
     if (_disposed || _routeCovered || !_activityGate.isOpen) {
       return sameSystem
           ? existing!
@@ -432,15 +446,30 @@ class ManifestArtworkAdapter implements RetroArtworkDataSource {
               generation: null,
             );
     }
-    final epoch = ++_refreshEpoch;
+    // A full refresh, or a move to another system, drops in-flight pages of
+    // the previous one. Pages of the system we are already loading share an
+    // epoch so a slow first page can still merge after the next one starts.
+    final switching =
+        _refreshLibraryId != libraryId || _refreshSystemId != systemId;
+    _refreshLibraryId = libraryId;
+    _refreshSystemId = systemId;
+    if (switching || !paged) _refreshEpoch++;
+    if (switching) _pagedWindows.clear();
+    final epoch = _refreshEpoch;
     try {
       final GameArtworkManifest? manifest;
       try {
         manifest = await _gamesApi.getArtworkManifest(
           libraryId,
           systemId: systemId,
-          knownGeneration: sameSystem ? existing?.generation : null,
+          // A page must not send generation: a match is 304 and the page body
+          // never arrives. The unpaged refresh still uses it.
+          knownGeneration: paged
+              ? null
+              : (sameSystem ? existing?.generation : null),
           cancellationOwner: _manifestRequestOwner,
+          offset: offset,
+          limit: limit,
         );
       } catch (_) {
         if (_disposed ||
@@ -472,6 +501,15 @@ class ManifestArtworkAdapter implements RetroArtworkDataSource {
       }
       if (manifest != null) {
         var mapped = _mapManifest(libraryId, systemId, manifest);
+        final current = _snapshot;
+        final currentIsSystem =
+            current?.libraryId == libraryId && current?.systemId == systemId;
+        if (paged &&
+            currentIsSystem &&
+            current!.generation != null &&
+            current.generation == mapped.generation) {
+          mapped = _mergePage(current, mapped);
+        }
         if (_decodedPublished && _decodedBoxartAspects.isNotEmpty) {
           // A refresh rebuilds descriptors from the server and would otherwise
           // drop sizes already read from decoded images. Those sizes stay valid
@@ -484,6 +522,16 @@ class ManifestArtworkAdapter implements RetroArtworkDataSource {
           _clearPriorityQueue(cancelActive: true);
         }
         _snapshot = mapped;
+        if (!paged) {
+          _pagedWindows.clear();
+        } else {
+          final window = (
+            offset: offset ?? 0,
+            limit: limit ?? GamePage.defaultLimit,
+          );
+          _pagedWindows.removeWhere((page) => page.offset == window.offset);
+          _pagedWindows.add(window);
+        }
         // A fresh manifest carries fresh descriptor revisions, so any bounded
         // retry latch from a previous failure no longer applies.
         _clearImageRetryState();
@@ -504,6 +552,28 @@ class ManifestArtworkAdapter implements RetroArtworkDataSource {
     } finally {
       permit.dispose();
     }
+  }
+
+  /// Keeps art already loaded for this system and overlays the page just fetched.
+  RetroArtworkSystemSnapshot _mergePage(
+    RetroArtworkSystemSnapshot prior,
+    RetroArtworkSystemSnapshot page,
+  ) {
+    return RetroArtworkSystemSnapshot(
+      libraryId: page.libraryId,
+      systemId: page.systemId,
+      generation: page.generation,
+      descriptors: {
+        for (final entry in prior._descriptors.entries) entry.key: entry.value,
+        for (final entry in page._descriptors.entries) entry.key: entry.value,
+      },
+      images: {
+        for (final entry in prior._images.entries) entry.key: entry.value,
+        for (final entry in page._images.entries) entry.key: entry.value,
+      },
+      decodedBoxartAspects: prior._decodedBoxartAspects,
+      folderCoverAspects: prior._folderCoverAspects,
+    );
   }
 
   RetroArtworkSystemSnapshot _mapManifest(
@@ -688,10 +758,28 @@ class ManifestArtworkAdapter implements RetroArtworkDataSource {
     _refreshTimer = Timer(delays.first, () {
       _refreshTimer = null;
       if (_disposed || _routeCovered || !_activityGate.isOpen) return;
+      _refreshLoadedManifest(current);
+    });
+  }
+
+  /// Re-reads whatever this adapter already has. A paged snapshot stays paged.
+  void _refreshLoadedManifest(RetroArtworkSystemSnapshot current) {
+    if (_pagedWindows.isEmpty) {
       unawaited(
         refreshSystem(libraryId: current.libraryId, systemId: current.systemId),
       );
-    });
+      return;
+    }
+    for (final window in List<({int offset, int limit})>.of(_pagedWindows)) {
+      unawaited(
+        refreshSystem(
+          libraryId: current.libraryId,
+          systemId: current.systemId,
+          offset: window.offset,
+          limit: window.limit,
+        ),
+      );
+    }
   }
 
   void _onActivityChanged() {
@@ -728,9 +816,7 @@ class ManifestArtworkAdapter implements RetroArtworkDataSource {
     scheduleMicrotask(() {
       _resumeRefreshScheduled = false;
       if (_disposed || _routeCovered || !_activityGate.isOpen) return;
-      unawaited(
-        refreshSystem(libraryId: current.libraryId, systemId: current.systemId),
-      );
+      _refreshLoadedManifest(current);
     });
   }
 
@@ -1011,6 +1097,8 @@ class LegacyArtworkAdapter implements RetroArtworkDataSource {
   Future<RetroArtworkSystemSnapshot> refreshSystem({
     required String libraryId,
     required String systemId,
+    int? offset,
+    int? limit,
   }) async {
     return _snapshot = RetroArtworkSystemSnapshot(
       libraryId: libraryId,

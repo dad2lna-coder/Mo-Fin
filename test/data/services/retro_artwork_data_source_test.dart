@@ -120,6 +120,67 @@ void main() {
     expect(adapter.imageFor('zelda', role: 'title'), isNull);
   });
 
+  test('a paged refresh merges into the system instead of replacing it', () async {
+    GameArtworkDescriptor ready(String gameId) => GameArtworkDescriptor(
+      state: 'thumbnailReady',
+      revision: 'v1',
+      url: '/art/$gameId',
+    );
+    when(
+      () => gamesApi.getArtworkManifest(
+        'retro',
+        systemId: 'nes',
+        knownGeneration: any(named: 'knownGeneration'),
+        cancellationOwner: any(named: 'cancellationOwner'),
+        offset: any(named: 'offset'),
+        limit: any(named: 'limit'),
+      ),
+    ).thenAnswer((invocation) async {
+      final offset = invocation.namedArguments[#offset] as int?;
+      final gameId = offset == 0 ? 'zelda' : 'mario';
+      return GameArtworkManifest(
+        generation: 'g1',
+        entries: [
+          GameArtworkManifestEntry(
+            gameId: gameId,
+            artwork: {'boxart': ready(gameId)},
+          ),
+        ],
+        total: 2,
+        offset: offset,
+        limit: 1,
+      );
+    });
+    final adapter = _buildAdapter(gamesApi, activityGate, transport);
+    addTearDown(adapter.dispose);
+
+    await adapter.refreshSystem(
+      libraryId: 'retro',
+      systemId: 'nes',
+      offset: 0,
+      limit: 1,
+    );
+    await adapter.refreshSystem(
+      libraryId: 'retro',
+      systemId: 'nes',
+      offset: 1,
+      limit: 1,
+    );
+
+    expect(adapter.imageFor('zelda')?.source?.uri.toString(), '/art/zelda');
+    expect(adapter.imageFor('mario')?.source?.uri.toString(), '/art/mario');
+    verify(
+      () => gamesApi.getArtworkManifest(
+        'retro',
+        systemId: 'nes',
+        knownGeneration: null,
+        cancellationOwner: any(named: 'cancellationOwner'),
+        offset: 1,
+        limit: 1,
+      ),
+    ).called(1);
+  });
+
   test(
     'snapshot reports per-game shape and the median box art shape',
     () async {
@@ -556,6 +617,8 @@ void _stubManifestFor(
       systemId: systemId,
       knownGeneration: any(named: 'knownGeneration'),
       cancellationOwner: any(named: 'cancellationOwner'),
+      offset: any(named: 'offset'),
+      limit: any(named: 'limit'),
     ),
   ).thenAnswer((_) async => manifest);
 }
@@ -569,6 +632,8 @@ void _stubManifestAny(_MockGamesApi gamesApi, GameArtworkManifest manifest) {
       systemId: any(named: 'systemId'),
       knownGeneration: any(named: 'knownGeneration'),
       cancellationOwner: any(named: 'cancellationOwner'),
+      offset: any(named: 'offset'),
+      limit: any(named: 'limit'),
     ),
   ).thenAnswer((_) async => manifest);
 }

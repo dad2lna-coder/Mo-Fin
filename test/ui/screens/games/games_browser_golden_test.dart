@@ -33,6 +33,13 @@ class _MockClient extends Mock implements MediaServerClient {}
 
 class _MockGamesApi extends Mock implements GamesApi {}
 
+GamePage _pageOf(List<GameSummary> games) => GamePage(
+  items: games,
+  total: games.length,
+  offset: 0,
+  limit: GamePage.defaultLimit,
+);
+
 class _LogoAdapter implements HttpClientAdapter {
   @override
   Future<ResponseBody> fetch(
@@ -163,16 +170,24 @@ void main() {
         ),
     ];
     when(() => api.getSystems('retro')).thenAnswer((_) async => systems);
-    when(() => api.getGames('retro', system: 'nes'))
-        .thenAnswer((_) async => games);
-    when(() => api.getGames('retro', system: 'snes'))
-        .thenAnswer((_) async => const []);
-    when(() => api.getGames('retro', system: 'genesis'))
-        .thenAnswer((_) async => const []);
-    when(() => api.getGames('retro', system: 'psx'))
-        .thenAnswer((_) async => const []);
-    when(() => api.getGames('retro', system: 'gba'))
-        .thenAnswer((_) async => const []);
+    when(
+      () => api.getGamesPage(
+        'retro',
+        system: 'nes',
+        offset: any(named: 'offset'),
+        limit: any(named: 'limit'),
+      ),
+    ).thenAnswer((_) async => _pageOf(games));
+    for (final system in ['snes', 'genesis', 'psx', 'gba']) {
+      when(
+        () => api.getGamesPage(
+          'retro',
+          system: system,
+          offset: any(named: 'offset'),
+          limit: any(named: 'limit'),
+        ),
+      ).thenAnswer((_) async => _pageOf(const []));
+    }
 
     // Pin the top-bar clock: a golden recorded at 5:37 AM would fail on the
     // next run at any other minute.

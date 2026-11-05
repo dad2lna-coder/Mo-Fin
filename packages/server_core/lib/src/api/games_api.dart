@@ -21,11 +21,14 @@ abstract class GamesApi {
   /// GET /Moonfin/Games/{libraryId}/ArtworkManifest?system=...&generation=...
   ///
   /// Null represents an unsupported protocol or an unchanged (304) manifest.
+  /// [offset] and [limit], when set, ask for the same window as [getGamesPage].
   Future<GameArtworkManifest?> getArtworkManifest(
     String libraryId, {
     required String systemId,
     String? knownGeneration,
     Object? cancellationOwner,
+    int? offset,
+    int? limit,
   }) async => null;
 
   /// POST /Moonfin/Games/{libraryId}/ArtworkPriority.
@@ -58,6 +61,29 @@ abstract class GamesApi {
 
   /// GET /Moonfin/Games/{libraryId}/Games?system=...
   Future<List<GameSummary>> getGames(String libraryId, {String? system});
+
+  /// GET /Moonfin/Games/{libraryId}/Games?system=...&offset=...&limit=...
+  ///
+  /// The default walks [getGames] and slices locally, for an API that has no
+  /// paged route. [MoonbaseGamesApi] asks the server for the window instead.
+  Future<GamePage> getGamesPage(
+    String libraryId, {
+    String? system,
+    int offset = 0,
+    int limit = GamePage.defaultLimit,
+  }) async {
+    final all = await getGames(libraryId, system: system);
+    final start = offset < 0
+        ? 0
+        : (offset > all.length ? all.length : offset);
+    final size = limit < 1 ? GamePage.defaultLimit : limit;
+    return GamePage(
+      items: all.skip(start).take(size).toList(growable: false),
+      total: all.length,
+      offset: start,
+      limit: size,
+    );
+  }
 
   /// GET /Moonfin/Games/{libraryId}/Games/{gameId}
   Future<GameDetail?> getGame(String libraryId, String gameId);

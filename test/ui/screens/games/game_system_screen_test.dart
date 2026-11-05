@@ -92,6 +92,8 @@ class _FakeArtworkDataSource implements RetroArtworkDataSource {
   Future<RetroArtworkSystemSnapshot> refreshSystem({
     required String libraryId,
     required String systemId,
+    int? offset,
+    int? limit,
   }) async {
     return _snapshot ??= RetroArtworkSystemSnapshot(
       libraryId: libraryId,

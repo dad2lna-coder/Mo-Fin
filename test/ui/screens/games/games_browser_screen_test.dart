@@ -18,6 +18,13 @@ class _MockMediaServerClient extends Mock implements MediaServerClient {}
 
 class _MockGamesApi extends Mock implements GamesApi {}
 
+GamePage _pageOf(List<GameSummary> games) => GamePage(
+  items: games,
+  total: games.length,
+  offset: 0,
+  limit: GamePage.defaultLimit,
+);
+
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
@@ -60,8 +67,22 @@ void main() {
     ThemeRegistry.setActiveById(ThemeRegistry.moonfinId);
 
     when(() => gamesApi.getSystems('retro')).thenAnswer((_) async => systems);
-    when(() => gamesApi.getGames('retro', system: 'nes')).thenAnswer((_) async => nesGames);
-    when(() => gamesApi.getGames('retro', system: 'snes')).thenAnswer((_) async => const []);
+    when(
+      () => gamesApi.getGamesPage(
+        'retro',
+        system: 'nes',
+        offset: any(named: 'offset'),
+        limit: any(named: 'limit'),
+      ),
+    ).thenAnswer((_) async => _pageOf(nesGames));
+    when(
+      () => gamesApi.getGamesPage(
+        'retro',
+        system: 'snes',
+        offset: any(named: 'offset'),
+        limit: any(named: 'limit'),
+      ),
+    ).thenAnswer((_) async => _pageOf(const []));
   });
 
   tearDown(() {
@@ -177,5 +198,53 @@ void main() {
     expect(find.text('Downloaded Storage'), findsOneWidget);
     expect(find.text('Total Games'), findsOneWidget);
     expect(find.text('Downloaded Games'), findsOneWidget);
+  });
+
+  testWidgets('a failed later page leaves the games already loaded', (tester) async {
+    var calls = 0;
+    when(
+      () => gamesApi.getGamesPage(
+        'retro',
+        system: 'nes',
+        offset: any(named: 'offset'),
+        limit: any(named: 'limit'),
+      ),
+    ).thenAnswer((invocation) async {
+      final offset = invocation.namedArguments[#offset] as int? ?? 0;
+      calls++;
+      if (offset == 0) {
+        return GamePage(
+          items: nesGames,
+          total: nesGames.length + 1,
+          offset: 0,
+          limit: GamePage.defaultLimit,
+        );
+      }
+      throw StateError('page failed');
+    });
+
+    await tester.binding.setSurfaceSize(const Size(1280, 720));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.buildTheme(ThemeRegistry.active),
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
+        home: const GamesBrowserScreen(libraryId: 'retro'),
+      ),
+    );
+    await tester.pump();
+    await tester.pump();
+    expect(find.text('Mario'), findsOneWidget);
+    expect(find.text('| 4 Games'), findsOneWidget);
+
+    await tester.drag(find.byType(SingleChildScrollView), const Offset(0, -2000));
+    await tester.pump();
+    await tester.pump();
+
+    expect(find.text('Mario'), findsOneWidget);
+    expect(find.text('Zelda'), findsOneWidget);
+    expect(find.text('No games found'), findsNothing);
+    expect(calls, greaterThan(1));
   });
 }

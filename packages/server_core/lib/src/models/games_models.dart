@@ -168,7 +168,19 @@ class GameArtworkManifest {
   final String generation;
   final List<GameArtworkManifestEntry> entries;
 
-  const GameArtworkManifest({required this.generation, required this.entries});
+  /// Set only when the server windowed this manifest over the game list.
+  /// Null on the unpaged response.
+  final int? total;
+  final int? offset;
+  final int? limit;
+
+  const GameArtworkManifest({
+    required this.generation,
+    required this.entries,
+    this.total,
+    this.offset,
+    this.limit,
+  });
 
   factory GameArtworkManifest.fromJson(
     Map<String, dynamic> json,
@@ -181,6 +193,9 @@ class GameArtworkManifest {
               GameArtworkManifestEntry.fromJson(entry.cast<String, dynamic>()),
         )
         .toList(growable: false),
+    total: _intValue(json['total']),
+    offset: _intValue(json['offset']),
+    limit: _intValue(json['limit']),
   );
 }
 
@@ -324,6 +339,73 @@ class GameSummary {
         cheatFlag: _flagValue(json['cheat']),
         hackFlag: _flagValue(json['hack']),
       );
+}
+
+/// One window of [GameSummary] rows from `GET .../Games?offset&limit`.
+class GamePage {
+  static const int defaultLimit = 100;
+
+  final List<GameSummary> items;
+  final int total;
+  final int offset;
+  final int limit;
+
+  const GamePage({
+    required this.items,
+    required this.total,
+    required this.offset,
+    required this.limit,
+  });
+
+  factory GamePage.fromJson(
+    Map<String, dynamic> json, {
+    required int offset,
+    required int limit,
+  }) {
+    final items = _summaries(json['items']);
+    return GamePage(
+      items: items,
+      total: _intValue(json['total']) ?? items.length,
+      offset: _intValue(json['offset']) ?? offset,
+      limit: _intValue(json['limit']) ?? limit,
+    );
+  }
+
+  /// A paged server sends the envelope. A server that ignored the query
+  /// parameters still sends a bare array; slice it so the grid does not
+  /// materialize the whole console at once.
+  factory GamePage.fromResponse(
+    Object? data, {
+    required int offset,
+    required int limit,
+  }) {
+    if (data is Map) {
+      return GamePage.fromJson(
+        data.cast<String, dynamic>(),
+        offset: offset,
+        limit: limit,
+      );
+    }
+    final items = _summaries(data);
+    final start = offset < 0
+        ? 0
+        : (offset > items.length ? items.length : offset);
+    final size = limit < 1 ? defaultLimit : limit;
+    return GamePage(
+      items: items.skip(start).take(size).toList(growable: false),
+      total: items.length,
+      offset: start,
+      limit: size,
+    );
+  }
+}
+
+List<GameSummary> _summaries(Object? data) {
+  if (data is! List) return const [];
+  return data
+      .whereType<Map>()
+      .map((entry) => GameSummary.fromJson(entry.cast<String, dynamic>()))
+      .toList(growable: false);
 }
 
 /// The plugin's tag flags are `"best"`/`"some"`, but a bare boolean is just as
