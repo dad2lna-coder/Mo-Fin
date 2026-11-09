@@ -418,12 +418,14 @@ class _GamesBrowserScreenState extends State<GamesBrowserScreen>
           return;
         }
         if (!listed.pluginMissing) {
+          final cores = await _systemCoresByName();
+          if (!mounted) return;
           _applySystems([
             for (final row in listed.systems)
               GameSystem(
                 id: row.name,
                 name: row.name,
-                core: _coreFor(row.name),
+                core: _coreFor(row.name, cores),
                 gameCount: row.games,
               ),
           ]);
@@ -495,7 +497,38 @@ class _GamesBrowserScreenState extends State<GamesBrowserScreen>
     });
   }
 
-  String _coreFor(String name) {
+  /// Cores advertised by `GET /Moonfin/Games/{library}/Systems`, keyed by
+  /// lowercased system name and id. A failure leaves the map empty so
+  /// [_coreFor] can fall back to the small built-in table.
+  Future<Map<String, String>> _systemCoresByName() async {
+    final gamesApi = _client.gamesApi;
+    if (gamesApi == null) return const {};
+    try {
+      final systems = await gamesApi.getSystems(widget.libraryId);
+      final cores = <String, String>{};
+      for (final system in systems) {
+        final core = system.core.trim();
+        if (core.isEmpty) continue;
+        void keep(String raw) {
+          final key = raw.trim().toLowerCase();
+          if (key.isEmpty) return;
+          cores.putIfAbsent(key, () => core);
+        }
+
+        keep(system.name);
+        keep(system.id);
+      }
+      return cores;
+    } catch (_) {
+      return const {};
+    }
+  }
+
+  /// Prefer the core from [fromServer] (case-insensitive name or id). The
+  /// table is only the fallback when that list has no match.
+  String _coreFor(String name, [Map<String, String> fromServer = const {}]) {
+    final listed = fromServer[name.trim().toLowerCase()];
+    if (listed != null && listed.isNotEmpty) return listed;
     final key = name.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]'), '');
     const cores = <String, String>{
       'arcade': 'arcade',
@@ -601,6 +634,8 @@ class _GamesBrowserScreenState extends State<GamesBrowserScreen>
 
   Future<void> _loadGamesForSystem(GameSystem system) async {
     final epoch = ++_gamesEpoch;
+    // A 404 earlier in this visit must not skip the plugin on retry.
+    _pluginMissing = false;
     setState(() {
       _loadingGames = true;
       _loadingMoreGames = false;
@@ -656,6 +691,7 @@ class _GamesBrowserScreenState extends State<GamesBrowserScreen>
     try {
       final loaded = await _loadGamePage(system, offset);
       if (!mounted || epoch != _gamesEpoch) return;
+      if (loaded.pluginMissing) _pluginMissing = true;
       if (_systems[_selectedSystemIndex].id != system.id) return;
 
       if (loaded.bucketPicker) {
@@ -782,9 +818,9 @@ class _GamesBrowserScreenState extends State<GamesBrowserScreen>
           );
         }
         if (offset > 0) throw StateError('ROM catalog page failed');
-        _pluginMissing = true;
         return _LoadedGamePage(
           page: await _moonbasePage(system, offset),
+          pluginMissing: true,
         );
       }
       if (offset == 0 && grouped.indexing && grouped.items.isEmpty) {
@@ -881,16 +917,25 @@ class _GamesBrowserScreenState extends State<GamesBrowserScreen>
     return _bucket;
   }
 
+  /// Name sorts go to the catalog. Recent is not a title sort: the screen
+  /// orders those rows from [GameLocalData] after the page arrives.
   String get _catalogSort => switch (_currentSort) {
-    _BrowserSort.nameDesc => 'title-desc',
+    _BrowserSort.nameDesc when _currentTab != _BrowserTab.recent =>
+      'title-desc',
     _ => 'title',
   };
+
+  bool get _ordersByLastPlayed =>
+      _currentTab == _BrowserTab.recent || _currentSort == _BrowserSort.recent;
 
   List<String>? _catalogKeys() {
     if (_currentTab == _BrowserTab.favorites) {
       return GameLocalData.instance.favoriteIds(widget.libraryId);
     }
-    if (_currentTab == _BrowserTab.recent) {
+    // Newest first. The catalog keeps key order, and the screen sorts by
+    // [GameLocalData] so a title sort cannot put these back in name order.
+    if (_currentTab == _BrowserTab.recent ||
+        _currentSort == _BrowserSort.recent) {
       return GameLocalData.instance.recentIds(widget.libraryId);
     }
     return null;
@@ -949,7 +994,9 @@ class _GamesBrowserScreenState extends State<GamesBrowserScreen>
   }
 
   List<GameSummary> _getFilteredAndSortedGames() {
-    if (_romCatalog) return _allSystemGames;
+    // The catalog already applied name sort, search, and letter. Last-played
+    // is local, so those two modes still reorder (or filter) here.
+    if (_romCatalog && !_ordersByLastPlayed) return _allSystemGames;
     var games = _allSystemGames;
     final queryWords = gameBrowseQueryWords(_searchController.text);
 
@@ -1321,7 +1368,7 @@ class _GamesBrowserScreenState extends State<GamesBrowserScreen>
   void _setTab(_BrowserTab tab) {
     _currentTab = tab;
     if (tab != _BrowserTab.all) _bucket = '';
-    if (_romCatalog && _systems.isNotEmpty) {
+    if (widget.romGames != null && _systems.isNotEmpty) {
       _loadGamesForSystem(_systems[_selectedSystemIndex]);
     } else {
       setState(() {});
@@ -1331,7 +1378,7 @@ class _GamesBrowserScreenState extends State<GamesBrowserScreen>
   void _setLetter(String letter) {
     _letterFilter = letter;
     if (letter.isNotEmpty) _bucket = '';
-    if (_romCatalog && _systems.isNotEmpty) {
+    if (widget.romGames != null && _systems.isNotEmpty) {
       _loadGamesForSystem(_systems[_selectedSystemIndex]);
     } else {
       setState(() {});
@@ -1340,7 +1387,7 @@ class _GamesBrowserScreenState extends State<GamesBrowserScreen>
 
   void _onSearchChanged(String _) {
     _searchDebounce?.cancel();
-    if (widget.romGames == null || _pluginMissing || !_romCatalog) {
+    if (widget.romGames == null || _systems.isEmpty) {
       setState(() {});
       return;
     }
@@ -1543,7 +1590,7 @@ class _GamesBrowserScreenState extends State<GamesBrowserScreen>
         _BrowserSort.recent => _BrowserSort.nameAsc,
       };
     });
-    if (_romCatalog && !_showBuckets && _systems.isNotEmpty) {
+    if (widget.romGames != null && !_showBuckets && _systems.isNotEmpty) {
       _loadGamesForSystem(_systems[_selectedSystemIndex]);
     }
   }
@@ -2679,6 +2726,7 @@ class _LoadedGamePage {
     this.error,
     this.buckets = const [],
     this.bucketPicker = false,
+    this.pluginMissing = false,
   });
 
   final GamePage page;
@@ -2686,6 +2734,7 @@ class _LoadedGamePage {
   final String? error;
   final List<RomLetterBucket> buckets;
   final bool bucketPicker;
+  final bool pluginMissing;
 }
 
 /// The "2 Versions" / "Cheat" / "Hack" chips over a box art. The server does

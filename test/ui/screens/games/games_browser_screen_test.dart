@@ -80,6 +80,174 @@ class _GroupedArcade extends RomManagerGames {
   ) async => <String, Uint8List>{};
 }
 
+class _QuietRom extends RomManagerGames {
+  _QuietRom() : super(dio: Dio());
+
+  @override
+  Future<List<RomDeveloper>> developers(
+    MediaServerClient client, {
+    int limit = 40,
+  }) async => const [];
+
+  @override
+  Future<Map<String, Uint8List>> covers(
+    MediaServerClient client,
+    List<String> paths,
+  ) async => <String, Uint8List>{};
+}
+
+class _BucketCatalog extends _QuietRom {
+  int probes = 0;
+  String? lastBucket;
+
+  @override
+  Future<RomSystemList> systems(MediaServerClient client) async =>
+      const RomSystemList(
+        systems: [RomSystemCount(name: 'Arcade', games: 1200)],
+      );
+
+  @override
+  Future<RomManagerGamePage?> page({
+    required MediaServerClient client,
+    required String system,
+    int offset = 0,
+    String sort = 'title',
+    String? query,
+    String? letter,
+    String? bucket,
+    String? developer,
+    bool includeBuckets = false,
+    int? limit,
+    List<String>? keys,
+  }) async {
+    lastBucket = bucket;
+    if (includeBuckets) {
+      probes++;
+      return RomManagerGamePage(
+        items: const [],
+        total: 1200,
+        indexing: false,
+        buckets: [
+          for (final pair in RomManagerGames.letterBuckets)
+            RomLetterBucket(
+              id: pair.id,
+              label: pair.label,
+              games: pair.id == 'Q-S' ? 40 : 10,
+            ),
+        ],
+      );
+    }
+    return const RomManagerGamePage(
+      items: [
+        RomManagerGame(
+          key: 'm:Arcade/qbert',
+          title: 'Q*bert',
+          system: 'Arcade',
+          path: 'Arcade/qbert.zip',
+          versions: 1,
+        ),
+      ],
+      total: 40,
+      indexing: false,
+    );
+  }
+}
+
+class _TitleOrderedRom extends _QuietRom {
+  List<String>? lastKeys;
+
+  @override
+  Future<RomSystemList> systems(MediaServerClient client) async =>
+      const RomSystemList(
+        systems: [RomSystemCount(name: 'Arcade', games: 3)],
+      );
+
+  @override
+  Future<RomManagerGamePage?> page({
+    required MediaServerClient client,
+    required String system,
+    int offset = 0,
+    String sort = 'title',
+    String? query,
+    String? letter,
+    String? bucket,
+    String? developer,
+    bool includeBuckets = false,
+    int? limit,
+    List<String>? keys,
+  }) async {
+    lastKeys = keys == null ? null : List<String>.of(keys);
+    return const RomManagerGamePage(
+      items: [
+        RomManagerGame(
+          key: 'm:a',
+          title: 'Alpha',
+          system: 'Arcade',
+          path: 'Arcade/a.zip',
+          versions: 1,
+        ),
+        RomManagerGame(
+          key: 'm:m',
+          title: 'Middle',
+          system: 'Arcade',
+          path: 'Arcade/m.zip',
+          versions: 1,
+        ),
+        RomManagerGame(
+          key: 'm:z',
+          title: 'Zebra',
+          system: 'Arcade',
+          path: 'Arcade/z.zip',
+          versions: 1,
+        ),
+      ],
+      total: 3,
+      indexing: false,
+    );
+  }
+}
+
+class _RetryRom extends _QuietRom {
+  int calls = 0;
+
+  @override
+  Future<RomSystemList> systems(MediaServerClient client) async =>
+      const RomSystemList(
+        systems: [RomSystemCount(name: 'Arcade', games: 4)],
+      );
+
+  @override
+  Future<RomManagerGamePage?> page({
+    required MediaServerClient client,
+    required String system,
+    int offset = 0,
+    String sort = 'title',
+    String? query,
+    String? letter,
+    String? bucket,
+    String? developer,
+    bool includeBuckets = false,
+    int? limit,
+    List<String>? keys,
+  }) async {
+    calls++;
+    if (calls == 1) return null;
+    return const RomManagerGamePage(
+      items: [
+        RomManagerGame(
+          key: 'm:Arcade/1942',
+          title: '1942',
+          system: 'Arcade',
+          path: 'Arcade/1942.zip',
+          versions: 1,
+        ),
+      ],
+      total: 1,
+      indexing: false,
+    );
+  }
+}
+
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
@@ -347,4 +515,150 @@ void main() {
       ),
     );
   });
+
+  testWidgets('a large catalog opens the letter-range bucket picker', (
+    tester,
+  ) async {
+    when(() => gamesApi.getSystems('retro')).thenAnswer(
+      (_) async => const [
+        GameSystem(id: 'arcade', name: 'Arcade', core: 'fbneo', gameCount: 1200),
+      ],
+    );
+    when(
+      () => gamesApi.getGamesPage(
+        'retro',
+        system: any(named: 'system'),
+        offset: any(named: 'offset'),
+        limit: any(named: 'limit'),
+      ),
+    ).thenAnswer((_) async => _pageOf(const []));
+
+    final roms = _BucketCatalog();
+    await tester.binding.setSurfaceSize(const Size(1280, 720));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.buildTheme(ThemeRegistry.active),
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
+        home: GamesBrowserScreen(libraryId: 'retro', romGames: roms),
+      ),
+    );
+    await tester.pump();
+    await tester.pump();
+
+    expect(find.text('Pick a letter range. Each one loads on its own.'), findsOneWidget);
+    expect(find.text('# – D'), findsOneWidget);
+    expect(find.text('Q – S'), findsOneWidget);
+    expect(find.text('40 Games'), findsOneWidget);
+    expect(find.text('Q*bert'), findsNothing);
+    expect(roms.probes, 1);
+
+    await tester.tap(find.text('Q – S'));
+    await tester.pump();
+    await tester.pump();
+
+    expect(roms.lastBucket, 'Q-S');
+    expect(find.text('Q*bert'), findsOneWidget);
+    expect(find.text('Pick a letter range. Each one loads on its own.'), findsNothing);
+    verify(() => gamesApi.getSystems('retro')).called(1);
+  });
+
+  testWidgets('Recent and Recently played follow local last-played order', (
+    tester,
+  ) async {
+    GameLocalData.instance.resetForTest(
+      recents: ['retro:m:z', 'retro:m:a'],
+    );
+    final roms = _TitleOrderedRom();
+    await tester.binding.setSurfaceSize(const Size(1280, 720));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.buildTheme(ThemeRegistry.active),
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
+        home: GamesBrowserScreen(libraryId: 'retro', romGames: roms),
+      ),
+    );
+    await tester.pump();
+    await tester.pump();
+
+    _expectReadingOrder(tester, ['Alpha', 'Middle', 'Zebra']);
+
+    await tester.tap(find.text('Recently Played'));
+    await tester.pump();
+    await tester.pump();
+
+    expect(find.text('Middle'), findsNothing);
+    _expectReadingOrder(tester, ['Zebra', 'Alpha']);
+    expect(roms.lastKeys, ['m:z', 'm:a']);
+
+    await tester.tap(find.text('All Games'));
+    await tester.pump();
+    await tester.pump();
+    await tester.tap(find.text('Name A–Z'));
+    await tester.pump();
+    await tester.pump();
+    await tester.tap(find.text('Name Z–A'));
+    await tester.pump();
+    await tester.pump();
+
+    expect(find.text('Recently played'), findsOneWidget);
+    _expectReadingOrder(tester, ['Zebra', 'Alpha', 'Middle']);
+  });
+
+  testWidgets('a missing plugin is tried again on refresh', (tester) async {
+    when(
+      () => gamesApi.getGamesPage(
+        'retro',
+        system: any(named: 'system'),
+        offset: any(named: 'offset'),
+        limit: any(named: 'limit'),
+      ),
+    ).thenAnswer(
+      (_) async => _pageOf(const [
+        GameSummary(id: 'zip', title: 'Zip Only', fileName: 'a.zip', system: 'Arcade', core: ''),
+      ]),
+    );
+
+    final roms = _RetryRom();
+    await tester.binding.setSurfaceSize(const Size(1280, 720));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.buildTheme(ThemeRegistry.active),
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
+        home: GamesBrowserScreen(libraryId: 'retro', romGames: roms),
+      ),
+    );
+    await tester.pump();
+    await tester.pump();
+
+    expect(roms.calls, 1);
+    expect(find.text('Zip Only'), findsOneWidget);
+    expect(find.text('1942'), findsNothing);
+
+    await tester.tap(find.text('Name A–Z'));
+    await tester.pump();
+    await tester.pump();
+
+    expect(roms.calls, 2);
+    expect(find.text('1942'), findsOneWidget);
+    expect(find.text('Zip Only'), findsNothing);
+  });
+}
+
+void _expectReadingOrder(WidgetTester tester, List<String> titles) {
+  Offset? previous;
+  for (final title in titles) {
+    final at = tester.getTopLeft(find.text(title));
+    if (previous != null) {
+      final lower = at.dy > previous.dy + 1;
+      final sameRowLater = (at.dy - previous.dy).abs() <= 1 && at.dx > previous.dx;
+      expect(lower || sameRowLater, isTrue, reason: '$title should follow the previous title');
+    }
+    previous = at;
+  }
 }
