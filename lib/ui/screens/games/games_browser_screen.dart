@@ -150,7 +150,6 @@ class _GamesBrowserScreenState extends State<GamesBrowserScreen>
   Map<String, RomManagerGame> _romById = {};
   Map<String, Uint8List> _covers = {};
   bool _romCatalog = false;
-  bool _romCatalogDisabled = false;
   String? _gamesError;
   int _gamesEpoch = 0;
   int _gamesTotal = 0;
@@ -163,6 +162,18 @@ class _GamesBrowserScreenState extends State<GamesBrowserScreen>
   _BrowserSort _currentSort = _BrowserSort.nameAsc;
   String _letterFilter = '';
   bool _letterFilterVisible = false;
+  String _bucket = '';
+  List<RomLetterBucket> _buckets = const [];
+  bool _showBuckets = false;
+  bool _pluginMissing = false;
+  RomDeveloper? _developer;
+  List<RomDeveloper> _developers = const [];
+  final List<FocusNode> _bucketFocusNodes = [
+    for (var i = 0; i < RomManagerGames.letterBuckets.length; i++)
+      FocusNode(debugLabel: 'games_bucket_$i'),
+  ];
+  List<FocusNode> _developerFocusNodes = const [];
+  Timer? _searchDebounce;
 
   // Search
   final TextEditingController _searchController = TextEditingController();
@@ -258,7 +269,15 @@ class _GamesBrowserScreenState extends State<GamesBrowserScreen>
   }
 
   void _onLocalDataChanged() {
-    if (mounted) setState(() {});
+    if (!mounted) return;
+    if (_romCatalog &&
+        _currentTab != _BrowserTab.all &&
+        _systems.isNotEmpty &&
+        !_loadingGames) {
+      _loadGamesForSystem(_systems[_selectedSystemIndex]);
+      return;
+    }
+    setState(() {});
   }
 
   /// Downloaded game bytes, plus the device's free space where the platform
@@ -349,6 +368,7 @@ class _GamesBrowserScreenState extends State<GamesBrowserScreen>
       releaseGameArtworkCacheScope(scope);
     }
     _searchController.dispose();
+    _searchDebounce?.cancel();
     _searchFocusNode.dispose();
     _contentScrollController.removeListener(_onContentScroll);
     _contentScrollController.dispose();
@@ -370,6 +390,12 @@ class _GamesBrowserScreenState extends State<GamesBrowserScreen>
     for (final node in _letterFocusNodes.values) {
       node.dispose();
     }
+    for (final node in _bucketFocusNodes) {
+      node.dispose();
+    }
+    for (final node in _developerFocusNodes) {
+      node.dispose();
+    }
     disposeGridFocusNodes();
     super.dispose();
   }
@@ -379,6 +405,41 @@ class _GamesBrowserScreenState extends State<GamesBrowserScreen>
       _loading = true;
       _error = null;
     });
+    final rom = widget.romGames;
+    if (rom != null) {
+      try {
+        final listed = await rom.systems(_client);
+        if (!mounted) return;
+        if (listed.failed) {
+          setState(() {
+            _loading = false;
+            _error = 'Could not load the ROM index.';
+          });
+          return;
+        }
+        if (!listed.pluginMissing) {
+          _applySystems([
+            for (final row in listed.systems)
+              GameSystem(
+                id: row.name,
+                name: row.name,
+                core: _coreFor(row.name),
+                gameCount: row.games,
+              ),
+          ]);
+          unawaited(_loadDevelopers());
+          return;
+        }
+      } catch (_) {
+        if (!mounted) return;
+        setState(() {
+          _loading = false;
+          _error = 'Could not load the ROM index.';
+        });
+        return;
+      }
+    }
+
     final gamesApi = _client.gamesApi;
     if (gamesApi == null) {
       setState(() {
@@ -391,22 +452,7 @@ class _GamesBrowserScreenState extends State<GamesBrowserScreen>
     try {
       final systems = await gamesApi.getSystems(widget.libraryId);
       if (!mounted) return;
-      for (final node in _carouselFocusNodes) {
-        node.dispose();
-      }
-      _carouselFocusNodes.clear();
-      for (var i = 0; i < systems.length; i++) {
-        _carouselFocusNodes.add(FocusNode(debugLabel: 'console_carousel_$i'));
-      }
-      setState(() {
-        _systems = systems;
-        _loading = false;
-      });
-      unawaited(_ensureConsoleLogos());
-
-      if (systems.isNotEmpty) {
-        _selectSystem(0);
-      }
+      _applySystems(systems);
     } catch (e) {
       if (!mounted) return;
       setState(() {
@@ -414,6 +460,60 @@ class _GamesBrowserScreenState extends State<GamesBrowserScreen>
         _error = 'Failed to load systems: $e';
       });
     }
+  }
+
+  void _applySystems(List<GameSystem> systems) {
+    for (final node in _carouselFocusNodes) {
+      node.dispose();
+    }
+    _carouselFocusNodes.clear();
+    for (var i = 0; i < systems.length; i++) {
+      _carouselFocusNodes.add(FocusNode(debugLabel: 'console_carousel_$i'));
+    }
+    setState(() {
+      _systems = systems;
+      _loading = false;
+    });
+    unawaited(_ensureConsoleLogos());
+    if (systems.isNotEmpty) _selectSystem(0);
+  }
+
+  Future<void> _loadDevelopers() async {
+    final rom = widget.romGames;
+    if (rom == null || !mounted) return;
+    final rows = await rom.developers(_client);
+    if (!mounted || rows.isEmpty) return;
+    for (final node in _developerFocusNodes) {
+      node.dispose();
+    }
+    setState(() {
+      _developers = rows;
+      _developerFocusNodes = [
+        for (var i = 0; i < rows.length; i++)
+          FocusNode(debugLabel: 'games_dev_$i'),
+      ];
+    });
+  }
+
+  String _coreFor(String name) {
+    final key = name.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]'), '');
+    const cores = <String, String>{
+      'arcade': 'arcade',
+      'mame': 'arcade',
+      'fbneo': 'arcade',
+      'nes': 'fceumm',
+      'famicom': 'fceumm',
+      'snes': 'snes9x',
+      'supernintendo': 'snes9x',
+      'superfamicom': 'snes9x',
+      'genesis': 'genesis_plus_gx',
+      'megadrive': 'genesis_plus_gx',
+      'gb': 'gambatte',
+      'gbc': 'gambatte',
+      'gba': 'mgba',
+      'n64': 'mupen64plus_next',
+    };
+    return cores[key] ?? '';
   }
 
   /// The name the ROM Manager plugin files a console logo under. The plugin
@@ -451,6 +551,10 @@ class _GamesBrowserScreenState extends State<GamesBrowserScreen>
     if (index < 0 || index >= _systems.length) return;
     _selectedSystemIndex = index;
     final system = _systems[index];
+    _bucket = '';
+    _letterFilter = '';
+    _developer = null;
+    _showBuckets = false;
 
     if (_artworkScope case final scope?) {
       releaseGameArtworkCacheScope(scope);
@@ -479,27 +583,6 @@ class _GamesBrowserScreenState extends State<GamesBrowserScreen>
     }
   }
 
-  bool get _needsFullCatalog {
-    if (_currentTab != _BrowserTab.all) return true;
-    if (_currentSort != _BrowserSort.nameAsc) return true;
-    if (_letterFilter.isNotEmpty) return true;
-    if (gameBrowseQueryWords(_searchController.text).isNotEmpty) return true;
-    return false;
-  }
-
-  void _scheduleCatalogDrain() {
-    if (!_needsFullCatalog ||
-        _gamesComplete ||
-        _loadingGames ||
-        _loadingMoreGames) {
-      return;
-    }
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) return;
-      _maybeLoadNextGamesPage();
-    });
-  }
-
   void _scheduleViewportFill() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted || _gamesComplete || _loadingGames || _loadingMoreGames) {
@@ -526,10 +609,10 @@ class _GamesBrowserScreenState extends State<GamesBrowserScreen>
       _romById = {};
       _covers = {};
       _romCatalog = false;
-      _romCatalogDisabled = false;
       _gamesError = null;
       _gamesTotal = 0;
       _gamesComplete = false;
+      _showBuckets = false;
       _loadedSystemId = system.id;
     });
     cleanupGridFocusNodes(0);
@@ -575,6 +658,24 @@ class _GamesBrowserScreenState extends State<GamesBrowserScreen>
       if (!mounted || epoch != _gamesEpoch) return;
       if (_systems[_selectedSystemIndex].id != system.id) return;
 
+      if (loaded.bucketPicker) {
+        setState(() {
+          _romCatalog = true;
+          _showBuckets = true;
+          _buckets = loaded.buckets;
+          _allSystemGames = const [];
+          _textIndexes = {};
+          _romById = {};
+          _gamesTotal = loaded.page.total;
+          _gamesComplete = true;
+          _gamesError = null;
+          _loadingGames = false;
+          _loadingMoreGames = false;
+          _loadedSystemId = system.id;
+        });
+        return;
+      }
+
       if (loaded.roms != null) {
         _romCatalog = true;
         for (final game in loaded.roms!) {
@@ -583,7 +684,6 @@ class _GamesBrowserScreenState extends State<GamesBrowserScreen>
         if (loaded.roms!.isNotEmpty) unawaited(_loadCovers(loaded.roms!));
       } else if (offset == 0) {
         _romCatalog = false;
-        _romCatalogDisabled = loaded.disableRomCatalog;
       }
 
       final page = loaded.page;
@@ -608,13 +708,14 @@ class _GamesBrowserScreenState extends State<GamesBrowserScreen>
         _gamesError = loaded.error;
         _loadingGames = false;
         _loadingMoreGames = false;
+        _showBuckets = false;
         _loadedSystemId = system.id;
       });
       cleanupGridFocusNodes(merged.length);
       if (!_romCatalog) {
         unawaited(_refreshArtworkPage(system.id, page.offset, page.limit));
       }
-      if (!complete) {
+      if (!complete && !loaded.bucketPicker) {
         _scheduleViewportFill();
       }
     } catch (_) {
@@ -632,65 +733,167 @@ class _GamesBrowserScreenState extends State<GamesBrowserScreen>
     }
   }
 
-  /// The phone's grouped catalog when ROM Manager answers, otherwise one
-  /// window of the Moonbase file list. Does not touch widget state; the caller
-  /// applies [_LoadedGamePage.roms] only if this load is still current.
-  Future<_LoadedGamePage> _loadGamePage(GameSystem system, int offset) async {
+  /// The phone's grouped catalog when ROM Manager answers. The Moonbase file
+  /// list is used only when that plugin route is missing (HTTP 404). A timeout
+  /// or an empty index is an error with retry, not a list of zip names.
+  Future<_LoadedGamePage> _loadGamePage(
+    GameSystem system,
+    int offset, {
+    bool allowProbe = true,
+  }) async {
     final rom = widget.romGames;
-    if (rom != null && !_romCatalogDisabled) {
+    if (rom != null && !_pluginMissing) {
+      final probe = allowProbe && _shouldProbe(system, offset);
+      final keys = _catalogKeys();
+      if (keys != null && keys.isEmpty) {
+        return _LoadedGamePage(
+          page: GamePage(
+            items: const [],
+            total: 0,
+            offset: offset,
+            limit: RomManagerGames.libraryPageSize,
+          ),
+          roms: const [],
+        );
+      }
       final grouped = await rom.page(
         client: _client,
-        system: system.name,
+        system: _developer == null ? system.name : '',
         offset: offset,
-        sort: 'title',
+        sort: _catalogSort,
+        query: _catalogQuery,
+        letter: _letterFilter.isEmpty ? null : _letterFilter,
+        bucket: _bucket.isEmpty ? null : _bucket,
+        developer: _developer?.name,
+        includeBuckets: probe,
+        limit: probe ? 1 : RomManagerGames.libraryPageSize,
+        keys: keys,
       );
-      if (grouped != null &&
-          offset == 0 &&
-          grouped.indexing &&
-          grouped.items.isEmpty) {
+      if (grouped == null) {
+        if (rom.lastFailure == RomCatalogFailure.failed) {
+          return _LoadedGamePage(
+            page: GamePage(
+              items: const [],
+              total: 0,
+              offset: offset,
+              limit: RomManagerGames.libraryPageSize,
+            ),
+            error: 'Could not load ${system.name}.',
+          );
+        }
+        if (offset > 0) throw StateError('ROM catalog page failed');
+        _pluginMissing = true;
+        return _LoadedGamePage(
+          page: await _moonbasePage(system, offset),
+        );
+      }
+      if (offset == 0 && grouped.indexing && grouped.items.isEmpty) {
         return _LoadedGamePage(
           page: GamePage(
             items: const [],
             total: 0,
             offset: 0,
-            limit: RomManagerGames.pageSize,
+            limit: RomManagerGames.libraryPageSize,
           ),
           roms: const [],
           error: grouped.message ?? 'Library is being indexed.',
         );
       }
-      final indexMiss =
-          grouped != null &&
+      final narrowed = _bucket.isNotEmpty ||
+          _letterFilter.isNotEmpty ||
+          _developer != null ||
+          _catalogQuery != null ||
+          _currentTab != _BrowserTab.all;
+      if (!narrowed &&
           offset == 0 &&
           grouped.items.isEmpty &&
           grouped.total == 0 &&
           !grouped.indexing &&
-          system.gameCount > 0;
-      if (grouped != null && !indexMiss) {
+          system.gameCount > 0) {
         return _LoadedGamePage(
           page: GamePage(
-            items: [
-              for (final game in grouped.items) game.toSummary(system.core),
-            ],
-            total: grouped.total,
-            offset: offset,
-            limit: RomManagerGames.pageSize,
+            items: const [],
+            total: 0,
+            offset: 0,
+            limit: RomManagerGames.libraryPageSize,
           ),
-          roms: grouped.items,
+          roms: const [],
+          error: '${system.name} is not in the ROM index.',
         );
       }
-      // A later page must not switch to the file list mid-catalog. The rows
-      // already on screen stay, and the grid stops requesting more.
-      if (offset > 0) {
-        throw StateError('ROM catalog page failed');
+      if (probe &&
+          grouped.total > RomManagerGames.bucketThreshold &&
+          grouped.buckets.length >= RomManagerGames.letterBuckets.length) {
+        return _LoadedGamePage(
+          page: GamePage(
+            items: const [],
+            total: grouped.total,
+            offset: 0,
+            limit: 1,
+          ),
+          roms: const [],
+          buckets: grouped.buckets,
+          bucketPicker: true,
+        );
+      }
+      if (probe && grouped.items.length < grouped.total) {
+        return _loadGamePage(system, offset, allowProbe: false);
       }
       return _LoadedGamePage(
-        page: await _moonbasePage(system, offset),
-        disableRomCatalog: true,
+        page: GamePage(
+          items: [
+            for (final game in grouped.items) game.toSummary(system.core),
+          ],
+          total: grouped.total,
+          offset: offset,
+          limit: probe ? 1 : RomManagerGames.libraryPageSize,
+        ),
+        roms: grouped.items,
       );
     }
 
     return _LoadedGamePage(page: await _moonbasePage(system, offset));
+  }
+
+  bool _shouldProbe(GameSystem system, int offset) {
+    if (offset != 0 || widget.romGames == null || _pluginMissing) return false;
+    if (_bucket.isNotEmpty || _letterFilter.isNotEmpty || _developer != null) {
+      return false;
+    }
+    if (_catalogQuery != null || _currentTab != _BrowserTab.all) return false;
+    return system.gameCount > RomManagerGames.bucketThreshold;
+  }
+
+  String? get _catalogQuery {
+    final text = _searchController.text.trim();
+    return text.isEmpty ? null : text;
+  }
+
+  String? get _bucketLabel {
+    if (_bucket.isEmpty) return null;
+    final want = _bucket.toLowerCase();
+    for (final row in _buckets) {
+      if (row.id.toLowerCase() == want) return row.label;
+    }
+    for (final pair in RomManagerGames.letterBuckets) {
+      if (pair.id.toLowerCase() == want) return pair.label;
+    }
+    return _bucket;
+  }
+
+  String get _catalogSort => switch (_currentSort) {
+    _BrowserSort.nameDesc => 'title-desc',
+    _ => 'title',
+  };
+
+  List<String>? _catalogKeys() {
+    if (_currentTab == _BrowserTab.favorites) {
+      return GameLocalData.instance.favoriteIds(widget.libraryId);
+    }
+    if (_currentTab == _BrowserTab.recent) {
+      return GameLocalData.instance.recentIds(widget.libraryId);
+    }
+    return null;
   }
 
   Future<GamePage> _moonbasePage(GameSystem system, int offset) {
@@ -746,6 +949,7 @@ class _GamesBrowserScreenState extends State<GamesBrowserScreen>
   }
 
   List<GameSummary> _getFilteredAndSortedGames() {
+    if (_romCatalog) return _allSystemGames;
     var games = _allSystemGames;
     final queryWords = gameBrowseQueryWords(_searchController.text);
 
@@ -876,11 +1080,11 @@ class _GamesBrowserScreenState extends State<GamesBrowserScreen>
         _closeSideMenu();
       case _GamesNavItem.favorites:
         _closeSideMenu();
-        setState(() => _currentTab = _BrowserTab.favorites);
+        _setTab(_BrowserTab.favorites);
         _tabFavFocusNode.requestFocus();
       case _GamesNavItem.recent:
         _closeSideMenu();
-        setState(() => _currentTab = _BrowserTab.recent);
+        _setTab(_BrowserTab.recent);
         _tabRecentFocusNode.requestFocus();
       case _GamesNavItem.collections:
         _closeSideMenu(restoreFocus: false);
@@ -987,7 +1191,11 @@ class _GamesBrowserScreenState extends State<GamesBrowserScreen>
     }
 
     if (event.logicalKey.isDownKey) {
-      _focusTab(_currentTab);
+      if (_developers.isNotEmpty && _developerFocusNodes.isNotEmpty) {
+        _developerFocusNodes.first.requestFocus();
+      } else {
+        _focusTab(_currentTab);
+      }
       return KeyEventResult.handled;
     }
 
@@ -1042,7 +1250,11 @@ class _GamesBrowserScreenState extends State<GamesBrowserScreen>
     }
 
     if (event.logicalKey.isDownKey) {
-      _focusTab(_currentTab);
+      if (_developers.isNotEmpty && _developerFocusNodes.isNotEmpty) {
+        _developerFocusNodes.first.requestFocus();
+      } else {
+        _focusTab(_currentTab);
+      }
       return KeyEventResult.handled;
     }
 
@@ -1098,29 +1310,98 @@ class _GamesBrowserScreenState extends State<GamesBrowserScreen>
     getGridItemFocusNode(0, prefix: 'game_poster').requestFocus();
   }
 
+  void _focusBelowTabs() {
+    if (_showBuckets && _bucketFocusNodes.isNotEmpty) {
+      _bucketFocusNodes.first.requestFocus();
+      return;
+    }
+    _focusFirstGridItem();
+  }
+
+  void _setTab(_BrowserTab tab) {
+    _currentTab = tab;
+    if (tab != _BrowserTab.all) _bucket = '';
+    if (_romCatalog && _systems.isNotEmpty) {
+      _loadGamesForSystem(_systems[_selectedSystemIndex]);
+    } else {
+      setState(() {});
+    }
+  }
+
+  void _setLetter(String letter) {
+    _letterFilter = letter;
+    if (letter.isNotEmpty) _bucket = '';
+    if (_romCatalog && _systems.isNotEmpty) {
+      _loadGamesForSystem(_systems[_selectedSystemIndex]);
+    } else {
+      setState(() {});
+    }
+  }
+
+  void _onSearchChanged(String _) {
+    _searchDebounce?.cancel();
+    if (widget.romGames == null || _pluginMissing || !_romCatalog) {
+      setState(() {});
+      return;
+    }
+    _searchDebounce = Timer(const Duration(milliseconds: 250), () {
+      if (!mounted || _systems.isEmpty) return;
+      _bucket = '';
+      _loadGamesForSystem(_systems[_selectedSystemIndex]);
+    });
+  }
+
+  void _openBucket(String id) {
+    if (_systems.isEmpty) return;
+    _bucket = id;
+    _showBuckets = false;
+    _loadGamesForSystem(_systems[_selectedSystemIndex]);
+  }
+
+  void _leaveBucket() {
+    if (_systems.isEmpty) return;
+    _bucket = '';
+    _loadGamesForSystem(_systems[_selectedSystemIndex]);
+  }
+
+  void _setDeveloper(RomDeveloper row) {
+    if (_systems.isEmpty) return;
+    _developer = _developer?.name == row.name ? null : row;
+    _bucket = '';
+    _loadGamesForSystem(_systems[_selectedSystemIndex]);
+  }
+
   KeyEventResult _handleTabKeyEvent(_BrowserTab tab, KeyEvent event) {
     if (!event.isActionable) return KeyEventResult.ignored;
 
     if (event.logicalKey.isUpKey) {
-      if (_selectedSystemIndex < _carouselFocusNodes.length) {
+      if (_developers.isNotEmpty && _developerFocusNodes.isNotEmpty) {
+        final selected = _developers.indexWhere(
+          (row) => row.name == _developer?.name,
+        );
+        final index = selected < 0 ? 0 : selected;
+        if (index < _developerFocusNodes.length) {
+          _developerFocusNodes[index].requestFocus();
+        }
+      } else if (_selectedSystemIndex < _carouselFocusNodes.length) {
         _carouselFocusNodes[_selectedSystemIndex].requestFocus();
       }
       return KeyEventResult.handled;
     }
 
     if (event.logicalKey.isDownKey) {
-      _focusFirstGridItem();
+      _focusBelowTabs();
       return KeyEventResult.handled;
     }
 
     if (event.logicalKey.isLeftKey) {
       if (tab == _BrowserTab.favorites) {
-        setState(() => _currentTab = _BrowserTab.all);
+        _setTab(_BrowserTab.all);
         _tabAllFocusNode.requestFocus();
         return KeyEventResult.handled;
       }
       if (tab == _BrowserTab.recent) {
-        setState(() => _currentTab = _BrowserTab.favorites);
+        _setTab(_BrowserTab.favorites);
         _tabFavFocusNode.requestFocus();
         return KeyEventResult.handled;
       }
@@ -1132,12 +1413,12 @@ class _GamesBrowserScreenState extends State<GamesBrowserScreen>
 
     if (event.logicalKey.isRightKey) {
       if (tab == _BrowserTab.all) {
-        setState(() => _currentTab = _BrowserTab.favorites);
+        _setTab(_BrowserTab.favorites);
         _tabFavFocusNode.requestFocus();
         return KeyEventResult.handled;
       }
       if (tab == _BrowserTab.favorites) {
-        setState(() => _currentTab = _BrowserTab.recent);
+        _setTab(_BrowserTab.recent);
         _tabRecentFocusNode.requestFocus();
         return KeyEventResult.handled;
       }
@@ -1155,7 +1436,7 @@ class _GamesBrowserScreenState extends State<GamesBrowserScreen>
     }
 
     if (event.logicalKey.isSelectKey) {
-      setState(() => _currentTab = tab);
+      _setTab(tab);
       return KeyEventResult.handled;
     }
 
@@ -1173,7 +1454,7 @@ class _GamesBrowserScreenState extends State<GamesBrowserScreen>
     }
 
     if (event.logicalKey.isDownKey) {
-      _focusFirstGridItem();
+      _focusBelowTabs();
       return KeyEventResult.handled;
     }
 
@@ -1216,7 +1497,12 @@ class _GamesBrowserScreenState extends State<GamesBrowserScreen>
     }
 
     if (event.logicalKey.isDownKey) {
-      _focusFirstGridItem();
+      setState(() => _letterFilterVisible = true);
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        (_letterFocusNodes[_letterFilter] ?? _letterFocusNodes[''])
+            ?.requestFocus();
+      });
       return KeyEventResult.handled;
     }
 
@@ -1257,6 +1543,9 @@ class _GamesBrowserScreenState extends State<GamesBrowserScreen>
         _BrowserSort.recent => _BrowserSort.nameAsc,
       };
     });
+    if (_romCatalog && !_showBuckets && _systems.isNotEmpty) {
+      _loadGamesForSystem(_systems[_selectedSystemIndex]);
+    }
   }
 
   String get _sortLabel => switch (_currentSort) {
@@ -1264,6 +1553,22 @@ class _GamesBrowserScreenState extends State<GamesBrowserScreen>
     _BrowserSort.nameDesc => 'Name Z–A',
     _BrowserSort.recent => 'Recently played',
   };
+
+  Future<String?> _chooseRomPath(RomManagerGame game) async {
+    if (game.versions <= 1) return game.path;
+    final rom = widget.romGames;
+    if (rom == null) return game.path;
+    final versions = await rom.versions(client: _client, key: game.key);
+    if (!mounted) return null;
+    if (versions.length <= 1) {
+      return versions.isEmpty ? game.path : versions.first.path;
+    }
+    return showDialog<String>(
+      context: context,
+      builder: (context) =>
+          _RomVersionDialog(title: game.title, versions: versions),
+    );
+  }
 
   void _openGameDetail(GameSummary game) {
     final rom = _romById[game.id];
@@ -1277,10 +1582,12 @@ class _GamesBrowserScreenState extends State<GamesBrowserScreen>
   Future<void> _openRomGame(RomManagerGame game) async {
     final rom = widget.romGames;
     if (rom == null) return;
+    final path = await _chooseRomPath(game);
+    if (!mounted || path == null) return;
     final resolved = await rom.launch(
       client: _client,
       key: game.key,
-      path: game.path,
+      path: path,
     );
     if (!mounted) return;
     final libraryId = resolved?.libraryId;
@@ -1339,10 +1646,12 @@ class _GamesBrowserScreenState extends State<GamesBrowserScreen>
     final gamesApi = _client.gamesApi;
     if (rom == null || gamesApi == null) return;
     try {
+      final path = await _chooseRomPath(game);
+      if (!mounted || path == null) return;
       final resolved = await rom.launch(
         client: _client,
         key: game.key,
-        path: game.path,
+        path: path,
       );
       if (!mounted) return;
       if (resolved == null || resolved.playable != true) {
@@ -1390,11 +1699,13 @@ class _GamesBrowserScreenState extends State<GamesBrowserScreen>
     final isTV = PlatformDetection.isTV;
 
     return PopScope(
-      canPop: !isTV && !_sideMenuOpen,
+      canPop: !isTV && !_sideMenuOpen && _bucket.isEmpty,
       onPopInvokedWithResult: (didPop, _) {
         if (didPop) return;
         if (_sideMenuOpen) {
           _closeSideMenu();
+        } else if (_bucket.isNotEmpty) {
+          _leaveBucket();
         } else {
           context.popOrHome();
         }
@@ -1458,7 +1769,6 @@ class _GamesBrowserScreenState extends State<GamesBrowserScreen>
   }
 
   Widget _buildMainContent() {
-    _scheduleCatalogDrain();
     final filteredGames = _getFilteredAndSortedGames();
     final isTV = PlatformDetection.isTV;
 
@@ -1475,6 +1785,10 @@ class _GamesBrowserScreenState extends State<GamesBrowserScreen>
                 _buildBrowseHeading(),
                 const SizedBox(height: 10),
                 _buildConsoleCarousel(),
+                if (_developers.isNotEmpty) ...[
+                  const SizedBox(height: 8),
+                  _buildDeveloperRow(),
+                ],
                 const SizedBox(height: 20),
                 _buildSectionHeader(_headerGameCount(filteredGames)),
                 const SizedBox(height: 12),
@@ -1483,10 +1797,10 @@ class _GamesBrowserScreenState extends State<GamesBrowserScreen>
                   const SizedBox(height: 10),
                   GameAlphaPickerBar(
                     selected: _letterFilter,
-                    onChanged: (letter) =>
-                        setState(() => _letterFilter = letter),
+                    onChanged: _setLetter,
                     letterFocusNodes: _letterFocusNodes,
                     onNavigateUp: () => _filterFocusNode.requestFocus(),
+                    onNavigateDown: _focusBelowTabs,
                   ),
                 ],
                 const SizedBox(height: 14),
@@ -1495,8 +1809,10 @@ class _GamesBrowserScreenState extends State<GamesBrowserScreen>
                         padding: EdgeInsets.symmetric(vertical: 48),
                         child: Center(child: CircularProgressIndicator()),
                       )
-                    : _gamesError != null && filteredGames.isEmpty
+                    : _gamesError != null && filteredGames.isEmpty && !_showBuckets
                     ? _buildGamesError()
+                    : _showBuckets
+                    ? _buildBucketGrid()
                     : _buildGamesGrid(filteredGames),
                 SizedBox(height: isTV ? 32 : 16),
               ],
@@ -1521,7 +1837,7 @@ class _GamesBrowserScreenState extends State<GamesBrowserScreen>
                 focusNode: _searchFocusNode,
                 tvFieldKey: _searchTvKey,
                 hint: 'Search games, platforms, genres...',
-                onChanged: (_) => setState(() {}),
+                onChanged: _onSearchChanged,
                 onTvKeyEvent: (node, event) => _handleSearchKeyEvent(event),
               ),
             ),
@@ -1657,7 +1973,10 @@ class _GamesBrowserScreenState extends State<GamesBrowserScreen>
   Widget _buildSectionHeader(int visibleCount) {
     final isTV = PlatformDetection.isTV;
     final system = _systems[_selectedSystemIndex];
-    final name = _logoNameFor(system);
+    final consoleName = _logoNameFor(system);
+    final range = _bucketLabel;
+    final name = _developer?.name ??
+        (range == null ? consoleName : '$consoleName · $range');
     final logo = _logoForSystem(system);
     final amiga =
         isAmigaSystemId(system.id) ||
@@ -1701,6 +2020,11 @@ class _GamesBrowserScreenState extends State<GamesBrowserScreen>
             ),
           ),
           const Spacer(),
+          if (_bucket.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.only(right: 12),
+              child: _RangesBackButton(onPressed: _leaveBucket),
+            ),
           Text(
             '| $visibleCount Games',
             style: TextStyle(
@@ -1768,7 +2092,7 @@ class _GamesBrowserScreenState extends State<GamesBrowserScreen>
             final hasFocus = Focus.of(context).hasFocus;
             return GestureDetector(
               onTap: () {
-                setState(() => _currentTab = tab);
+                _setTab(tab);
                 focusNode.requestFocus();
               },
               child: AnimatedContainer(
@@ -2018,6 +2342,142 @@ class _GamesBrowserScreenState extends State<GamesBrowserScreen>
     );
   }
 
+  Widget _buildDeveloperRow() {
+    final isTV = PlatformDetection.isTV;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: EdgeInsets.fromLTRB(isTV ? 28 : 16, 8, isTV ? 28 : 16, 8),
+          child: Text(
+            'Browse by Developer',
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: isTV ? 20 : 17,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ),
+        SizedBox(
+          height: isTV ? 92 : 78,
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
+            padding: EdgeInsets.symmetric(horizontal: isTV ? 28 : 16),
+            itemCount: _developers.length,
+            separatorBuilder: (_, _) => const SizedBox(width: 10),
+            itemBuilder: (context, index) {
+              final row = _developers[index];
+              final selected = _developer?.name == row.name;
+              return _DeveloperChip(
+                row: row,
+                selected: selected,
+                focusNode: _developerFocusNodes[index],
+                onTap: () => _setDeveloper(row),
+                onUp: () {
+                  if (_selectedSystemIndex < _carouselFocusNodes.length) {
+                    _carouselFocusNodes[_selectedSystemIndex].requestFocus();
+                  }
+                },
+                onDown: () => _focusTab(_currentTab),
+              );
+            },
+          ),
+        ),
+      ],
+    );
+  }
+
+  List<RomLetterBucket> get _orderedBuckets {
+    final byId = <String, RomLetterBucket>{
+      for (final row in _buckets) row.id.toLowerCase(): row,
+    };
+    return [
+      for (final pair in RomManagerGames.letterBuckets)
+        byId[pair.id.toLowerCase()] ??
+            RomLetterBucket(id: pair.id, label: pair.label, games: 0),
+    ];
+  }
+
+  Widget _buildBucketGrid() {
+    final isTV = PlatformDetection.isTV;
+    final rows = _orderedBuckets;
+    return Padding(
+      padding: EdgeInsets.fromLTRB(isTV ? 28 : 16, 4, isTV ? 28 : 16, 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Pick a letter range. Each one loads on its own.',
+            style: TextStyle(
+              color: Colors.white.withValues(alpha: 0.62),
+              fontSize: isTV ? 16 : 13,
+            ),
+          ),
+          const SizedBox(height: 12),
+          GridView.builder(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            itemCount: rows.length,
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 3,
+              mainAxisSpacing: 12,
+              crossAxisSpacing: 12,
+              mainAxisExtent: 118,
+            ),
+            itemBuilder: (context, index) {
+              final row = rows[index];
+              return _BucketTile(
+                bucket: row,
+                focusNode: _bucketFocusNodes[index],
+                onTap: () => _openBucket(row.id),
+                onKey: (event) => _handleBucketKey(index, rows.length, event),
+              );
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  KeyEventResult _handleBucketKey(int index, int count, KeyEvent event) {
+    if (!event.isActionable) return KeyEventResult.ignored;
+    const columns = 3;
+    if (event.logicalKey.isSelectKey) {
+      if (event is KeyDownEvent) _openBucket(_orderedBuckets[index].id);
+      return KeyEventResult.handled;
+    }
+    if (event.logicalKey.isLeftKey && index % columns != 0) {
+      _bucketFocusNodes[index - 1].requestFocus();
+      return KeyEventResult.handled;
+    }
+    if (event.logicalKey.isRightKey && index + 1 < count) {
+      _bucketFocusNodes[index + 1].requestFocus();
+      return KeyEventResult.handled;
+    }
+    if (event.logicalKey.isUpKey) {
+      if (index >= columns) {
+        _bucketFocusNodes[index - columns].requestFocus();
+      } else {
+        _focusTab(_currentTab);
+      }
+      return KeyEventResult.handled;
+    }
+    if (event.logicalKey.isDownKey && index + columns < count) {
+      _bucketFocusNodes[index + columns].requestFocus();
+      return KeyEventResult.handled;
+    }
+    if (event.logicalKey.isBackKey) {
+      _focusTab(_currentTab);
+      return KeyEventResult.handled;
+    }
+    if (event.logicalKey.isLeftKey ||
+        event.logicalKey.isRightKey ||
+        event.logicalKey.isDownKey) {
+      return KeyEventResult.handled;
+    }
+    return KeyEventResult.ignored;
+  }
+
   Widget _buildGamesError() {
     final system = _systems[_selectedSystemIndex];
     return Center(
@@ -2216,14 +2676,16 @@ class _LoadedGamePage {
   const _LoadedGamePage({
     required this.page,
     this.roms,
-    this.disableRomCatalog = false,
     this.error,
+    this.buckets = const [],
+    this.bucketPicker = false,
   });
 
   final GamePage page;
   final List<RomManagerGame>? roms;
-  final bool disableRomCatalog;
   final String? error;
+  final List<RomLetterBucket> buckets;
+  final bool bucketPicker;
 }
 
 /// The "2 Versions" / "Cheat" / "Hack" chips over a box art. The server does
@@ -2995,6 +3457,304 @@ class _StatCard extends StatelessWidget {
             ),
           ],
         ],
+      ),
+    );
+  }
+}
+
+class _RangesBackButton extends StatelessWidget {
+  const _RangesBackButton({required this.onPressed});
+
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return Focus(
+      onKeyEvent: (node, event) {
+        if (!event.isActionable || !event.logicalKey.isSelectKey) {
+          return KeyEventResult.ignored;
+        }
+        if (event is KeyDownEvent) onPressed();
+        return KeyEventResult.handled;
+      },
+      child: Builder(
+        builder: (context) {
+          final focused = Focus.of(context).hasFocus;
+          return GestureDetector(
+            onTap: onPressed,
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 120),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(
+                  color: focused
+                      ? AppColorScheme.accent
+                      : Colors.white.withValues(alpha: 0.24),
+                  width: focused ? 2 : 1,
+                ),
+              ),
+              child: const Text(
+                'All ranges',
+                style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _DeveloperChip extends StatelessWidget {
+  const _DeveloperChip({
+    required this.row,
+    required this.selected,
+    required this.focusNode,
+    required this.onTap,
+    required this.onUp,
+    required this.onDown,
+  });
+
+  final RomDeveloper row;
+  final bool selected;
+  final FocusNode focusNode;
+  final VoidCallback onTap;
+  final VoidCallback onUp;
+  final VoidCallback onDown;
+
+  @override
+  Widget build(BuildContext context) {
+    return Focus(
+      focusNode: focusNode,
+      onKeyEvent: (node, event) {
+        if (!event.isActionable) return KeyEventResult.ignored;
+        if (event.logicalKey.isUpKey) {
+          onUp();
+          return KeyEventResult.handled;
+        }
+        if (event.logicalKey.isDownKey) {
+          onDown();
+          return KeyEventResult.handled;
+        }
+        if (event.logicalKey.isSelectKey) {
+          if (event is KeyDownEvent) onTap();
+          return KeyEventResult.handled;
+        }
+        return KeyEventResult.ignored;
+      },
+      child: Builder(
+        builder: (context) {
+          final focused = Focus.of(context).hasFocus;
+          return GestureDetector(
+            onTap: onTap,
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 120),
+              width: 168,
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(14),
+                color: selected
+                    ? AppColorScheme.accent.withValues(alpha: 0.28)
+                    : const Color(0xFF122139),
+                border: Border.all(
+                  color: focused
+                      ? AppColorScheme.accent
+                      : Colors.white.withValues(alpha: 0.16),
+                  width: focused ? 2 : 1,
+                ),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(
+                    row.name,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    '${row.games} Games',
+                    style: TextStyle(
+                      color: Colors.white.withValues(alpha: 0.65),
+                      fontSize: 12,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _BucketTile extends StatelessWidget {
+  const _BucketTile({
+    required this.bucket,
+    required this.focusNode,
+    required this.onTap,
+    required this.onKey,
+  });
+
+  final RomLetterBucket bucket;
+  final FocusNode focusNode;
+  final VoidCallback onTap;
+  final KeyEventResult Function(KeyEvent event) onKey;
+
+  @override
+  Widget build(BuildContext context) {
+    return Focus(
+      focusNode: focusNode,
+      onKeyEvent: (node, event) => onKey(event),
+      child: Builder(
+        builder: (context) {
+          final focused = Focus.of(context).hasFocus;
+          return GestureDetector(
+            onTap: onTap,
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 120),
+              padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(16),
+                gradient: const LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [Color(0xFF1D4E89), Color(0xFF0C1828)],
+                ),
+                border: Border.all(
+                  color: focused ? AppColorScheme.accent : Colors.white24,
+                  width: focused ? 2.5 : 1,
+                ),
+                boxShadow: focused
+                    ? [
+                        BoxShadow(
+                          color: AppColorScheme.accent.withValues(alpha: 0.45),
+                          blurRadius: 16,
+                        ),
+                      ]
+                    : null,
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'RANGE',
+                    style: TextStyle(
+                      color: Colors.white.withValues(alpha: 0.62),
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 1.2,
+                    ),
+                  ),
+                  const Spacer(),
+                  Text(
+                    bucket.label,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 26,
+                      fontWeight: FontWeight.w800,
+                      height: 1,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    '${bucket.games} Games',
+                    style: TextStyle(
+                      color: Colors.white.withValues(alpha: 0.78),
+                      fontSize: 13,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _RomVersionDialog extends StatelessWidget {
+  const _RomVersionDialog({required this.title, required this.versions});
+
+  final String title;
+  final List<RomVersion> versions;
+
+  @override
+  Widget build(BuildContext context) {
+    final best = versions.indexWhere((version) => version.best);
+    final initial = best < 0 ? 0 : best;
+    return AlertDialog(
+      backgroundColor: const Color(0xFF122139),
+      title: Text(title, style: const TextStyle(color: Colors.white)),
+      content: SizedBox(
+        width: 460,
+        child: ListView.separated(
+          shrinkWrap: true,
+          itemCount: versions.length,
+          separatorBuilder: (_, _) => const SizedBox(height: 8),
+          itemBuilder: (context, index) {
+            final version = versions[index];
+            return _VersionChoice(
+              label: version.best ? '${version.label}  ·  Best' : version.label,
+              autofocus: index == initial,
+              onChoose: () => Navigator.of(context).pop(version.path),
+            );
+          },
+        ),
+      ),
+    );
+  }
+}
+
+class _VersionChoice extends StatelessWidget {
+  const _VersionChoice({
+    required this.label,
+    required this.autofocus,
+    required this.onChoose,
+  });
+
+  final String label;
+  final bool autofocus;
+  final VoidCallback onChoose;
+
+  @override
+  Widget build(BuildContext context) {
+    return Focus(
+      autofocus: autofocus,
+      onKeyEvent: (node, event) {
+        if (!event.isActionable || !event.logicalKey.isSelectKey) {
+          return KeyEventResult.ignored;
+        }
+        if (event is KeyDownEvent) onChoose();
+        return KeyEventResult.handled;
+      },
+      child: Builder(
+        builder: (context) {
+          final focused = Focus.of(context).hasFocus;
+          return GestureDetector(
+            onTap: onChoose,
+            child: Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(
+                  color: focused ? AppColorScheme.accent : Colors.white24,
+                  width: focused ? 2 : 1,
+                ),
+              ),
+              child: Text(label, style: const TextStyle(color: Colors.white)),
+            ),
+          );
+        },
       ),
     );
   }

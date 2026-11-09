@@ -40,6 +40,12 @@ class _GroupedArcade extends RomManagerGames {
     int offset = 0,
     String sort = 'title',
     String? query,
+    String? letter,
+    String? bucket,
+    String? developer,
+    bool includeBuckets = false,
+    int? limit,
+    List<String>? keys,
   }) async {
     calls++;
     return const RomManagerGamePage(
@@ -56,6 +62,16 @@ class _GroupedArcade extends RomManagerGames {
       indexing: false,
     );
   }
+
+  @override
+  Future<RomSystemList> systems(MediaServerClient client) async =>
+      const RomSystemList(pluginMissing: true);
+
+  @override
+  Future<List<RomDeveloper>> developers(
+    MediaServerClient client, {
+    int limit = 40,
+  }) async => const [];
 
   @override
   Future<Map<String, Uint8List>> covers(

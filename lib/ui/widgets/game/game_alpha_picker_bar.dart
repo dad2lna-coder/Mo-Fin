@@ -20,6 +20,7 @@ class GameAlphaPickerBar extends StatelessWidget {
     required this.onChanged,
     this.letterFocusNodes,
     this.onNavigateUp,
+    this.onNavigateDown,
   });
 
   final String selected;
@@ -29,6 +30,10 @@ class GameAlphaPickerBar extends StatelessWidget {
   /// Called when the user presses up from any letter, so the screen can move
   /// focus to the search field above instead of falling through to the grid.
   final VoidCallback? onNavigateUp;
+
+  /// Called when the user presses down, so a letter range or the grid can
+  /// take focus instead of the scroll view swallowing the key.
+  final VoidCallback? onNavigateDown;
 
   static const letters = [
     '',
@@ -74,6 +79,7 @@ class GameAlphaPickerBar extends StatelessWidget {
             onTap: () => onChanged(letter),
             focusNode: letterFocusNodes?[letter],
             onNavigateUp: onNavigateUp,
+            onNavigateDown: onNavigateDown,
           );
         }).toList(),
       ),
@@ -88,6 +94,7 @@ class _GameAlphaLetterButton extends StatefulWidget {
     required this.onTap,
     this.focusNode,
     this.onNavigateUp,
+    this.onNavigateDown,
   });
 
   final String label;
@@ -95,6 +102,7 @@ class _GameAlphaLetterButton extends StatefulWidget {
   final VoidCallback onTap;
   final FocusNode? focusNode;
   final VoidCallback? onNavigateUp;
+  final VoidCallback? onNavigateDown;
 
   @override
   State<_GameAlphaLetterButton> createState() => _GameAlphaLetterButtonState();
@@ -128,6 +136,12 @@ class _GameAlphaLetterButtonState extends State<_GameAlphaLetterButton>
                 event.isActionable &&
                 event.logicalKey.isUpKey) {
               widget.onNavigateUp!();
+              return KeyEventResult.handled;
+            }
+            if (widget.onNavigateDown != null &&
+                event.isActionable &&
+                event.logicalKey.isDownKey) {
+              widget.onNavigateDown!();
               return KeyEventResult.handled;
             }
             if (!event.logicalKey.isSelectKey) {

@@ -102,6 +102,24 @@ class GameLocalData {
     return List<String>.unmodifiable(_recents);
   }
 
+  /// ROM keys stored as favorites for one library, without the library prefix.
+  List<String> favoriteIds(String libraryId) =>
+      _idsFor(libraryId, _favorites);
+
+  /// Recent ROM keys, newest first, without the library prefix.
+  List<String> recentIds(String libraryId) => _idsFor(libraryId, _recents);
+
+  List<String> _idsFor(String libraryId, Iterable<String> stored) {
+    final prefix = '$libraryId:';
+    final ids = <String>[];
+    for (final key in stored) {
+      if (key.startsWith(prefix) && key.length > prefix.length) {
+        ids.add(key.substring(prefix.length));
+      }
+    }
+    return ids;
+  }
+
   int? recentIndex(String libraryId, String gameId) {
     final idx = _recents.indexOf(itemKey(libraryId, gameId));
     return idx >= 0 ? idx : null;

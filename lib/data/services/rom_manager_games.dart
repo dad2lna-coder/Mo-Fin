@@ -23,10 +23,29 @@ class RomManagerGames {
   /// skip rows if the client assumed a larger window.
   static const int pageSize = 60;
 
+  /// Page size the phone hub uses. Kept at or under [pageSize].
+  static const int libraryPageSize = 48;
+
+  /// Systems with more games than this open on the six letter ranges.
+  static const int bucketThreshold = 1000;
+
+  static const letterBuckets = <({String id, String label})>[
+    (id: '#-D', label: '# – D'),
+    (id: 'E-H', label: 'E – H'),
+    (id: 'I-L', label: 'I – L'),
+    (id: 'M-P', label: 'M – P'),
+    (id: 'Q-S', label: 'Q – S'),
+    (id: 'T-Z', label: 'T – Z'),
+  ];
+
   /// [RomChannel.MaxCovers].
   static const int maxCovers = 24;
 
-  static const Duration requestTimeout = Duration(seconds: 20);
+  static const Duration requestTimeout = Duration(seconds: 60);
+
+  /// Why the last [page] returned null. Unset after a successful page, and
+  /// left unset when a test double returns null without going through [page].
+  RomCatalogFailure? lastFailure;
 
   final Dio _dio;
   final Duration _timeout;
@@ -34,23 +53,50 @@ class RomManagerGames {
   /// Null when the plugin is missing or the body is not a catalog page.
   /// An empty page with `ok: true` is a real answer (unknown system, or the
   /// index is still building) and is not null.
+  ///
+  /// [lastFailure] is [RomCatalogFailure.missing] only for HTTP 404. A timeout
+  /// or any other error is [RomCatalogFailure.failed] so the screen can show
+  /// a retry instead of the raw file list.
   Future<RomManagerGamePage?> page({
     required MediaServerClient client,
     required String system,
     int offset = 0,
     String sort = 'title',
     String? query,
+    String? letter,
+    String? bucket,
+    String? developer,
+    bool includeBuckets = false,
+    int? limit,
+    List<String>? keys,
   }) async {
-    final data = await _post(client, 'games', <String, dynamic>{
+    lastFailure = null;
+    final reply = await _post(client, 'games', <String, dynamic>{
       'system': system,
       'sort': sort,
       'offset': offset,
-      'limit': pageSize,
+      'limit': limit ?? pageSize,
       if (query != null && query.trim().isNotEmpty) 'q': query.trim(),
+      if (letter != null && letter.isNotEmpty) 'letter': letter,
+      if (bucket != null && bucket.isNotEmpty) 'bucket': bucket,
+      if (developer != null && developer.isNotEmpty) 'developer': developer,
+      if (includeBuckets) 'includeBuckets': 1,
+      if (keys != null) 'keys': keys,
     });
-    if (data == null || data['ok'] != true) return null;
+    if (reply.missing) {
+      lastFailure = RomCatalogFailure.missing;
+      return null;
+    }
+    final data = reply.data;
+    if (data == null || data['ok'] != true) {
+      lastFailure = RomCatalogFailure.failed;
+      return null;
+    }
     final raw = data['items'];
-    if (raw is! List) return null;
+    if (raw is! List) {
+      lastFailure = RomCatalogFailure.failed;
+      return null;
+    }
     final items = <RomManagerGame>[];
     for (final row in raw) {
       if (row is! Map) continue;
@@ -76,7 +122,84 @@ class RomManagerGames {
       total: total is num ? total.toInt() : items.length,
       indexing: data['indexing'] == true,
       message: data['message'] is String ? data['message'] as String : null,
+      buckets: _buckets(data['buckets']),
     );
+  }
+
+  /// Index platform names. [RomSystemList.pluginMissing] is HTTP 404.
+  Future<RomSystemList> systems(MediaServerClient client) async {
+    final reply = await _post(client, 'systems', const <String, dynamic>{});
+    if (reply.missing) return const RomSystemList(pluginMissing: true);
+    final data = reply.data;
+    final raw = data == null || data['ok'] != true ? null : data['systems'];
+    if (raw is! List) return const RomSystemList(failed: true);
+    final systems = <RomSystemCount>[];
+    for (final row in raw) {
+      if (row is! Map) continue;
+      final name = row['system'];
+      if (name is! String || name.isEmpty) continue;
+      final games = row['games'];
+      systems.add(
+        RomSystemCount(
+          name: name,
+          games: games is num ? games.toInt() : 0,
+        ),
+      );
+    }
+    return RomSystemList(systems: systems);
+  }
+
+  /// Most games first. An empty list means the route failed or there are none.
+  Future<List<RomDeveloper>> developers(
+    MediaServerClient client, {
+    int limit = 40,
+  }) async {
+    final reply = await _post(client, 'developers', <String, dynamic>{
+      'min': 1,
+      'limit': limit,
+    });
+    final data = reply.data;
+    final raw = data == null || data['ok'] != true ? null : data['developers'];
+    if (raw is! List) return const [];
+    final rows = <RomDeveloper>[];
+    for (final row in raw) {
+      if (row is! Map) continue;
+      final name = row['name'];
+      if (name is! String || name.isEmpty) continue;
+      final games = row['games'];
+      rows.add(
+        RomDeveloper(
+          key: row['key'] is String ? row['key'] as String : name,
+          name: name,
+          games: games is num ? games.toInt() : 0,
+        ),
+      );
+    }
+    return rows;
+  }
+
+  /// Versions for one grouped game. Empty when the route does not answer.
+  Future<List<RomVersion>> versions({
+    required MediaServerClient client,
+    required String key,
+  }) async {
+    final reply = await _post(client, 'game', <String, dynamic>{'key': key});
+    final data = reply.data;
+    final game = data == null || data['ok'] != true ? null : data['game'];
+    if (game is! Map) return const [];
+    final raw = game['versions'];
+    if (raw is! List) return const [];
+    final versions = <RomVersion>[];
+    for (final row in raw) {
+      if (row is! Map) continue;
+      final path = row['p'];
+      if (path is! String || path.isEmpty) continue;
+      final file = row['file'] is String ? row['file'] as String : path;
+      versions.add(
+        RomVersion(path: path, label: _versionLabel(file), best: row['best'] == true),
+      );
+    }
+    return versions;
   }
 
   /// Box art for the visible page, keyed by ROM path. Failures yield an empty
@@ -94,12 +217,12 @@ class RomManagerGames {
     final out = <String, Uint8List>{};
     for (var start = 0; start < wanted.length; start += maxCovers) {
       final batch = wanted.skip(start).take(maxCovers).toList(growable: false);
-      final data = await _post(client, 'covers', <String, dynamic>{
+      final reply = await _post(client, 'covers', <String, dynamic>{
         'items': [
           for (final path in batch) {'p': path, 'w': 200},
         ],
       });
-      final raw = data?['covers'];
+      final raw = reply.data?['covers'];
       if (raw is! Map) continue;
       for (final entry in raw.entries) {
         final path = entry.key;
@@ -120,10 +243,11 @@ class RomManagerGames {
     required String key,
     required String path,
   }) async {
-    final data = await _post(client, 'launch', <String, dynamic>{
+    final reply = await _post(client, 'launch', <String, dynamic>{
       'key': key,
       'p': path,
     });
+    final data = reply.data;
     if (data == null || data['ok'] != true) return null;
     return RomLaunch(
       libraryId: data['libraryId'] is String
@@ -153,13 +277,13 @@ class RomManagerGames {
     }
   }
 
-  Future<Map<String, dynamic>?> _post(
+  Future<_PluginReply> _post(
     MediaServerClient client,
     String route,
     Map<String, dynamic> body,
   ) async {
     final server = client.baseUrl.trim().replaceAll(RegExp(r'/+$'), '');
-    if (server.isEmpty) return null;
+    if (server.isEmpty) return const _PluginReply.failed();
     final token = client.accessToken;
     try {
       final response = await _dio
@@ -185,12 +309,43 @@ class RomManagerGames {
           )
           .timeout(_timeout);
       final data = response.data;
-      if (data is Map) return data.cast<String, dynamic>();
-      return null;
+      if (data is Map) return _PluginReply(data.cast<String, dynamic>());
+      return const _PluginReply.failed();
+    } on DioException catch (error) {
+      debugPrint('ROM Manager $route unavailable: $error');
+      if (error.response?.statusCode == 404) return const _PluginReply.missing();
+      return const _PluginReply.failed();
     } catch (error) {
       debugPrint('ROM Manager $route unavailable: $error');
-      return null;
+      return const _PluginReply.failed();
     }
+  }
+
+  static List<RomLetterBucket> _buckets(Object? raw) {
+    if (raw is! List) return const [];
+    final rows = <RomLetterBucket>[];
+    for (final row in raw) {
+      if (row is! Map) continue;
+      final id = row['id'];
+      if (id is! String || id.isEmpty) continue;
+      final games = row['games'];
+      rows.add(
+        RomLetterBucket(
+          id: id,
+          label: row['label'] is String ? row['label'] as String : id,
+          games: games is num ? games.toInt() : 0,
+        ),
+      );
+    }
+    return rows;
+  }
+
+  static String _versionLabel(String file) {
+    var name = file;
+    final slash = name.lastIndexOf(RegExp(r'[/\\]'));
+    if (slash >= 0) name = name.substring(slash + 1);
+    final dot = name.lastIndexOf('.');
+    return dot > 0 ? name.substring(0, dot) : name;
   }
 
   static String? _flag(Object? raw) {
@@ -206,12 +361,82 @@ class RomManagerGamePage {
     required this.total,
     required this.indexing,
     this.message,
+    this.buckets = const [],
   });
 
   final List<RomManagerGame> items;
   final int total;
   final bool indexing;
   final String? message;
+  final List<RomLetterBucket> buckets;
+}
+
+class RomLetterBucket {
+  const RomLetterBucket({
+    required this.id,
+    required this.label,
+    required this.games,
+  });
+
+  final String id;
+  final String label;
+  final int games;
+}
+
+enum RomCatalogFailure { missing, failed }
+
+class RomSystemList {
+  const RomSystemList({
+    this.systems = const [],
+    this.pluginMissing = false,
+    this.failed = false,
+  });
+
+  final List<RomSystemCount> systems;
+  final bool pluginMissing;
+  final bool failed;
+}
+
+class RomSystemCount {
+  const RomSystemCount({required this.name, required this.games});
+
+  final String name;
+  final int games;
+}
+
+class RomDeveloper {
+  const RomDeveloper({
+    required this.key,
+    required this.name,
+    required this.games,
+  });
+
+  final String key;
+  final String name;
+  final int games;
+}
+
+class RomVersion {
+  const RomVersion({
+    required this.path,
+    required this.label,
+    required this.best,
+  });
+
+  final String path;
+  final String label;
+  final bool best;
+}
+
+class _PluginReply {
+  const _PluginReply(this.data) : missing = false;
+
+  const _PluginReply.missing() : data = null, missing = true;
+
+  const _PluginReply.failed() : data = null, missing = false;
+
+  final Map<String, dynamic>? data;
+  final bool missing;
 }
 
 class RomManagerGame {

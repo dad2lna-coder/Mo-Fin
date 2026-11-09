@@ -91,7 +91,8 @@ void main() {
       }),
     );
 
-    final page = await service(adapter).page(client: client, system: 'Arcade');
+    final games = service(adapter);
+    final page = await games.page(client: client, system: 'Arcade');
 
     expect(adapter.calls.single.uri.path, '/Moonfin/Plugins/rom-manager/games');
     final body = adapter.bodies.single as Map;
@@ -108,6 +109,45 @@ void main() {
     expect(summary.versionsCount, 4);
     expect(summary.fileName, '1942');
     expect(page.items.last.cheat, 'some');
+    expect(games.lastFailure, isNull);
+  });
+
+  test('includeBuckets and a letter range are sent, and counts come back', () async {
+    final adapter = _Adapter(
+      (_, _) async => _json({
+        'ok': true,
+        'total': 1,
+        'indexing': false,
+        'buckets': [
+          {'id': '#-D', 'label': '# – D', 'games': 2},
+          {'id': 'Q-S', 'label': 'Q – S', 'games': 1},
+        ],
+        'items': [
+          {
+            'key': 'p:Arcade/qbert',
+            'title': 'Q*bert',
+            'system': 'Arcade',
+            'coverPath': 'Arcade/qbert',
+            'versions': 1,
+          },
+        ],
+      }),
+    );
+    final games = service(adapter);
+    final page = await games.page(
+      client: client,
+      system: 'Arcade',
+      bucket: 'Q-S',
+      includeBuckets: true,
+      limit: 48,
+    );
+    final body = adapter.bodies.single as Map;
+    expect(body['bucket'], 'Q-S');
+    expect(body['includeBuckets'], 1);
+    expect(body['limit'], 48);
+    expect(page?.buckets.map((row) => row.games).toList(), [2, 1]);
+    expect(page?.items.single.title, 'Q*bert');
+    expect(RomManagerGames.requestTimeout, const Duration(seconds: 60));
   });
 
   test('a missing plugin is null so the file list can be used', () async {
@@ -121,10 +161,18 @@ void main() {
       );
     });
 
-    expect(
-      await service(adapter).page(client: client, system: 'Arcade'),
-      isNull,
+    final games = service(adapter);
+    expect(await games.page(client: client, system: 'Arcade'), isNull);
+    expect(games.lastFailure, RomCatalogFailure.missing);
+  });
+
+  test('a failed catalog is not treated as a missing plugin', () async {
+    final adapter = _Adapter(
+      (_, _) async => _json({'ok': false}, status: 500),
     );
+    final games = service(adapter);
+    expect(await games.page(client: client, system: 'Arcade'), isNull);
+    expect(games.lastFailure, RomCatalogFailure.failed);
   });
 
   test(
