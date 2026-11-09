@@ -13,6 +13,7 @@ import '../../../data/services/retro_artwork/retro_artwork_activity_gate.dart';
 import '../../../data/services/retro_artwork/retro_artwork_cache.dart';
 import '../../../data/services/retro_artwork/retro_artwork_data_source.dart';
 import '../../../data/services/retro_artwork/retro_artwork_transport.dart';
+import '../../../data/services/rom_manager_games.dart';
 import '../../../data/services/rom_manager_logos.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../../preference/user_preferences.dart';
@@ -107,6 +108,7 @@ class GamesBrowserScreen extends StatefulWidget {
     required this.libraryId,
     this.title,
     this.logoService,
+    this.romGames,
   });
 
   final String libraryId;
@@ -115,6 +117,10 @@ class GamesBrowserScreen extends StatefulWidget {
   /// Console-logo transport. Tests inject one; null means the real plugin
   /// route, which is skipped entirely when it can't be reached.
   final RomManagerLogoService? logoService;
+
+  /// Grouped catalog the phone Games page uses. Null in tests, which keep
+  /// reading the Moonbase file list. Production passes [RomManagerGames].
+  final RomManagerGames? romGames;
 
   @override
   State<GamesBrowserScreen> createState() => _GamesBrowserScreenState();
@@ -141,6 +147,11 @@ class _GamesBrowserScreenState extends State<GamesBrowserScreen>
   bool _loadingMoreGames = false;
   List<GameSummary> _allSystemGames = const [];
   Map<String, GameBrowseTextIndex> _textIndexes = {};
+  Map<String, RomManagerGame> _romById = {};
+  Map<String, Uint8List> _covers = {};
+  bool _romCatalog = false;
+  bool _romCatalogDisabled = false;
+  String? _gamesError;
   int _gamesEpoch = 0;
   int _gamesTotal = 0;
   bool _gamesComplete = true;
@@ -512,6 +523,11 @@ class _GamesBrowserScreenState extends State<GamesBrowserScreen>
       _loadingMoreGames = false;
       _allSystemGames = const [];
       _textIndexes = {};
+      _romById = {};
+      _covers = {};
+      _romCatalog = false;
+      _romCatalogDisabled = false;
+      _gamesError = null;
       _gamesTotal = 0;
       _gamesComplete = false;
       _loadedSystemId = system.id;
@@ -542,26 +558,35 @@ class _GamesBrowserScreenState extends State<GamesBrowserScreen>
 
   Future<void> _fetchGamesPage(GameSystem system, int offset, int epoch) async {
     final gamesApi = _client.gamesApi;
-    if (gamesApi == null) {
+    if (gamesApi == null && widget.romGames == null) {
       if (mounted && epoch == _gamesEpoch) {
         setState(() {
           _loadingGames = false;
           _loadingMoreGames = false;
+          _gamesComplete = true;
+          _gamesError = 'Games API is not available.';
         });
       }
       return;
     }
 
     try {
-      final page = await gamesApi.getGamesPage(
-        widget.libraryId,
-        system: system.id,
-        offset: offset,
-        limit: _gamesPageSize,
-      );
+      final loaded = await _loadGamePage(system, offset);
       if (!mounted || epoch != _gamesEpoch) return;
       if (_systems[_selectedSystemIndex].id != system.id) return;
 
+      if (loaded.roms != null) {
+        _romCatalog = true;
+        for (final game in loaded.roms!) {
+          _romById[game.key] = game;
+        }
+        if (loaded.roms!.isNotEmpty) unawaited(_loadCovers(loaded.roms!));
+      } else if (offset == 0) {
+        _romCatalog = false;
+        _romCatalogDisabled = loaded.disableRomCatalog;
+      }
+
+      final page = loaded.page;
       final merged = offset == 0
           ? page.items
           : <GameSummary>[..._allSystemGames, ...page.items];
@@ -580,22 +605,124 @@ class _GamesBrowserScreenState extends State<GamesBrowserScreen>
         _textIndexes = indexes;
         _gamesTotal = page.total;
         _gamesComplete = complete;
+        _gamesError = loaded.error;
         _loadingGames = false;
         _loadingMoreGames = false;
         _loadedSystemId = system.id;
       });
       cleanupGridFocusNodes(merged.length);
-      unawaited(_refreshArtworkPage(system.id, page.offset, page.limit));
+      if (!_romCatalog) {
+        unawaited(_refreshArtworkPage(system.id, page.offset, page.limit));
+      }
       if (!complete) {
         _scheduleViewportFill();
       }
     } catch (_) {
-      // A failed later page leaves the rows already on screen in place.
+      // A failed later page leaves the rows already on screen and stops
+      // asking. A failed first page used to look like a library of 0 games.
       if (!mounted || epoch != _gamesEpoch) return;
       setState(() {
         _loadingGames = false;
         _loadingMoreGames = false;
+        _gamesComplete = true;
+        if (offset == 0) {
+          _gamesError = 'Could not load ${system.name}.';
+        }
       });
+    }
+  }
+
+  /// The phone's grouped catalog when ROM Manager answers, otherwise one
+  /// window of the Moonbase file list. Does not touch widget state; the caller
+  /// applies [_LoadedGamePage.roms] only if this load is still current.
+  Future<_LoadedGamePage> _loadGamePage(GameSystem system, int offset) async {
+    final rom = widget.romGames;
+    if (rom != null && !_romCatalogDisabled) {
+      final grouped = await rom.page(
+        client: _client,
+        system: system.name,
+        offset: offset,
+        sort: 'title',
+      );
+      if (grouped != null &&
+          offset == 0 &&
+          grouped.indexing &&
+          grouped.items.isEmpty) {
+        return _LoadedGamePage(
+          page: GamePage(
+            items: const [],
+            total: 0,
+            offset: 0,
+            limit: RomManagerGames.pageSize,
+          ),
+          roms: const [],
+          error: grouped.message ?? 'Library is being indexed.',
+        );
+      }
+      final indexMiss =
+          grouped != null &&
+          offset == 0 &&
+          grouped.items.isEmpty &&
+          grouped.total == 0 &&
+          !grouped.indexing &&
+          system.gameCount > 0;
+      if (grouped != null && !indexMiss) {
+        return _LoadedGamePage(
+          page: GamePage(
+            items: [
+              for (final game in grouped.items) game.toSummary(system.core),
+            ],
+            total: grouped.total,
+            offset: offset,
+            limit: RomManagerGames.pageSize,
+          ),
+          roms: grouped.items,
+        );
+      }
+      // A later page must not switch to the file list mid-catalog. The rows
+      // already on screen stay, and the grid stops requesting more.
+      if (offset > 0) {
+        throw StateError('ROM catalog page failed');
+      }
+      return _LoadedGamePage(
+        page: await _moonbasePage(system, offset),
+        disableRomCatalog: true,
+      );
+    }
+
+    return _LoadedGamePage(page: await _moonbasePage(system, offset));
+  }
+
+  Future<GamePage> _moonbasePage(GameSystem system, int offset) {
+    final gamesApi = _client.gamesApi;
+    if (gamesApi == null) {
+      throw StateError('Games API is not available.');
+    }
+    return gamesApi.getGamesPage(
+      widget.libraryId,
+      system: system.id,
+      offset: offset,
+      limit: _gamesPageSize,
+    );
+  }
+
+  Future<void> _loadCovers(List<RomManagerGame> games) async {
+    final rom = widget.romGames;
+    if (rom == null) return;
+    final epoch = _gamesEpoch;
+    try {
+      final covers = await rom.covers(_client, [
+        for (final game in games) game.path,
+      ]);
+      if (!mounted || epoch != _gamesEpoch || covers.isEmpty) return;
+      setState(() {
+        for (final game in games) {
+          final bytes = covers[game.path];
+          if (bytes != null) _covers[game.key] = bytes;
+        }
+      });
+    } catch (_) {
+      // Posters keep the color fallback.
     }
   }
 
@@ -1139,7 +1266,33 @@ class _GamesBrowserScreenState extends State<GamesBrowserScreen>
   };
 
   void _openGameDetail(GameSummary game) {
-    context.push(Destinations.gameDetailOf(widget.libraryId, game.id));
+    final rom = _romById[game.id];
+    if (rom == null) {
+      context.push(Destinations.gameDetailOf(widget.libraryId, game.id));
+      return;
+    }
+    unawaited(_openRomGame(rom));
+  }
+
+  Future<void> _openRomGame(RomManagerGame game) async {
+    final rom = widget.romGames;
+    if (rom == null) return;
+    final resolved = await rom.launch(
+      client: _client,
+      key: game.key,
+      path: game.path,
+    );
+    if (!mounted) return;
+    final libraryId = resolved?.libraryId;
+    final gameId = resolved?.gameId;
+    if (libraryId == null ||
+        libraryId.isEmpty ||
+        gameId == null ||
+        gameId.isEmpty) {
+      _showGameMessage(resolved?.reason ?? 'Could not open this game.');
+      return;
+    }
+    context.push(Destinations.gameDetailOf(libraryId, gameId));
   }
 
   void _toggleFavorite(GameSummary game) {
@@ -1150,6 +1303,11 @@ class _GamesBrowserScreenState extends State<GamesBrowserScreen>
   /// a console without an installable core shows the friendly message instead
   /// of failing to boot.
   Future<void> _playGame(GameSummary game) async {
+    final romGame = _romById[game.id];
+    if (romGame != null) {
+      await _playRomGame(romGame, game);
+      return;
+    }
     final gamesApi = _client.gamesApi;
     if (gamesApi == null) return;
     try {
@@ -1169,15 +1327,61 @@ class _GamesBrowserScreenState extends State<GamesBrowserScreen>
       if (mounted) setState(() {});
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            gamePlaybackBlockedMessage(game.core) ??
-                AppLocalizations.of(context).gamePlaybackUnsupported,
-          ),
-        ),
+      _showGameMessage(
+        gamePlaybackBlockedMessage(game.core) ??
+            AppLocalizations.of(context).gamePlaybackUnsupported,
       );
     }
+  }
+
+  Future<void> _playRomGame(RomManagerGame game, GameSummary summary) async {
+    final rom = widget.romGames;
+    final gamesApi = _client.gamesApi;
+    if (rom == null || gamesApi == null) return;
+    try {
+      final resolved = await rom.launch(
+        client: _client,
+        key: game.key,
+        path: game.path,
+      );
+      if (!mounted) return;
+      if (resolved == null || resolved.playable != true) {
+        _showGameMessage(resolved?.reason ?? 'This game cannot be played.');
+        return;
+      }
+      final libraryId = resolved.libraryId;
+      final gameId = resolved.gameId;
+      if (libraryId == null || gameId == null) {
+        _showGameMessage(resolved.reason ?? 'This game cannot be played.');
+        return;
+      }
+      final detail = await gamesApi.getGame(libraryId, gameId);
+      if (!mounted || detail == null) return;
+      final launched = launchGame(
+        context,
+        libraryId,
+        detail,
+        name: game.title,
+        hardwareRenderingEnabled: _prefs.get(
+          UserPreferences.useHardwareRendering,
+        ),
+      );
+      if (launched) {
+        await GameLocalData.instance.recordRecent(widget.libraryId, summary.id);
+      }
+      if (mounted) setState(() {});
+    } catch (e) {
+      if (!mounted) return;
+      _showGameMessage(
+        gamePlaybackBlockedMessage(summary.core) ??
+            AppLocalizations.of(context).gamePlaybackUnsupported,
+      );
+    }
+  }
+
+  void _showGameMessage(String message) {
+    ScaffoldMessenger.of(context)
+        .showSnackBar(SnackBar(content: Text(message)));
   }
 
   @override
@@ -1291,6 +1495,8 @@ class _GamesBrowserScreenState extends State<GamesBrowserScreen>
                         padding: EdgeInsets.symmetric(vertical: 48),
                         child: Center(child: CircularProgressIndicator()),
                       )
+                    : _gamesError != null && filteredGames.isEmpty
+                    ? _buildGamesError()
                     : _buildGamesGrid(filteredGames),
                 SizedBox(height: isTV ? 32 : 16),
               ],
@@ -1812,6 +2018,33 @@ class _GamesBrowserScreenState extends State<GamesBrowserScreen>
     );
   }
 
+  Widget _buildGamesError() {
+    final system = _systems[_selectedSystemIndex];
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              _gamesError!,
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: Colors.white.withValues(alpha: 0.7),
+                fontSize: 16,
+              ),
+            ),
+            const SizedBox(height: 12),
+            FilledButton(
+              onPressed: () => _loadGamesForSystem(system),
+              child: Text(AppLocalizations.of(context).retry),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _buildGamesGrid(List<GameSummary> games) {
     if (games.isEmpty) {
       final emptyText = _searchController.text.trim().isNotEmpty
@@ -1880,7 +2113,8 @@ class _GamesBrowserScreenState extends State<GamesBrowserScreen>
             final reference = _routeIsCovered
                 ? null
                 : _retroArtworkDataSource?.imageFor(game.id);
-            final source = reference?.source;
+            final cover = _covers[game.id];
+            final source = cover == null ? reference?.source : null;
             final artAspect = _retroArtworkDataSource?.snapshot?.aspectRatioFor(
               game.id,
             );
@@ -1897,13 +2131,18 @@ class _GamesBrowserScreenState extends State<GamesBrowserScreen>
                 clipBehavior: Clip.none,
                 children: [
                   GamePosterCard(
-                    imageUrl: reference?.legacyUrl,
+                    imageUrl: cover == null ? reference?.legacyUrl : null,
                     imageFit: containArt ? BoxFit.contain : BoxFit.cover,
-                    fillBehind: containArt && source == null,
-                    artwork:
-                        source == null ||
-                            _retroArtworkTransport == null ||
-                            _retroArtworkActivityGate == null
+                    fillBehind: containArt && source == null && cover == null,
+                    artwork: cover != null
+                        ? Image.memory(
+                            cover,
+                            fit: containArt ? BoxFit.contain : BoxFit.cover,
+                            gaplessPlayback: true,
+                          )
+                        : source == null ||
+                              _retroArtworkTransport == null ||
+                              _retroArtworkActivityGate == null
                         ? null
                         : RetroArtworkImage(
                             source: source,
@@ -1971,6 +2210,20 @@ class _GamesBrowserScreenState extends State<GamesBrowserScreen>
       },
     );
   }
+}
+
+class _LoadedGamePage {
+  const _LoadedGamePage({
+    required this.page,
+    this.roms,
+    this.disableRomCatalog = false,
+    this.error,
+  });
+
+  final GamePage page;
+  final List<RomManagerGame>? roms;
+  final bool disableRomCatalog;
+  final String? error;
 }
 
 /// The "2 Versions" / "Cheat" / "Hack" chips over a box art. The server does

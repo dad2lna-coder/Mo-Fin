@@ -1,9 +1,11 @@
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:get_it/get_it.dart';
 import 'package:jellyfin_preference/jellyfin_preference.dart';
 import 'package:mocktail/mocktail.dart';
+import 'package:moonfin/data/services/rom_manager_games.dart';
 import 'package:moonfin/l10n/app_localizations.dart';
 import 'package:moonfin/preference/user_preferences.dart';
 import 'package:moonfin/ui/screens/games/games_browser_screen.dart';
@@ -24,6 +26,43 @@ GamePage _pageOf(List<GameSummary> games) => GamePage(
   offset: 0,
   limit: GamePage.defaultLimit,
 );
+
+/// The phone catalog: one titled tile for 1942, not a zip per clone.
+class _GroupedArcade extends RomManagerGames {
+  _GroupedArcade() : super(dio: Dio());
+
+  int calls = 0;
+
+  @override
+  Future<RomManagerGamePage?> page({
+    required MediaServerClient client,
+    required String system,
+    int offset = 0,
+    String sort = 'title',
+    String? query,
+  }) async {
+    calls++;
+    return const RomManagerGamePage(
+      items: [
+        RomManagerGame(
+          key: 'm:Arcade/1942',
+          title: '1942',
+          system: 'Arcade',
+          path: 'Arcade/1942.zip',
+          versions: 3,
+        ),
+      ],
+      total: 1,
+      indexing: false,
+    );
+  }
+
+  @override
+  Future<Map<String, Uint8List>> covers(
+    MediaServerClient client,
+    List<String> paths,
+  ) async => <String, Uint8List>{};
+}
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -246,5 +285,50 @@ void main() {
     expect(find.text('Zelda'), findsOneWidget);
     expect(find.text('No games found'), findsNothing);
     expect(calls, greaterThan(1));
+  });
+
+  testWidgets('ROM Manager groups arcade clones instead of the file list', (
+    tester,
+  ) async {
+    final arcade = const [
+      GameSystem(id: 'Arcade', name: 'Arcade', core: 'fbneo', gameCount: 6670),
+    ];
+    when(() => gamesApi.getSystems('retro')).thenAnswer((_) async => arcade);
+    when(
+      () => gamesApi.getGamesPage(
+        'retro',
+        system: any(named: 'system'),
+        offset: any(named: 'offset'),
+        limit: any(named: 'limit'),
+      ),
+    ).thenAnswer((_) async => _pageOf(const []));
+
+    final roms = _GroupedArcade();
+    await tester.binding.setSurfaceSize(const Size(1280, 720));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.buildTheme(ThemeRegistry.active),
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
+        home: GamesBrowserScreen(libraryId: 'retro', romGames: roms),
+      ),
+    );
+    await tester.pump();
+    await tester.pump();
+
+    expect(find.text('1942'), findsOneWidget);
+    expect(find.text('1942abl'), findsNothing);
+    expect(find.text('3 Versions'), findsOneWidget);
+    expect(find.text('| 1 Games'), findsOneWidget);
+    expect(roms.calls, 1);
+    verifyNever(
+      () => gamesApi.getGamesPage(
+        any(),
+        system: any(named: 'system'),
+        offset: any(named: 'offset'),
+        limit: any(named: 'limit'),
+      ),
+    );
   });
 }

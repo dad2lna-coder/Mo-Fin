@@ -11,6 +11,7 @@ import '../../data/services/connectivity_service.dart';
 import '../../data/services/media_server_client_factory.dart';
 import '../../data/services/remote_search_session.dart';
 import '../../data/services/retro_artwork/retro_artwork_activity_gate.dart';
+import '../../data/services/rom_manager_games.dart';
 import '../../di/injection.dart';
 import '../../playback/external_player_policy.dart';
 import '../../preference/user_preferences.dart';
@@ -520,6 +521,7 @@ final appRouter = GoRouter(
                 key: ValueKey('game-browser-$libraryId'),
                 libraryId: libraryId,
                 title: title,
+                romGames: RomManagerGames(),
               )
             : GameLibraryScreen(
                 key: ValueKey('game-lib-$libraryId'),
@@ -803,7 +805,8 @@ final appRouter = GoRouter(
       builder: (context, state) {
         final personId = state.pathParameters['personId']!;
         final prefs = GetIt.instance<UserPreferences>();
-        if (prefs.get(UserPreferences.detailScreenStyle) != DetailScreenStyle.classic) {
+        if (prefs.get(UserPreferences.detailScreenStyle) !=
+            DetailScreenStyle.classic) {
           return ItemDetailScreen(
             key: ValueKey('tmdb:$personId'),
             itemId: 'tmdb:$personId',
