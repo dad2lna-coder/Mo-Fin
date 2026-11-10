@@ -1,8 +1,12 @@
 # Games on TV (later)
 
-The Games item is in the main nav now. On Fire TV and tvOS it opens the native
-game library. Plugins stay off on TV (`isPluginHostSupported` returns false),
-so ROM Manager is not embedded there yet.
+The Games item is in the main nav now. While the plugin host system is supported
+on Android TV and Fire TV via WebView (`isPluginHostSupported` returns `true`),
+the embedded ROM Manager webview hub is currently bypassed on televisions
+(`GamesNav.routeFor` directs TV environments to the native browser screens:
+`GamesBrowserScreen` on Fire TV / Android TV and `GameLibraryScreen` on tvOS).
+Non-Android TV environments (such as tvOS) and Linux have plugin host support
+disabled.
 
 A later step can run the games plugin inside the TV WebView. That pass has to
 cover three things the phone hub does not:
