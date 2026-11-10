@@ -36,6 +36,12 @@ Download the latest releases from the [`latest` release page](https://github.com
 - Directly opens the native streaming application on supported TV devices (Fire TV / Android TV), opens search in a new browser tab on Web, and hides Watch buttons on Roku.
 - Requires your own TMDB API key, configured in **Settings → Integrations → Streaming**.
 
+### Retro Gaming & ROM Manager
+- Browse retro games, systems, box art, and metadata from connected Jellyfin game libraries.
+- Launch games via EmulatorJS (web) or native libretro player core execution.
+- Local userdata persistence for favorites and recently played titles (`userdata.json`).
+- TV navigation routes to native browser screens (`GamesBrowserScreen` on Fire TV / Android TV and `GameLibraryScreen` on tvOS), while mobile and web integrate with the ROM Manager plugin hub.
+
 ### Custom Branding & Navigation
 - MoFin visual branding across login, screensaver, and navigation elements.
 - Enhanced high-contrast D-pad focus highlights for TV remote control navigation.
@@ -49,6 +55,11 @@ For detailed guides and API specifications, see the [`docs/`](docs/) directory:
 - [Streaming Tab Guide](docs/streaming.md)
 - [Branding and Navigation Guide](docs/branding-and-navigation.md)
 - [Channel Server API Specification](docs/channel-server-api.md)
+- [Plugin Host API Reference & Maintenance Guide](docs/plugin-hooks.md)
+- [Moonfin Core API Specification](docs/moonfin-core-api.md)
+- [MoFin vs. Upstream Changes & Plugin Migration](docs/mofin-vs-upstream.md)
+- [Direct IPTV Plugin Migration Technical Spec](docs/plugin-migration-iptv.md)
+- [Games on TV Architecture Note](docs/games-plugin-on-tv.md)
 
 ## Credits
 
