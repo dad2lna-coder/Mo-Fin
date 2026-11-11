@@ -48,6 +48,11 @@ enum _BrowserTab { all, favorites, recent }
 
 enum _BrowserSort { nameAsc, nameDesc, recent }
 
+/// Where D-pad focus should land once the catalog request that is in flight
+/// finishes. Opening a letter range focuses its first poster; leaving one
+/// focuses that range's tile again.
+enum _PendingContentFocus { none, content, bucketTile }
+
 /// Rows in the TV sidebar: the mockup's rail, in reading order, so the d-pad
 /// walks down it the way the screen is read.
 enum _GamesNavItem {
@@ -172,7 +177,10 @@ class _GamesBrowserScreenState extends State<GamesBrowserScreen>
     for (var i = 0; i < RomManagerGames.letterBuckets.length; i++)
       FocusNode(debugLabel: 'games_bucket_$i'),
   ];
+  final FocusNode _gamesRetryFocus = FocusNode(debugLabel: 'games_retry');
   List<FocusNode> _developerFocusNodes = const [];
+  _PendingContentFocus _pendingContentFocus = _PendingContentFocus.none;
+  int _pendingBucketIndex = 0;
   Timer? _searchDebounce;
 
   // Search
@@ -393,6 +401,7 @@ class _GamesBrowserScreenState extends State<GamesBrowserScreen>
     for (final node in _bucketFocusNodes) {
       node.dispose();
     }
+    _gamesRetryFocus.dispose();
     for (final node in _developerFocusNodes) {
       node.dispose();
     }
@@ -588,6 +597,7 @@ class _GamesBrowserScreenState extends State<GamesBrowserScreen>
     _letterFilter = '';
     _developer = null;
     _showBuckets = false;
+    _pendingContentFocus = _PendingContentFocus.none;
 
     if (_artworkScope case final scope?) {
       releaseGameArtworkCacheScope(scope);
@@ -709,6 +719,7 @@ class _GamesBrowserScreenState extends State<GamesBrowserScreen>
           _loadingMoreGames = false;
           _loadedSystemId = system.id;
         });
+        _consumePendingContentFocus();
         return;
       }
 
@@ -748,6 +759,7 @@ class _GamesBrowserScreenState extends State<GamesBrowserScreen>
         _loadedSystemId = system.id;
       });
       cleanupGridFocusNodes(merged.length);
+      _consumePendingContentFocus();
       if (!_romCatalog) {
         unawaited(_refreshArtworkPage(system.id, page.offset, page.limit));
       }
@@ -766,6 +778,7 @@ class _GamesBrowserScreenState extends State<GamesBrowserScreen>
           _gamesError = 'Could not load ${system.name}.';
         }
       });
+      _consumePendingContentFocus();
     }
   }
 
@@ -835,7 +848,8 @@ class _GamesBrowserScreenState extends State<GamesBrowserScreen>
           error: grouped.message ?? 'Library is being indexed.',
         );
       }
-      final narrowed = _bucket.isNotEmpty ||
+      final narrowed =
+          _bucket.isNotEmpty ||
           _letterFilter.isNotEmpty ||
           _developer != null ||
           _catalogQuery != null ||
@@ -1239,9 +1253,9 @@ class _GamesBrowserScreenState extends State<GamesBrowserScreen>
 
     if (event.logicalKey.isDownKey) {
       if (_developers.isNotEmpty && _developerFocusNodes.isNotEmpty) {
-        _developerFocusNodes.first.requestFocus();
+        _revealFocus(_developerFocusNodes.first);
       } else {
-        _focusTab(_currentTab);
+        _focusBelowTabs();
       }
       return KeyEventResult.handled;
     }
@@ -1252,6 +1266,7 @@ class _GamesBrowserScreenState extends State<GamesBrowserScreen>
     }
 
     if (event.logicalKey.isBackKey) {
+      if (_backLeavesBucket()) return KeyEventResult.handled;
       _openSideMenu();
       return KeyEventResult.handled;
     }
@@ -1298,9 +1313,9 @@ class _GamesBrowserScreenState extends State<GamesBrowserScreen>
 
     if (event.logicalKey.isDownKey) {
       if (_developers.isNotEmpty && _developerFocusNodes.isNotEmpty) {
-        _developerFocusNodes.first.requestFocus();
+        _revealFocus(_developerFocusNodes.first);
       } else {
-        _focusTab(_currentTab);
+        _focusBelowTabs();
       }
       return KeyEventResult.handled;
     }
@@ -1311,6 +1326,7 @@ class _GamesBrowserScreenState extends State<GamesBrowserScreen>
     }
 
     if (event.logicalKey.isBackKey) {
+      if (_backLeavesBucket()) return KeyEventResult.handled;
       _openSideMenu();
       return KeyEventResult.handled;
     }
@@ -1343,26 +1359,91 @@ class _GamesBrowserScreenState extends State<GamesBrowserScreen>
   void _focusTab(_BrowserTab tab) {
     switch (tab) {
       case _BrowserTab.all:
-        _tabAllFocusNode.requestFocus();
+        _revealFocus(_tabAllFocusNode);
       case _BrowserTab.favorites:
-        _tabFavFocusNode.requestFocus();
+        _revealFocus(_tabFavFocusNode);
       case _BrowserTab.recent:
-        _tabRecentFocusNode.requestFocus();
+        _revealFocus(_tabRecentFocusNode);
     }
   }
 
   void _focusFirstGridItem() {
     final games = _getFilteredAndSortedGames();
     if (games.isEmpty) return;
-    getGridItemFocusNode(0, prefix: 'game_poster').requestFocus();
+    _revealFocus(getGridItemFocusNode(0, prefix: 'game_poster'));
   }
 
+  /// Letter-range tiles when a big system is parked on All, otherwise the
+  /// first poster. A failed probe focuses Retry instead of leaving D-pad on
+  /// the developer row with an empty grid underneath.
   void _focusBelowTabs() {
     if (_showBuckets && _bucketFocusNodes.isNotEmpty) {
-      _bucketFocusNodes.first.requestFocus();
+      _revealFocus(_bucketFocusNodes.first);
       return;
     }
-    _focusFirstGridItem();
+    final games = _getFilteredAndSortedGames();
+    if (games.isNotEmpty) {
+      _focusFirstGridItem();
+      return;
+    }
+    if (_gamesError != null) {
+      _revealFocus(_gamesRetryFocus);
+    }
+  }
+
+  void _revealFocus(FocusNode node) {
+    node.requestFocus();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final target = node.context;
+      if (target == null || !target.mounted) return;
+      Scrollable.ensureVisible(
+        target,
+        alignment: 0.35,
+        duration: const Duration(milliseconds: 180),
+        curve: Curves.easeOutCubic,
+      );
+    });
+  }
+
+  void _scheduleContentFocus(
+    _PendingContentFocus focus, {
+    int bucketIndex = 0,
+  }) {
+    _pendingContentFocus = focus;
+    _pendingBucketIndex = bucketIndex;
+  }
+
+  void _consumePendingContentFocus() {
+    final focus = _pendingContentFocus;
+    if (focus == _PendingContentFocus.none) return;
+    _pendingContentFocus = _PendingContentFocus.none;
+    final bucketIndex = _pendingBucketIndex;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      if (focus == _PendingContentFocus.bucketTile && _showBuckets) {
+        final index = bucketIndex.clamp(0, _bucketFocusNodes.length - 1);
+        _revealFocus(_bucketFocusNodes[index]);
+        return;
+      }
+      _focusBelowTabs();
+    });
+  }
+
+  int _indexForBucket(String id) {
+    final want = id.toLowerCase();
+    final rows = RomManagerGames.letterBuckets;
+    for (var i = 0; i < rows.length; i++) {
+      if (rows[i].id.toLowerCase() == want) return i;
+    }
+    return 0;
+  }
+
+  /// Back steps out of a letter range before it does anything else, so a
+  /// remote Back on the grid, the tabs, or the carousel returns to the tiles.
+  bool _backLeavesBucket() {
+    if (_bucket.isEmpty) return false;
+    _leaveBucket();
+    return true;
   }
 
   void _setTab(_BrowserTab tab) {
@@ -1400,6 +1481,7 @@ class _GamesBrowserScreenState extends State<GamesBrowserScreen>
 
   void _openBucket(String id) {
     if (_systems.isEmpty) return;
+    _scheduleContentFocus(_PendingContentFocus.content);
     _bucket = id;
     _showBuckets = false;
     _loadGamesForSystem(_systems[_selectedSystemIndex]);
@@ -1407,14 +1489,25 @@ class _GamesBrowserScreenState extends State<GamesBrowserScreen>
 
   void _leaveBucket() {
     if (_systems.isEmpty) return;
+    _scheduleContentFocus(
+      _PendingContentFocus.bucketTile,
+      bucketIndex: _indexForBucket(_bucket),
+    );
     _bucket = '';
     _loadGamesForSystem(_systems[_selectedSystemIndex]);
   }
 
   void _setDeveloper(RomDeveloper row) {
     if (_systems.isEmpty) return;
-    _developer = _developer?.name == row.name ? null : row;
+    final clearing = _developer?.name == row.name;
+    _developer = clearing ? null : row;
     _bucket = '';
+    // Clearing a developer restores this console: letter ranges when it is
+    // over the threshold, the poster grid when it is not. Focus follows so
+    // the restored view is on screen.
+    if (clearing) {
+      _scheduleContentFocus(_PendingContentFocus.content);
+    }
     _loadGamesForSystem(_systems[_selectedSystemIndex]);
   }
 
@@ -1428,7 +1521,7 @@ class _GamesBrowserScreenState extends State<GamesBrowserScreen>
         );
         final index = selected < 0 ? 0 : selected;
         if (index < _developerFocusNodes.length) {
-          _developerFocusNodes[index].requestFocus();
+          _revealFocus(_developerFocusNodes[index]);
         }
       } else if (_selectedSystemIndex < _carouselFocusNodes.length) {
         _carouselFocusNodes[_selectedSystemIndex].requestFocus();
@@ -1476,8 +1569,9 @@ class _GamesBrowserScreenState extends State<GamesBrowserScreen>
     }
 
     if (event.logicalKey.isBackKey) {
+      if (_backLeavesBucket()) return KeyEventResult.handled;
       if (_selectedSystemIndex < _carouselFocusNodes.length) {
-        _carouselFocusNodes[_selectedSystemIndex].requestFocus();
+        _revealFocus(_carouselFocusNodes[_selectedSystemIndex]);
       }
       return KeyEventResult.handled;
     }
@@ -1516,7 +1610,8 @@ class _GamesBrowserScreenState extends State<GamesBrowserScreen>
     }
 
     if (event.logicalKey.isBackKey) {
-      _tabRecentFocusNode.requestFocus();
+      if (_backLeavesBucket()) return KeyEventResult.handled;
+      _revealFocus(_tabRecentFocusNode);
       return KeyEventResult.handled;
     }
 
@@ -1532,7 +1627,10 @@ class _GamesBrowserScreenState extends State<GamesBrowserScreen>
     if (!event.isActionable) return KeyEventResult.ignored;
 
     if (event.logicalKey.isLeftKey || event.logicalKey.isBackKey) {
-      _sortFocusNode.requestFocus();
+      if (event.logicalKey.isBackKey && _backLeavesBucket()) {
+        return KeyEventResult.handled;
+      }
+      _revealFocus(_sortFocusNode);
       return KeyEventResult.handled;
     }
 
@@ -1576,6 +1674,7 @@ class _GamesBrowserScreenState extends State<GamesBrowserScreen>
       return KeyEventResult.handled;
     }
     if (event.logicalKey.isBackKey) {
+      if (_backLeavesBucket()) return KeyEventResult.handled;
       _openSideMenu();
       return KeyEventResult.handled;
     }
@@ -1856,7 +1955,9 @@ class _GamesBrowserScreenState extends State<GamesBrowserScreen>
                         padding: EdgeInsets.symmetric(vertical: 48),
                         child: Center(child: CircularProgressIndicator()),
                       )
-                    : _gamesError != null && filteredGames.isEmpty && !_showBuckets
+                    : _gamesError != null &&
+                          filteredGames.isEmpty &&
+                          !_showBuckets
                     ? _buildGamesError()
                     : _showBuckets
                     ? _buildBucketGrid()
@@ -2022,7 +2123,8 @@ class _GamesBrowserScreenState extends State<GamesBrowserScreen>
     final system = _systems[_selectedSystemIndex];
     final consoleName = _logoNameFor(system);
     final range = _bucketLabel;
-    final name = _developer?.name ??
+    final name =
+        _developer?.name ??
         (range == null ? consoleName : '$consoleName · $range');
     final logo = _logoForSystem(system);
     final amiga =
@@ -2072,14 +2174,17 @@ class _GamesBrowserScreenState extends State<GamesBrowserScreen>
               padding: const EdgeInsets.only(right: 12),
               child: _RangesBackButton(onPressed: _leaveBucket),
             ),
-          Text(
-            '| $visibleCount Games',
-            style: TextStyle(
-              color: Colors.white.withValues(alpha: 0.6),
-              fontSize: isTV ? 15 : 13,
-              fontWeight: FontWeight.w500,
+          // A failed probe used to sit under "| 0 Games", which on Fire TV
+          // reads as an empty library instead of an error with Retry.
+          if (_gamesError == null || _allSystemGames.isNotEmpty || _showBuckets)
+            Text(
+              '| $visibleCount Games',
+              style: TextStyle(
+                color: Colors.white.withValues(alpha: 0.6),
+                fontSize: isTV ? 15 : 13,
+                fontWeight: FontWeight.w500,
+              ),
             ),
-          ),
         ],
       ),
     );
@@ -2421,11 +2526,23 @@ class _GamesBrowserScreenState extends State<GamesBrowserScreen>
                 focusNode: _developerFocusNodes[index],
                 onTap: () => _setDeveloper(row),
                 onUp: () {
+                  // Up leaves the row for the console that opened it. Down
+                  // leaves for the letter ranges or the first poster. Either
+                  // direction has to move; a horizontal list that swallows
+                  // both keys is how Arcade became unreachable on Fire TV.
                   if (_selectedSystemIndex < _carouselFocusNodes.length) {
-                    _carouselFocusNodes[_selectedSystemIndex].requestFocus();
+                    _revealFocus(_carouselFocusNodes[_selectedSystemIndex]);
+                  } else {
+                    _focusBelowTabs();
                   }
                 },
-                onDown: () => _focusTab(_currentTab),
+                onDown: _focusBelowTabs,
+                onLeft: index == 0
+                    ? null
+                    : () => _revealFocus(_developerFocusNodes[index - 1]),
+                onRight: index + 1 >= _developerFocusNodes.length
+                    ? null
+                    : () => _revealFocus(_developerFocusNodes[index + 1]),
               );
             },
           ),
@@ -2543,6 +2660,7 @@ class _GamesBrowserScreenState extends State<GamesBrowserScreen>
             ),
             const SizedBox(height: 12),
             FilledButton(
+              focusNode: _gamesRetryFocus,
               onPressed: () => _loadGamesForSystem(system),
               child: Text(AppLocalizations.of(context).retry),
             ),
@@ -2682,6 +2800,7 @@ class _GamesBrowserScreenState extends State<GamesBrowserScreen>
                       }
 
                       if (event.logicalKey.isBackKey) {
+                        if (_backLeavesBucket()) return KeyEventResult.handled;
                         _focusTab(_currentTab);
                         return KeyEventResult.handled;
                       }
@@ -3545,7 +3664,10 @@ class _RangesBackButton extends StatelessWidget {
               ),
               child: const Text(
                 'All ranges',
-                style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
+                style: TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
             ),
           );
@@ -3563,6 +3685,8 @@ class _DeveloperChip extends StatelessWidget {
     required this.onTap,
     required this.onUp,
     required this.onDown,
+    this.onLeft,
+    this.onRight,
   });
 
   final RomDeveloper row;
@@ -3571,6 +3695,8 @@ class _DeveloperChip extends StatelessWidget {
   final VoidCallback onTap;
   final VoidCallback onUp;
   final VoidCallback onDown;
+  final VoidCallback? onLeft;
+  final VoidCallback? onRight;
 
   @override
   Widget build(BuildContext context) {
@@ -3584,6 +3710,14 @@ class _DeveloperChip extends StatelessWidget {
         }
         if (event.logicalKey.isDownKey) {
           onDown();
+          return KeyEventResult.handled;
+        }
+        if (event.logicalKey.isLeftKey) {
+          onLeft?.call();
+          return KeyEventResult.handled;
+        }
+        if (event.logicalKey.isRightKey) {
+          onRight?.call();
           return KeyEventResult.handled;
         }
         if (event.logicalKey.isSelectKey) {
@@ -3661,6 +3795,20 @@ class _BucketTile extends StatelessWidget {
   Widget build(BuildContext context) {
     return Focus(
       focusNode: focusNode,
+      onFocusChange: (focused) {
+        if (!focused) return;
+        final target = focusNode.context;
+        if (target == null) return;
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (!target.mounted) return;
+          Scrollable.ensureVisible(
+            target,
+            alignment: 0.35,
+            duration: const Duration(milliseconds: 180),
+            curve: Curves.easeOutCubic,
+          );
+        });
+      },
       onKeyEvent: (node, event) => onKey(event),
       child: Builder(
         builder: (context) {

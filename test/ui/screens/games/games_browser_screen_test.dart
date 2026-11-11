@@ -147,7 +147,7 @@ class _BucketCatalog extends _QuietRom {
           versions: 1,
         ),
       ],
-      total: 40,
+      total: 1,
       indexing: false,
     );
   }
@@ -158,9 +158,7 @@ class _TitleOrderedRom extends _QuietRom {
 
   @override
   Future<RomSystemList> systems(MediaServerClient client) async =>
-      const RomSystemList(
-        systems: [RomSystemCount(name: 'Arcade', games: 3)],
-      );
+      const RomSystemList(systems: [RomSystemCount(name: 'Arcade', games: 3)]);
 
   @override
   Future<RomManagerGamePage?> page({
@@ -207,14 +205,162 @@ class _TitleOrderedRom extends _QuietRom {
   }
 }
 
+class _TvCatalog extends _QuietRom {
+  _TvCatalog({this.fail = false});
+
+  final bool fail;
+  int probes = 0;
+  final List<Map<String, Object?>> calls = [];
+
+  @override
+  Future<RomSystemList> systems(MediaServerClient client) async =>
+      const RomSystemList(
+        systems: [
+          RomSystemCount(name: 'Arcade', games: 2532),
+          RomSystemCount(name: 'NES', games: 1000),
+        ],
+      );
+
+  @override
+  Future<List<RomDeveloper>> developers(
+    MediaServerClient client, {
+    int limit = 40,
+  }) async => const [
+    RomDeveloper(key: 'capcom', name: 'Capcom', games: 80),
+    RomDeveloper(key: 'namco', name: 'Namco', games: 40),
+  ];
+
+  @override
+  Future<RomManagerGamePage?> page({
+    required MediaServerClient client,
+    required String system,
+    int offset = 0,
+    String sort = 'title',
+    String? query,
+    String? letter,
+    String? bucket,
+    String? developer,
+    bool includeBuckets = false,
+    int? limit,
+    List<String>? keys,
+  }) async {
+    calls.add({
+      'system': system,
+      'bucket': bucket,
+      'includeBuckets': includeBuckets,
+      'developer': developer,
+      'limit': limit,
+    });
+    if (fail) {
+      lastFailure = RomCatalogFailure.failed;
+      return null;
+    }
+    if (includeBuckets) {
+      probes++;
+      return RomManagerGamePage(
+        items: const [],
+        total: 2532,
+        indexing: false,
+        buckets: [
+          for (final pair in RomManagerGames.letterBuckets)
+            RomLetterBucket(
+              id: pair.id,
+              label: pair.label,
+              games: pair.id == 'Q-S' ? 410 : 300,
+            ),
+        ],
+      );
+    }
+    if (developer != null) {
+      return const RomManagerGamePage(
+        items: [
+          RomManagerGame(
+            key: 'm:cap',
+            title: 'Final Fight',
+            system: 'Arcade',
+            path: 'Arcade/ffight.zip',
+            versions: 1,
+          ),
+        ],
+        total: 1,
+        indexing: false,
+      );
+    }
+    if (system == 'NES') {
+      return const RomManagerGamePage(
+        items: [
+          RomManagerGame(
+            key: 'm:nes',
+            title: 'Super Mario Bros.',
+            system: 'NES',
+            path: 'NES/mario.nes',
+            versions: 1,
+          ),
+        ],
+        total: 1,
+        indexing: false,
+      );
+    }
+    return const RomManagerGamePage(
+      items: [
+        RomManagerGame(
+          key: 'm:Arcade/qbert',
+          title: 'Q*bert',
+          system: 'Arcade',
+          path: 'Arcade/qbert.zip',
+          versions: 1,
+        ),
+      ],
+      total: 1,
+      indexing: false,
+    );
+  }
+}
+
+class _SmallCatalog extends _QuietRom {
+  bool probed = false;
+
+  @override
+  Future<RomSystemList> systems(MediaServerClient client) async =>
+      const RomSystemList(systems: [RomSystemCount(name: 'NES', games: 1000)]);
+
+  @override
+  Future<RomManagerGamePage?> page({
+    required MediaServerClient client,
+    required String system,
+    int offset = 0,
+    String sort = 'title',
+    String? query,
+    String? letter,
+    String? bucket,
+    String? developer,
+    bool includeBuckets = false,
+    int? limit,
+    List<String>? keys,
+  }) async {
+    if (includeBuckets) probed = true;
+    return const RomManagerGamePage(
+      items: [
+        RomManagerGame(
+          key: 'm:nes',
+          title: 'Super Mario Bros.',
+          system: 'NES',
+          path: 'NES/mario.nes',
+          versions: 1,
+        ),
+      ],
+      total: 1,
+      indexing: false,
+    );
+  }
+}
+
 class _RetryRom extends _QuietRom {
   int calls = 0;
 
   @override
   Future<RomSystemList> systems(MediaServerClient client) async =>
-      const RomSystemList(
-        systems: [RomSystemCount(name: 'Arcade', games: 4)],
-      );
+      const RomSystemList(systems: [RomSystemCount(name: 'Arcade', games: 4)]);
 
   @override
   Future<RomManagerGamePage?> page({
@@ -270,9 +416,27 @@ void main() {
   ];
 
   final List<GameSummary> nesGames = const [
-    GameSummary(id: 'g1', title: 'Zelda', fileName: 'zelda.nes', system: 'nes', core: 'fceumm'),
-    GameSummary(id: 'g2', title: 'Mario', fileName: 'mario.nes', system: 'nes', core: 'fceumm'),
-    GameSummary(id: 'g3', title: 'Metroid', fileName: 'metroid.nes', system: 'nes', core: 'fceumm'),
+    GameSummary(
+      id: 'g1',
+      title: 'Zelda',
+      fileName: 'zelda.nes',
+      system: 'nes',
+      core: 'fceumm',
+    ),
+    GameSummary(
+      id: 'g2',
+      title: 'Mario',
+      fileName: 'mario.nes',
+      system: 'nes',
+      core: 'fceumm',
+    ),
+    GameSummary(
+      id: 'g3',
+      title: 'Metroid',
+      fileName: 'metroid.nes',
+      system: 'nes',
+      core: 'fceumm',
+    ),
   ];
 
   setUp(() async {
@@ -313,7 +477,9 @@ void main() {
     GetIt.instance.reset();
   });
 
-  testWidgets('tab filtering: All, Favorites, and Recently Played', (tester) async {
+  testWidgets('tab filtering: All, Favorites, and Recently Played', (
+    tester,
+  ) async {
     // g2 is favorite, g3 is recent
     GameLocalData.instance.resetForTest(
       favorites: {'retro:g2'},
@@ -392,38 +558,43 @@ void main() {
     expect(find.text('Recently played'), findsOneWidget);
   });
 
-  testWidgets('Left on first console opens side menu on TV without moving off screen', (tester) async {
-    PlatformDetection.setTvMode(true);
+  testWidgets(
+    'Left on first console opens side menu on TV without moving off screen',
+    (tester) async {
+      PlatformDetection.setTvMode(true);
 
-    await tester.binding.setSurfaceSize(const Size(1280, 720));
-    addTearDown(() => tester.binding.setSurfaceSize(null));
+      await tester.binding.setSurfaceSize(const Size(1280, 720));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
 
-    await tester.pumpWidget(
-      MaterialApp(
-        theme: AppTheme.buildTheme(ThemeRegistry.active),
-        localizationsDelegates: AppLocalizations.localizationsDelegates,
-        supportedLocales: AppLocalizations.supportedLocales,
-        home: const GamesBrowserScreen(libraryId: 'retro'),
-      ),
-    );
-    await tester.pump();
-    await tester.pump();
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.buildTheme(ThemeRegistry.active),
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: const GamesBrowserScreen(libraryId: 'retro'),
+        ),
+      );
+      await tester.pump();
+      await tester.pump();
 
-    // On TV the sidebar starts expanded so the stats cards are always visible.
-    expect(find.text('Downloaded Storage'), findsOneWidget);
-    expect(find.text('Total Games'), findsOneWidget);
+      // On TV the sidebar starts expanded so the stats cards are always visible.
+      expect(find.text('Downloaded Storage'), findsOneWidget);
+      expect(find.text('Total Games'), findsOneWidget);
 
-    // Send Left arrow key on the first console
-    await tester.sendKeyEvent(LogicalKeyboardKey.arrowLeft);
-    await tester.pumpAndSettle();
+      // Send Left arrow key on the first console
+      await tester.sendKeyEvent(LogicalKeyboardKey.arrowLeft);
+      await tester.pumpAndSettle();
 
-    // Side menu is opened
-    expect(find.text('Downloaded Storage'), findsOneWidget);
-    expect(find.text('Total Games'), findsOneWidget);
-    expect(find.text('Downloaded Games'), findsOneWidget);
-  });
+      // Side menu is opened
+      expect(find.text('Downloaded Storage'), findsOneWidget);
+      expect(find.text('Total Games'), findsOneWidget);
+      expect(find.text('Downloaded Games'), findsOneWidget);
+    },
+  );
 
-  testWidgets('a failed later page leaves the games already loaded', (tester) async {
+  testWidgets('a failed later page leaves the games already loaded', (
+    tester,
+  ) async {
     var calls = 0;
     when(
       () => gamesApi.getGamesPage(
@@ -461,7 +632,10 @@ void main() {
     expect(find.text('Mario'), findsOneWidget);
     expect(find.text('| 4 Games'), findsOneWidget);
 
-    await tester.drag(find.byType(SingleChildScrollView), const Offset(0, -2000));
+    await tester.drag(
+      find.byType(SingleChildScrollView),
+      const Offset(0, -2000),
+    );
     await tester.pump();
     await tester.pump();
 
@@ -521,7 +695,12 @@ void main() {
   ) async {
     when(() => gamesApi.getSystems('retro')).thenAnswer(
       (_) async => const [
-        GameSystem(id: 'arcade', name: 'Arcade', core: 'fbneo', gameCount: 1200),
+        GameSystem(
+          id: 'arcade',
+          name: 'Arcade',
+          core: 'fbneo',
+          gameCount: 1200,
+        ),
       ],
     );
     when(
@@ -547,7 +726,10 @@ void main() {
     await tester.pump();
     await tester.pump();
 
-    expect(find.text('Pick a letter range. Each one loads on its own.'), findsOneWidget);
+    expect(
+      find.text('Pick a letter range. Each one loads on its own.'),
+      findsOneWidget,
+    );
     expect(find.text('# – D'), findsOneWidget);
     expect(find.text('Q – S'), findsOneWidget);
     expect(find.text('40 Games'), findsOneWidget);
@@ -560,16 +742,17 @@ void main() {
 
     expect(roms.lastBucket, 'Q-S');
     expect(find.text('Q*bert'), findsOneWidget);
-    expect(find.text('Pick a letter range. Each one loads on its own.'), findsNothing);
+    expect(
+      find.text('Pick a letter range. Each one loads on its own.'),
+      findsNothing,
+    );
     verify(() => gamesApi.getSystems('retro')).called(1);
   });
 
   testWidgets('Recent and Recently played follow local last-played order', (
     tester,
   ) async {
-    GameLocalData.instance.resetForTest(
-      recents: ['retro:m:z', 'retro:m:a'],
-    );
+    GameLocalData.instance.resetForTest(recents: ['retro:m:z', 'retro:m:a']);
     final roms = _TitleOrderedRom();
     await tester.binding.setSurfaceSize(const Size(1280, 720));
     addTearDown(() => tester.binding.setSurfaceSize(null));
@@ -618,7 +801,13 @@ void main() {
       ),
     ).thenAnswer(
       (_) async => _pageOf(const [
-        GameSummary(id: 'zip', title: 'Zip Only', fileName: 'a.zip', system: 'Arcade', core: ''),
+        GameSummary(
+          id: 'zip',
+          title: 'Zip Only',
+          fileName: 'a.zip',
+          system: 'Arcade',
+          core: '',
+        ),
       ]),
     );
 
@@ -648,6 +837,185 @@ void main() {
     expect(find.text('1942'), findsOneWidget);
     expect(find.text('Zip Only'), findsNothing);
   });
+
+  testWidgets('a big system shows letter ranges and D-pad reaches them', (
+    tester,
+  ) async {
+    final roms = _TvCatalog();
+    await _pumpTv(tester, roms);
+
+    expect(
+      find.text('Pick a letter range. Each one loads on its own.'),
+      findsOneWidget,
+    );
+    expect(find.text('# – D'), findsOneWidget);
+    expect(find.text('E – H'), findsOneWidget);
+    expect(find.text('I – L'), findsOneWidget);
+    expect(find.text('M – P'), findsOneWidget);
+    expect(find.text('Q – S'), findsOneWidget);
+    expect(find.text('T – Z'), findsOneWidget);
+    expect(find.text('410 Games'), findsOneWidget);
+    expect(find.text('300 Games'), findsNWidgets(5));
+    expect(find.text('| 2532 Games'), findsOneWidget);
+    expect(find.text('| 0 Games'), findsNothing);
+    expect(find.text('No games found'), findsNothing);
+    expect(find.text('Q*bert'), findsNothing);
+    expect(roms.probes, 1);
+    expect(roms.calls.single['includeBuckets'], isTrue);
+    expect(roms.calls.single['limit'], 1);
+    expect(roms.calls.single['system'], 'Arcade');
+
+    expect(_focusLabel(tester), 'console_carousel_0');
+    await _press(tester, LogicalKeyboardKey.arrowDown);
+    expect(_focusLabel(tester), 'games_dev_0');
+    await _press(tester, LogicalKeyboardKey.arrowDown);
+    expect(_focusLabel(tester), 'games_bucket_0');
+
+    await _press(tester, LogicalKeyboardKey.arrowUp);
+    expect(_focusLabel(tester), 'games_tab_all');
+    await _press(tester, LogicalKeyboardKey.arrowDown);
+    expect(_focusLabel(tester), 'games_bucket_0');
+
+    for (var i = 0; i < 4; i++) {
+      await _press(tester, LogicalKeyboardKey.arrowRight);
+    }
+    expect(_focusLabel(tester), 'games_bucket_4');
+    await _press(tester, LogicalKeyboardKey.select);
+    await tester.pump();
+    await tester.pump();
+
+    expect(roms.calls.last['bucket'], 'Q-S');
+    expect(roms.calls.last['includeBuckets'], isFalse);
+    expect(roms.calls.last['system'], 'Arcade');
+    expect(find.text('Q*bert'), findsOneWidget);
+    expect(
+      find.text('Pick a letter range. Each one loads on its own.'),
+      findsNothing,
+    );
+    expect(_focusLabel(tester), 'game_poster:0');
+
+    await _press(tester, LogicalKeyboardKey.escape);
+    await tester.pump();
+    await tester.pump();
+
+    expect(find.text('Q*bert'), findsNothing);
+    expect(find.text('Q – S'), findsOneWidget);
+    expect(_focusLabel(tester), 'games_bucket_4');
+  });
+
+  testWidgets(
+    'a system of 1000 games skips ranges and D-pad reaches the grid',
+    (tester) async {
+      final roms = _SmallCatalog();
+      await _pumpTv(tester, roms);
+
+      expect(find.text('Super Mario Bros.'), findsOneWidget);
+      expect(
+        find.text('Pick a letter range. Each one loads on its own.'),
+        findsNothing,
+      );
+      expect(find.text('# – D'), findsNothing);
+      expect(roms.probed, isFalse);
+      expect(_focusLabel(tester), 'console_carousel_0');
+
+      await _press(tester, LogicalKeyboardKey.arrowDown);
+      expect(_focusLabel(tester), 'game_poster:0');
+    },
+  );
+
+  testWidgets('the developer row does not trap D-pad focus', (tester) async {
+    final roms = _TvCatalog();
+    await _pumpTv(tester, roms);
+
+    await _press(tester, LogicalKeyboardKey.arrowDown);
+    expect(_focusLabel(tester), 'games_dev_0');
+
+    await _press(tester, LogicalKeyboardKey.arrowRight);
+    expect(_focusLabel(tester), 'games_dev_1');
+    await _press(tester, LogicalKeyboardKey.arrowLeft);
+    expect(_focusLabel(tester), 'games_dev_0');
+
+    await _press(tester, LogicalKeyboardKey.arrowDown);
+    expect(_focusLabel(tester), isNot(startsWith('games_dev_')));
+    expect(_focusLabel(tester), 'games_bucket_0');
+
+    await _press(tester, LogicalKeyboardKey.arrowUp);
+    await _press(tester, LogicalKeyboardKey.arrowUp);
+    expect(_focusLabel(tester), 'games_dev_0');
+    await _press(tester, LogicalKeyboardKey.arrowUp);
+    expect(_focusLabel(tester), 'console_carousel_0');
+
+    await _press(tester, LogicalKeyboardKey.arrowDown);
+    await _press(tester, LogicalKeyboardKey.select);
+    await tester.pump();
+    await tester.pump();
+
+    expect(roms.calls.last['developer'], 'Capcom');
+    expect(roms.calls.last['system'], '');
+    expect(find.text('Final Fight'), findsOneWidget);
+    expect(find.text('# – D'), findsNothing);
+
+    await _press(tester, LogicalKeyboardKey.select);
+    await tester.pump();
+    await tester.pump();
+
+    expect(find.text('Final Fight'), findsNothing);
+    expect(find.text('# – D'), findsOneWidget);
+    expect(find.text('410 Games'), findsOneWidget);
+    expect(_focusLabel(tester), 'games_bucket_0');
+
+    await _press(tester, LogicalKeyboardKey.arrowUp);
+    await _press(tester, LogicalKeyboardKey.arrowUp);
+    await _press(tester, LogicalKeyboardKey.arrowUp);
+    await _press(tester, LogicalKeyboardKey.arrowRight);
+    await tester.pump();
+    await tester.pump();
+
+    expect(find.text('Super Mario Bros.'), findsOneWidget);
+    expect(find.text('# – D'), findsNothing);
+    expect(roms.calls.last['includeBuckets'], isFalse);
+    expect(roms.calls.last['system'], 'NES');
+
+    await _press(tester, LogicalKeyboardKey.arrowDown);
+    expect(_focusLabel(tester), 'games_dev_0');
+    await _press(tester, LogicalKeyboardKey.select);
+    await tester.pump();
+    await tester.pump();
+    expect(roms.calls.last['developer'], 'Capcom');
+    expect(roms.calls.last['system'], '');
+    expect(find.text('Final Fight'), findsOneWidget);
+    expect(find.text('Super Mario Bros.'), findsNothing);
+
+    await _press(tester, LogicalKeyboardKey.select);
+    await tester.pump();
+    await tester.pump();
+    expect(find.text('Super Mario Bros.'), findsOneWidget);
+    expect(find.text('# – D'), findsNothing);
+    expect(find.text('Final Fight'), findsNothing);
+    expect(roms.calls.last['developer'], isNull);
+    expect(roms.calls.last['includeBuckets'], isFalse);
+    expect(roms.calls.last['system'], 'NES');
+  });
+
+  testWidgets(
+    'a failed letter-range probe shows Retry instead of an empty grid',
+    (tester) async {
+      final roms = _TvCatalog(fail: true);
+      await _pumpTv(tester, roms);
+
+      expect(find.text('Could not load Arcade.'), findsOneWidget);
+      expect(find.text('Retry'), findsOneWidget);
+      expect(find.text('No games found'), findsNothing);
+      expect(find.text('| 0 Games'), findsNothing);
+      expect(find.text('# – D'), findsNothing);
+
+      expect(_focusLabel(tester), 'console_carousel_0');
+      await _press(tester, LogicalKeyboardKey.arrowDown);
+      expect(_focusLabel(tester), 'games_dev_0');
+      await _press(tester, LogicalKeyboardKey.arrowDown);
+      expect(_focusLabel(tester), 'games_retry');
+    },
+  );
 }
 
 void _expectReadingOrder(WidgetTester tester, List<String> titles) {
@@ -656,9 +1024,38 @@ void _expectReadingOrder(WidgetTester tester, List<String> titles) {
     final at = tester.getTopLeft(find.text(title));
     if (previous != null) {
       final lower = at.dy > previous.dy + 1;
-      final sameRowLater = (at.dy - previous.dy).abs() <= 1 && at.dx > previous.dx;
-      expect(lower || sameRowLater, isTrue, reason: '$title should follow the previous title');
+      final sameRowLater =
+          (at.dy - previous.dy).abs() <= 1 && at.dx > previous.dx;
+      expect(
+        lower || sameRowLater,
+        isTrue,
+        reason: '$title should follow the previous title',
+      );
     }
     previous = at;
   }
+}
+
+String? _focusLabel(WidgetTester tester) =>
+    tester.binding.focusManager.primaryFocus?.debugLabel;
+
+Future<void> _press(WidgetTester tester, LogicalKeyboardKey key) async {
+  await tester.sendKeyEvent(key);
+  await tester.pump();
+}
+
+Future<void> _pumpTv(WidgetTester tester, RomManagerGames roms) async {
+  PlatformDetection.setTvMode(true);
+  await tester.binding.setSurfaceSize(const Size(1280, 720));
+  addTearDown(() => tester.binding.setSurfaceSize(null));
+  await tester.pumpWidget(
+    MaterialApp(
+      theme: AppTheme.buildTheme(ThemeRegistry.active),
+      localizationsDelegates: AppLocalizations.localizationsDelegates,
+      supportedLocales: AppLocalizations.supportedLocales,
+      home: GamesBrowserScreen(libraryId: 'retro', romGames: roms),
+    ),
+  );
+  await tester.pump();
+  await tester.pump();
 }
