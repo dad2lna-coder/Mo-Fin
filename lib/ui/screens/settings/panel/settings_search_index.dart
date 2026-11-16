@@ -415,6 +415,12 @@ List<_SettingsSearchEntry> _buildSettingsSearchIndex({
     icon: Icons.hub,
     open: () => push(const _ServicesScreen()),
   );
+  final libraryScreens = _SearchSection(
+    slug: 'library-screens',
+    path: [l10n.integrations, 'Library screens'],
+    icon: Icons.grid_view,
+    open: () => push(const LibraryScreenMapScreen()),
+  );
   final streaming = _SearchSection(
     slug: 'streaming',
     path: [l10n.integrations, 'Streaming'],
@@ -1864,6 +1870,14 @@ List<_SettingsSearchEntry> _buildSettingsSearchIndex({
       ),
 
     services.screen(keywords: ['seerr', 'achievements', 'services']),
+    libraryScreens.screen(keywords: [
+      'live tv',
+      'retro games',
+      'rom manager',
+      'my media',
+      'direct iptv',
+      'library screen',
+    ]),
     streaming.screen(keywords: [
       'tmdb',
       'netflix',

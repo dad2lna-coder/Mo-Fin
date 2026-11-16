@@ -1,11 +1,6 @@
-import 'package:get_it/get_it.dart';
-import 'package:plugin_host/plugin_host.dart';
-
 import '../data/models/aggregated_library.dart';
-import '../preference/user_preferences.dart';
 import '../ui/navigation/destinations.dart';
 import 'game_library.dart';
-import 'platform_detection.dart';
 
 /// Where the Games item in the sidebar and toolbar should open.
 ///
@@ -27,7 +22,10 @@ class GamesNav {
       return Destinations.games;
     }
     for (final lib in libraries) {
-      if (!isGameLibrary(lib.id, lib.collectionType, lib.name)) continue;
+      if (!isGameLibrary(lib.id, lib.collectionType, lib.name) &&
+          !isKnownGameLibraryName(lib.name)) {
+        continue;
+      }
       return libraryRoute(
         lib.id,
         lib.collectionType,
@@ -38,23 +36,11 @@ class GamesNav {
     return null;
   }
 
-  static bool get hubAvailable {
-    if (!PlatformDetection.pluginHostSupported) return false;
-    if (!GetIt.instance.isRegistered<UserPreferences>()) return false;
-    final prefs = GetIt.instance<UserPreferences>();
-    if (prefs.get(UserPreferences.kidsModeEnabled)) return false;
-    if (!prefs.get(UserPreferences.pluginsEnabled)) return false;
-    if (GetIt.instance.isRegistered<PluginService>() &&
-        !GetIt.instance<PluginService>().pluginsEnabled) {
-      return false;
-    }
-    if (!GetIt.instance.isRegistered<PluginRegistry>()) return false;
-    return GetIt.instance<PluginRegistry>().gamesSlotPlugin != null;
-  }
+  static bool get hubAvailable => gamesHubAvailable;
 
   /// Plugin whose generic nav row should hide while the Games hub is showing.
   static String? get gamesPluginId {
     if (!hubAvailable) return null;
-    return GetIt.instance<PluginRegistry>().gamesSlotPlugin?.id;
+    return gamesHubPluginId;
   }
 }

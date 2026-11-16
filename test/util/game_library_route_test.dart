@@ -42,7 +42,7 @@ void main() {
       expect(libraryRoute('lib-books', 'books', 'Books'),
           '/books/lib-books?collectionType=books');
       expect(libraryRoute('lib-music', 'music', 'Music'), '/music/lib-music');
-      expect(libraryRoute('lib-tv', 'livetv', 'Live TV'), '/live-tv/guide');
+      expect(libraryRoute('lib-tv', 'livetv', 'Live TV'), '/live-tv/direct');
       expect(
         libraryRoute('lib-movies', 'movies', 'Movies'),
         startsWith('/library/lib-movies'),
@@ -65,6 +65,74 @@ void main() {
       expect(
         libraryRoute('lib-shows', 'tvshows', 'Game of Thrones'),
         startsWith('/library/lib-shows'),
+      );
+    });
+
+    test('Retro Games opens the games screen even when the registry omits it',
+        () {
+      registerGameLibraries(['lib-games']);
+
+      expect(
+        libraryRoute('lib-roms', 'homevideos', 'Retro Games'),
+        startsWith('/games/lib-roms'),
+      );
+      expect(
+        libraryRoute('lib-roms', null, 'ROMs'),
+        startsWith('/games/lib-roms'),
+      );
+    });
+
+    test('a library named Live TV opens Direct IPTV', () {
+      registerGameLibraries(['lib-games']);
+
+      expect(
+        libraryRoute('lib-live', 'movies', 'Live Television'),
+        '/live-tv/direct',
+      );
+    });
+
+    test('a stored screen override wins over the automatic match', () {
+      registerGameLibraries(['lib-games']);
+
+      expect(
+        libraryRoute(
+          'lib-games',
+          'mixed',
+          'Retro Games',
+          screenOverrides: const {'lib-games': libraryScreenBrowse},
+        ),
+        startsWith('/library/lib-games'),
+      );
+      expect(
+        libraryRoute(
+          'lib-movies',
+          'movies',
+          'Movies',
+          screenOverrides: const {'lib-movies': libraryScreenDirect},
+        ),
+        '/live-tv/direct',
+      );
+      expect(
+        libraryRoute(
+          'lib-movies',
+          'movies',
+          'Movies',
+          screenOverrides: const {'lib-movies': libraryScreenGames},
+        ),
+        startsWith('/games/lib-movies'),
+      );
+    });
+
+    test('the screen map ignores anything that is not a known target', () {
+      expect(
+        decodeLibraryScreenMap('{"a":"direct","b":"nope","c":1}'),
+        {'a': libraryScreenDirect},
+      );
+      expect(
+        decodeLibraryScreenMap(
+          encodeLibraryScreenMap({'a': libraryScreenGames, 'b': 'folder'}),
+        ),
+        {'a': libraryScreenGames},
       );
     });
   });

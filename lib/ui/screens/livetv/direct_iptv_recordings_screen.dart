@@ -3,18 +3,15 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import '../../../direct_iptv/direct_iptv_recordings.dart';
-import '../../../direct_iptv/models.dart';
 import 'direct_guide_layout.dart';
 
-/// Server recordings for one direct source. Deleting calls `DELETE rec/<id>`.
+/// Server recordings for the signed-in account. Delete calls Moonbase.
 class DirectIptvRecordingsScreen extends StatefulWidget {
-  final DirectIptvSource source;
   final DirectIptvRecordings recordings;
   final ValueChanged<List<DirectRecording>>? onChanged;
 
   const DirectIptvRecordingsScreen({
     super.key,
-    required this.source,
     required this.recordings,
     this.onChanged,
   });
@@ -38,7 +35,7 @@ class _DirectIptvRecordingsScreenState
 
   Future<void> _load() async {
     try {
-      final items = await widget.recordings.list(widget.source);
+      final items = await widget.recordings.list();
       if (!mounted) return;
       setState(() {
         _items = _sorted(items);
@@ -59,7 +56,7 @@ class _DirectIptvRecordingsScreenState
     if (_deleting.contains(item.id)) return;
     setState(() => _deleting.add(item.id));
     try {
-      await widget.recordings.cancel(widget.source, item.id);
+      await widget.recordings.cancel(item.id);
       if (!mounted) return;
       setState(() {
         _items = [

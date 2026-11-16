@@ -5649,8 +5649,8 @@ class _ContentRowsState extends State<_ContentRows>
   }
 
   static void _navigateToLibrary(BuildContext context, AggregatedItem item) {
-    // Game libraries route to the EmulatorJS browser, everything else by its
-    // collection type. Shared with the sidebar, toolbar and bottom nav.
+    // Live TV opens Direct IPTV and a ROM library opens the games screen.
+    // The same route is used by the sidebar, toolbar and bottom nav.
     context.push(libraryRoute(
       item.id,
       item.rawData['CollectionType'] as String?,

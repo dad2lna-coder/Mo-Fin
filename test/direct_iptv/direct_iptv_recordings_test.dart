@@ -43,13 +43,16 @@ class _Transport extends DirectIptvTransport {
   }
 }
 
-DirectIptvSource _source({String baseUrl = 'http://dispatch.test'}) {
-  return DirectIptvSource(
-    id: 'src',
-    name: 'Home',
-    kind: DirectIptvKind.dispatcharr,
-    baseUrl: baseUrl,
-    token: 'tok',
+const _session = {
+  'Authorization':
+      'MediaBrowser Client="Moonfin", Device="Phone", DeviceId="abc", Version="1", Token="session"',
+};
+
+DirectIptvRecordings _client(_Transport transport) {
+  return DirectIptvRecordings(
+    transport: transport,
+    baseUrl: 'http://jellyfin.test',
+    sessionHeaders: _session,
   );
 }
 
@@ -57,7 +60,7 @@ DirectChannel _channel(String tvgId) => DirectChannel(
   id: 'direct:src:$tvgId',
   sourceId: 'src',
   name: 'News',
-  streamUrl: 'http://dispatch.test/news.ts',
+  streamUrl: 'http://example.test/news.ts',
   tvgId: tvgId,
 );
 
@@ -73,41 +76,50 @@ void main() {
   final start = DateTime.utc(2026, 10, 22, 20);
   final end = DateTime.utc(2026, 10, 22, 21);
 
-  test('schedule posts tvg id, title, and ISO times under rec/', () async {
+  test('schedule posts to Moonbase with the session, not a source key', () async {
     final transport = _Transport(
       (call) => const DirectIptvHttpResult(201, '{"id":"job-1"}'),
     );
-    final client = DirectIptvRecordings(transport: transport);
+    final client = _client(transport);
 
     final created = await client.schedule(
-      source: _source(baseUrl: 'http://dispatch.test/'),
       tvgId: 'news',
       title: 'Nightly',
       start: start,
       end: end,
+      streamUrl: 'http://example.test/news.ts',
+      recUrl: 'http://example.test/rec.ts',
     );
 
     final call = transport.calls.single;
     expect(call.method, 'POST');
-    expect(call.url.toString(), 'http://dispatch.test/rec/schedule');
-    expect(call.headers['Authorization'], 'Bearer tok');
+    expect(
+      call.url.toString(),
+      'http://jellyfin.test/Moonfin/LiveTv/Direct/Recordings',
+    );
+    expect(call.headers['Authorization'], _session['Authorization']);
+    expect(call.headers['Authorization'], isNot(contains('Bearer')));
+    expect(call.headers.containsKey('X-Mofin-Key'), isFalse);
     expect(call.headers['Content-Type'], 'application/json');
     final body = jsonDecode(call.body!) as Map<String, dynamic>;
-    expect(body['tvg_id'], 'news');
+    expect(body['tvgId'], 'news');
     expect(body['title'], 'Nightly');
     expect(body['start'], start.toIso8601String());
     expect(body['end'], end.toIso8601String());
+    expect(body['streamUrl'], 'http://example.test/news.ts');
+    expect(body['recUrl'], 'http://example.test/rec.ts');
+    expect(body.containsKey('token'), isFalse);
     expect(created.id, 'job-1');
     expect(created.status, 'scheduled');
     expect(created.tvgId, 'news');
   });
 
-  test('list reads rec/list and delete calls rec/<id>', () async {
+  test('list and delete use the Moonbase recordings route', () async {
     final body = jsonEncode({
       'recordings': [
         {
           'id': 'job-1',
-          'tvg_id': 'news',
+          'tvgId': 'news',
           'title': 'Nightly',
           'start': start.toIso8601String(),
           'end': end.toIso8601String(),
@@ -115,7 +127,7 @@ void main() {
         },
         {
           'id': 'old',
-          'tvg_id': 'news',
+          'tvgId': 'news',
           'title': 'Earlier',
           'start': start.subtract(const Duration(hours: 3)).toIso8601String(),
           'end': start.subtract(const Duration(hours: 2)).toIso8601String(),
@@ -127,14 +139,14 @@ void main() {
       if (call.method == 'GET') return DirectIptvHttpResult(200, body);
       return const DirectIptvHttpResult(204, '');
     });
-    final client = DirectIptvRecordings(transport: transport);
-    final source = _source();
+    final client = _client(transport);
 
-    final items = await client.list(source);
+    final items = await client.list();
     expect(
       transport.calls.single.url.toString(),
-      'http://dispatch.test/rec/list',
+      'http://jellyfin.test/Moonfin/LiveTv/Direct/Recordings',
     );
+    expect(transport.calls.single.headers['Authorization'], contains('session'));
     expect(items.map((item) => item.id), ['job-1', 'old']);
     expect(items.first.marksGuide, isTrue);
     expect(items.last.marksGuide, isFalse);
@@ -162,21 +174,24 @@ void main() {
       isNull,
     );
 
-    await client.cancel(source, 'job/1');
+    await client.cancel('job/1');
     final deleted = transport.calls.last;
     expect(deleted.method, 'DELETE');
-    expect(deleted.url.toString(), 'http://dispatch.test/rec/job%2F1');
+    expect(
+      deleted.url.toString(),
+      'http://jellyfin.test/Moonfin/LiveTv/Direct/Recordings/job%2F1',
+    );
+    expect(deleted.headers.containsKey('X-Mofin-Key'), isFalse);
   });
 
-  test('a missing recordings API fails quietly', () async {
+  test('a missing Moonbase recordings API fails without asking for a key', () async {
     final transport = _Transport(
       (call) => const DirectIptvHttpResult(404, 'not found'),
     );
-    final client = DirectIptvRecordings(transport: transport);
+    final client = _client(transport);
 
     await expectLater(
       client.schedule(
-        source: _source(),
         tvgId: 'news',
         title: 'Nightly',
         start: start,
@@ -190,15 +205,33 @@ void main() {
         ),
       ),
     );
-    expect(transport.calls.single.url.path, '/rec/schedule');
+    expect(transport.calls.single.url.path, '/Moonfin/LiveTv/Direct/Recordings');
 
     await expectLater(
-      client.list(_source()),
+      client.list(),
       throwsA(
         isA<DirectIptvRecordingsException>().having(
           (error) => error.toString(),
           'string',
           directRecordingsMissingMessage,
+        ),
+      ),
+    );
+  });
+
+  test('a forbidden session says recording is not allowed', () async {
+    final transport = _Transport(
+      (call) => const DirectIptvHttpResult(403, ''),
+    );
+    final client = _client(transport);
+
+    await expectLater(
+      client.list(),
+      throwsA(
+        isA<DirectIptvRecordingsException>().having(
+          (error) => error.message,
+          'message',
+          directRecordingsForbiddenMessage,
         ),
       ),
     );

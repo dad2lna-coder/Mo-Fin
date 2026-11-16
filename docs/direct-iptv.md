@@ -30,5 +30,9 @@ While watching a channel in the live player, users can report channel status bac
 - If a primary stream in a stack fails during playback, MoFin automatically attempts failover playback across alternative member streams.
 
 ### Recording
-- When recording a channel, MoFin posts the channel `tvg_id` to the server, and the server chooses the appropriate recording source.
-- The `x-mofin-rec-url` M3U tag serves as a recording URL hint for the server (or `?rec=1` on stack playlist requests).
+- Direct IPTV (M3U) recordings are scheduled on the signed-in server at `POST/GET/DELETE /Moonfin/LiveTv/Direct/Recordings`.
+- The request uses that user's Jellyfin session. The app does not ask for, store, or send a separate recording key.
+- The account needs Live TV management, or to be an administrator. A server that sends `EnableLiveTvRecording` is honored the same way.
+- Jellyfin Live TV channels shown in the same guide record through Jellyfin's own timers, with the same session.
+- `x-mofin-rec-url` is sent as a recording URL hint. Moonbase does not store the stream URL. Capture uses ffmpeg when it is installed; the job is still scheduled when it is not.
+- This needs a Moonbase build that includes the Direct recordings endpoint. Until that plugin is updated, MoFin says the plugin is missing instead of asking for a key.

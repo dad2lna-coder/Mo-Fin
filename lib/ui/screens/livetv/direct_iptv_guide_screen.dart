@@ -7,12 +7,15 @@ import '../../widgets/mofin_brand.dart';
 
 import 'package:get_it/get_it.dart';
 import 'package:go_router/go_router.dart';
+import 'package:server_core/server_core.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../../../data/viewmodels/live_tv_guide_view_model.dart';
 import '../../../direct_iptv/direct_guide.dart';
 import '../../../direct_iptv/direct_iptv_catalog.dart';
 import '../../../direct_iptv/direct_iptv_recordings.dart';
 import '../../../direct_iptv/guide_tmdb.dart';
+import '../../../direct_iptv/jellyfin_lineup.dart';
 import '../../../direct_iptv/models.dart';
 import '../../../direct_iptv/playlist_parse.dart';
 import '../../../preference/user_preferences.dart';
@@ -76,6 +79,11 @@ class _DirectIptvGuideScreenState extends State<DirectIptvGuideScreen>
   Map<String, List<DirectProgram>> _programIndex = const {};
   List<DirectRecording> _recordings = const [];
   String? _recordingsSourceId;
+  List<DirectChannel> _jellyfinChannels = const [];
+  List<DirectProgram> _jellyfinPrograms = const [];
+  Map<String, GuideChannel> _jellyfinGuides = const {};
+  Set<String> _jellyfinTimerIds = const {};
+  List<DirectProgram>? _indexedJellyfin;
   String? _savedSourceId;
   bool _lastSourceLoaded = false;
   UserPreferences? _prefs;
@@ -97,6 +105,8 @@ class _DirectIptvGuideScreenState extends State<DirectIptvGuideScreen>
     if (_catalog.loaded) _selectDefaultSource();
     unawaited(_loadLastSource());
     _startClock();
+    unawaited(_loadJellyfinLineup());
+    unawaited(_loadRecordings());
     unawaited(
       _catalog.ensureLoaded().then((_) async {
         if (!mounted) return;
@@ -154,6 +164,49 @@ class _DirectIptvGuideScreenState extends State<DirectIptvGuideScreen>
     _indexedFrom = null;
   }
 
+  Future<void> _loadJellyfinLineup() async {
+    if (!GetIt.instance.isRegistered<MediaServerClient>()) return;
+    final client = GetIt.instance<MediaServerClient>();
+    try {
+      final now = DateTime.now();
+      final channels = await client.liveTvApi.getChannels(
+        fields: 'ChannelInfo,ImageTags,UserData',
+      );
+      final guide = await client.liveTvApi.getGuide(
+        startDate: now.subtract(const Duration(hours: 1)),
+        endDate: now.add(const Duration(hours: 8)),
+        enableImages: false,
+        enableTotalRecordCount: false,
+        enableUserData: true,
+      );
+      final lineup = jellyfinLineupFromResponses(channels, guide);
+      if (!mounted) return;
+      setState(() {
+        _jellyfinChannels = lineup.channels;
+        _jellyfinPrograms = lineup.programs;
+        _jellyfinGuides = lineup.guides;
+        _jellyfinTimerIds = lineup.timerProgramIds;
+        _indexedFrom = null;
+      });
+    } catch (_) {
+      // A server without Live TV still shows the M3U lineup.
+    }
+  }
+
+  Future<bool> _recordingAllowed() async {
+    if (!GetIt.instance.isRegistered<MediaServerClient>()) return true;
+    try {
+      final user = await GetIt.instance<MediaServerClient>()
+          .usersApi
+          .getCurrentUser();
+      if (user.policy?.canRecordLiveTv ?? false) return true;
+      _snack(directRecordingsForbiddenMessage);
+      return false;
+    } catch (_) {
+      return true;
+    }
+  }
+
   Future<void> _loadLastSource() async {
     final prefs = await SharedPreferences.getInstance();
     if (!mounted) return;
@@ -175,31 +228,40 @@ class _DirectIptvGuideScreenState extends State<DirectIptvGuideScreen>
   }
 
   List<DirectChannel> get _channels {
-    final source = _source;
-    if (source == null) return const [];
-    final snapshot = _catalog.snapshotFor(source.id);
-    if (snapshot == null) return const [];
+    final snapshot = _source == null
+        ? null
+        : _catalog.snapshotFor(_source!.id);
     return visibleDirectChannels(
-      channels: snapshot.channels,
+      channels: [
+        ...snapshot?.channels ?? const <DirectChannel>[],
+        ..._jellyfinChannels,
+      ],
       group: _group,
       query: _query,
     );
   }
 
   List<String> get _groups {
-    final source = _source;
-    if (source == null) return const [];
-    return directGuideGroups(
-      _catalog.snapshotFor(source.id)?.channels ?? const [],
-    );
+    final snapshot = _source == null
+        ? null
+        : _catalog.snapshotFor(_source!.id);
+    return directGuideGroups([
+      ...snapshot?.channels ?? const <DirectChannel>[],
+      ..._jellyfinChannels,
+    ]);
   }
 
   List<DirectProgram> _programsFor(String channelId) {
     final programs =
         _catalog.snapshotFor(_sourceId ?? '')?.programs ?? const [];
-    if (!identical(programs, _indexedFrom)) {
+    if (!identical(programs, _indexedFrom) ||
+        !identical(_jellyfinPrograms, _indexedJellyfin)) {
       _indexedFrom = programs;
-      _programIndex = indexDirectPrograms(programs);
+      _indexedJellyfin = _jellyfinPrograms;
+      _programIndex = indexDirectPrograms([
+        ...programs,
+        ..._jellyfinPrograms,
+      ]);
     }
     return _programIndex[channelId] ?? const [];
   }
@@ -386,17 +448,17 @@ class _DirectIptvGuideScreenState extends State<DirectIptvGuideScreen>
       final route = ModalRoute.of(context);
       if (route != null && !route.isCurrent) return;
       final current = _channelAt(_channels, _cursor.row);
-      if (current?.id != id) return;
-      final source = _source;
-      final url = current?.streamUrl;
-      final headers = source == null || current == null
+      if (current == null || current.id != id) return;
+      final source = _catalog.sourceById(current.sourceId) ?? _source;
+      final url = current.streamUrl;
+      final headers = source == null
           ? const <String, String>{}
           : headersForPlayback(
               headers: authHeaders(source),
               streamUri: Uri.tryParse(current.streamUrl) ?? Uri(),
               credentialHost: Uri.tryParse(source.baseUrl.trim())?.host,
             );
-      if (url == null || url.isEmpty) {
+      if (url.isEmpty || current.sourceId == jellyfinLiveSourceId) {
         _clearPreview();
         return;
       }
@@ -442,18 +504,27 @@ class _DirectIptvGuideScreenState extends State<DirectIptvGuideScreen>
     });
   }
 
+  GuideChannel _guideChannelFor(DirectChannel item) {
+    final jelly = _jellyfinGuides[item.id];
+    if (jelly != null) return jelly;
+    final source = _catalog.sourceById(item.sourceId) ?? _source;
+    if (source == null) {
+      return GuideChannel(id: item.id, name: item.name, rawData: const {});
+    }
+    return guideChannelFromDirect(item, source);
+  }
+
   Future<void> _play(DirectChannel channel) {
     if (_guidePreviewEnabled &&
+        channel.streamUrl.isNotEmpty &&
         _previewUrl != null &&
         _previewUrl == channel.streamUrl) {
       GuidePreviewHandoff.arm(channel.streamUrl);
     }
     return _suspendAndRun(() async {
-      final source = _source;
-      if (source == null) return;
       final visible = _channels;
       final channels = [
-        for (final item in visible) guideChannelFromDirect(item, source),
+        for (final item in visible) _guideChannelFor(item),
       ];
       final index = visible.indexWhere((item) => item.id == channel.id);
       await context.push(
@@ -550,21 +621,15 @@ class _DirectIptvGuideScreenState extends State<DirectIptvGuideScreen>
   }
 
   void _watchRecordings() {
-    final id = _sourceId;
-    if (id == _recordingsSourceId) return;
-    _recordingsSourceId = id;
-    _recordings = const [];
-    if (mounted) setState(() {});
-    if (id != null) unawaited(_loadRecordings());
+    if (_recordingsSourceId == 'loaded') return;
+    _recordingsSourceId = 'loaded';
+    unawaited(_loadRecordings());
   }
 
   Future<void> _loadRecordings() async {
-    final source = _source;
-    final id = source?.id;
-    if (source == null) return;
     try {
-      final list = await _recorder.list(source);
-      if (!mounted || _source?.id != id) return;
+      final list = await _recorder.list();
+      if (!mounted) return;
       setState(() => _recordings = list);
     } on DirectIptvRecordingsException {
       // A missing recordings route stays quiet until the user records.
@@ -585,6 +650,7 @@ class _DirectIptvGuideScreenState extends State<DirectIptvGuideScreen>
 
   bool _programMarked(DirectChannel channel, DirectProgram? program) {
     if (program == null) return false;
+    if (_jellyfinTimerIds.contains(program.id)) return true;
     return directRecordingFor(
           recordings: _recordings,
           channel: channel,
@@ -611,15 +677,20 @@ class _DirectIptvGuideScreenState extends State<DirectIptvGuideScreen>
     DirectProgram program,
   ) async {
     final source = _source;
-    if (source == null) return;
+    if (channel.sourceId != jellyfinLiveSourceId && source == null) return;
+    if (!await _recordingAllowed()) return;
     final existing = directRecordingFor(
       recordings: _recordings,
       channel: channel,
       program: program,
     );
     try {
+      if (channel.sourceId == jellyfinLiveSourceId) {
+        await _toggleJellyfinRecord(program);
+        return;
+      }
       if (existing != null) {
-        await _recorder.cancel(source, existing.id);
+        await _recorder.cancel(existing.id);
         if (!mounted) return;
         setState(() {
           _recordings = [
@@ -635,11 +706,12 @@ class _DirectIptvGuideScreenState extends State<DirectIptvGuideScreen>
           return;
         }
         final created = await _recorder.schedule(
-          source: source,
           tvgId: tvg,
           title: program.title,
           start: program.start,
           end: program.end,
+          streamUrl: channel.streamUrl,
+          recUrl: channel.mofinRecUrl,
         );
         if (!mounted) return;
         setState(() => _recordings = [..._recordings, created]);
@@ -651,17 +723,49 @@ class _DirectIptvGuideScreenState extends State<DirectIptvGuideScreen>
     }
   }
 
+  Future<void> _toggleJellyfinRecord(DirectProgram program) async {
+    if (!GetIt.instance.isRegistered<MediaServerClient>()) return;
+    final api = GetIt.instance<MediaServerClient>().liveTvApi;
+    if (_jellyfinTimerIds.contains(program.id)) {
+      final timers = await api.getTimers();
+      final items = timers['Items'];
+      String? timerId;
+      if (items is List) {
+        for (final item in items) {
+          if (item is! Map) continue;
+          if (item['ProgramId']?.toString() == program.id) {
+            timerId = item['Id']?.toString();
+            break;
+          }
+        }
+      }
+      if (timerId != null && timerId.isNotEmpty) {
+        await api.cancelTimer(timerId);
+      }
+      if (!mounted) return;
+      setState(() {
+        _jellyfinTimerIds = {
+          for (final id in _jellyfinTimerIds)
+            if (id != program.id) id,
+        };
+      });
+      _snack('Recording cancelled');
+      return;
+    }
+    await api.createTimer(program.id);
+    if (!mounted) return;
+    setState(() => _jellyfinTimerIds = {..._jellyfinTimerIds, program.id});
+    _snack('Recording scheduled');
+  }
+
   Future<void> _openRecordings() {
     return _suspendAndRun(() async {
-      final source = _source;
-      if (source == null) return;
       await Navigator.of(context).push(
         MaterialPageRoute(
           builder: (_) => DirectIptvRecordingsScreen(
-            source: source,
             recordings: _recorder,
             onChanged: (list) {
-              if (!mounted || _source?.id != source.id) return;
+              if (!mounted) return;
               setState(() => _recordings = list);
             },
           ),
@@ -690,7 +794,7 @@ class _DirectIptvGuideScreenState extends State<DirectIptvGuideScreen>
         body: Center(child: CircularProgressIndicator()),
       );
     }
-    if (_catalog.sources.isEmpty) {
+    if (_catalog.sources.isEmpty && _jellyfinChannels.isEmpty) {
       return Scaffold(
         backgroundColor: _navy,
         body: _EmptySources(
@@ -818,28 +922,45 @@ class _DirectIptvGuideScreenState extends State<DirectIptvGuideScreen>
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Padding(
-              padding: const EdgeInsets.fromLTRB(8, 4, 8, 8),
+              padding: const EdgeInsets.fromLTRB(4, 4, 8, 8),
               child: Row(
                 children: [
+                  IconButton(
+                    tooltip: 'Back',
+                    visualDensity: VisualDensity.compact,
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(
+                      minWidth: 32,
+                      minHeight: 32,
+                    ),
+                    onPressed: () => context.popOrHome(),
+                    icon: const Icon(
+                      Icons.arrow_back,
+                      color: Colors.white,
+                      size: 20,
+                    ),
+                  ),
                   MoFinBrand(
                     width: compact ? 22 : 28,
                     height: compact ? 22 : 28,
                     wordmark: false,
                     onDark: true,
                   ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      'MoFin',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.w700,
-                        fontSize: compact ? 14 : 18,
+                  if (!compact) ...[
+                    const SizedBox(width: 8),
+                    const Expanded(
+                      child: Text(
+                        'MoFin',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w700,
+                          fontSize: 18,
+                        ),
                       ),
                     ),
-                  ),
+                  ],
                 ],
               ),
             ),

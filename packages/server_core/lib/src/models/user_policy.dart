@@ -215,6 +215,14 @@ class UserPolicy {
   bool get canFetchRemoteSubtitles =>
       enableSubtitleManagement || enableSubtitleDownloading;
 
+  /// Live TV recording. Jellyfin grants that with Live TV management.
+  /// `EnableLiveTvRecording` is honored when a server sends it. Administrators
+  /// can record either way. This is never an API key.
+  bool get canRecordLiveTv {
+    if (isAdministrator || enableLiveTvManagement) return true;
+    return _raw['EnableLiveTvRecording'] == true;
+  }
+
   static List<String> _stringList(dynamic value) {
     if (value is List) return value.cast<String>();
     return const [];

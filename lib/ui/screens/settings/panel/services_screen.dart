@@ -108,6 +108,16 @@ class _ServicesScreenState extends State<_ServicesScreen> {
               ),
             ),
             _TvSettingsListTile(
+              leading: const Icon(Icons.grid_view),
+              title: const Text('Library screens'),
+              subtitle: const Text(
+                'Which My Media tile opens Direct IPTV, ROM Manager, or the library',
+              ),
+              onTap: () => context.pushSettingsScreen(
+                const LibraryScreenMapScreen(),
+              ),
+            ),
+            _TvSettingsListTile(
               leading: const Icon(Icons.subscriptions),
               title: const Text('Streaming'),
               subtitle: const Text('TMDB API key for Netflix, Disney+, Max, and Prime Video'),

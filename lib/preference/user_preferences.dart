@@ -2894,6 +2894,12 @@ class UserPreferences extends ChangeNotifier {
 
   static final tmdbApiKey = Preference(key: 'tmdbApiKey', defaultValue: '');
 
+  /// Library id to `browse`, `direct`, or `games`. Empty means automatic.
+  static final libraryScreenMap = Preference(
+    key: 'libraryScreenMap',
+    defaultValue: '{}',
+  );
+
   static final showRatingLabels = Preference(
     key: 'showRatingLabels',
     defaultValue: true,

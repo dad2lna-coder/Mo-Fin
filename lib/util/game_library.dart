@@ -1,8 +1,13 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:get_it/get_it.dart';
+import 'package:plugin_host/plugin_host.dart';
 import 'package:server_core/server_core.dart';
 
+import '../preference/user_preferences.dart';
 import '../ui/navigation/destinations.dart';
+import 'platform_detection.dart';
 
 /// Shared helpers for recognizing and navigating to retro-game (ROM) libraries so every
 /// entry point (home tiles, sidebar, top navbar, bottom nav) treats them consistently.
@@ -13,6 +18,95 @@ import '../ui/navigation/destinations.dart';
 /// the updated plugin) we fall back to the plugin's own auto-detect, which matches a Mixed
 /// Content library by name.
 final RegExp _gameLibraryName = RegExp('game|rom|emulat', caseSensitive: false);
+
+/// Exact names that open MoFin's own screens even when the collection type is
+/// something else, and even when Moonbase has not listed the library.
+const knownLiveTvLibraryNames = {'live tv', 'livetv', 'live television'};
+const knownGameLibraryNames = {'retro games', 'roms', 'rom library'};
+
+const libraryScreenBrowse = 'browse';
+const libraryScreenDirect = 'direct';
+const libraryScreenGames = 'games';
+
+String normalizeLibraryName(String? name) =>
+    (name ?? '').trim().toLowerCase().replaceAll(RegExp(r'\s+'), ' ');
+
+bool isKnownLiveTvLibrary(String? collectionType, String? name) {
+  if ((collectionType ?? '').toLowerCase() == 'livetv') return true;
+  return knownLiveTvLibraryNames.contains(normalizeLibraryName(name));
+}
+
+bool isKnownGameLibraryName(String? name) =>
+    knownGameLibraryNames.contains(normalizeLibraryName(name));
+
+/// JSON object of library id to `browse`, `direct`, or `games`. Anything else
+/// is ignored so a bad value falls back to automatic matching.
+Map<String, String> decodeLibraryScreenMap(String raw) {
+  final trimmed = raw.trim();
+  if (trimmed.isEmpty) return const {};
+  try {
+    final decoded = jsonDecode(trimmed);
+    if (decoded is! Map) return const {};
+    final map = <String, String>{};
+    for (final entry in decoded.entries) {
+      final id = entry.key.toString().trim();
+      final target = entry.value?.toString().trim() ?? '';
+      if (id.isEmpty) continue;
+      if (target != libraryScreenBrowse &&
+          target != libraryScreenDirect &&
+          target != libraryScreenGames) {
+        continue;
+      }
+      map[id] = target;
+    }
+    return map;
+  } catch (_) {
+    return const {};
+  }
+}
+
+String encodeLibraryScreenMap(Map<String, String> map) {
+  final clean = <String, String>{};
+  for (final entry in map.entries) {
+    if (entry.key.isEmpty) continue;
+    if (entry.value != libraryScreenBrowse &&
+        entry.value != libraryScreenDirect &&
+        entry.value != libraryScreenGames) {
+      continue;
+    }
+    clean[entry.key] = entry.value;
+  }
+  return jsonEncode(clean);
+}
+
+Map<String, String> readStoredLibraryScreenOverrides() {
+  if (!GetIt.instance.isRegistered<UserPreferences>()) return const {};
+  return decodeLibraryScreenMap(
+    GetIt.instance<UserPreferences>().get(UserPreferences.libraryScreenMap),
+  );
+}
+
+/// Phones and the web open the ROM Manager hub the Games menu opens. A TV
+/// cannot drive that webview, so it uses the native games browser instead.
+bool get gamesHubAvailable {
+  if (PlatformDetection.isTV) return false;
+  if (!PlatformDetection.pluginHostSupported) return false;
+  if (!GetIt.instance.isRegistered<UserPreferences>()) return false;
+  final prefs = GetIt.instance<UserPreferences>();
+  if (prefs.get(UserPreferences.kidsModeEnabled)) return false;
+  if (!prefs.get(UserPreferences.pluginsEnabled)) return false;
+  if (GetIt.instance.isRegistered<PluginService>() &&
+      !GetIt.instance<PluginService>().pluginsEnabled) {
+    return false;
+  }
+  if (!GetIt.instance.isRegistered<PluginRegistry>()) return false;
+  return GetIt.instance<PluginRegistry>().gamesSlotPlugin != null;
+}
+
+String? get gamesHubPluginId {
+  if (!gamesHubAvailable) return null;
+  return GetIt.instance<PluginRegistry>().gamesSlotPlugin?.id;
+}
 
 /// Caches the game-library ids the Moonbase plugin reports, so routing can tell a game
 /// library from a normal one synchronously. Refreshed when the library list loads.
@@ -83,9 +177,23 @@ String libraryRoute(
   String? collectionType,
   String name, {
   String? serverId,
+  Map<String, String>? screenOverrides,
 }) {
-  if (isGameLibrary(id, collectionType, name)) {
-    return '${Destinations.gamesLibrary(id)}?title=${Uri.encodeQueryComponent(name)}';
+  final forced = (screenOverrides ?? readStoredLibraryScreenOverrides())[id];
+  if (forced == libraryScreenBrowse) {
+    return Destinations.library(id, serverId: serverId);
+  }
+  if (forced == libraryScreenDirect) return Destinations.directIptv;
+  if (forced == libraryScreenGames) return _gamesDestination(id, name);
+
+  // A known ROM library, or one Moonbase marked, opens the games screen even
+  // when the collection type would otherwise be a folder, books, or Live TV.
+  if (isKnownGameLibraryName(name) ||
+      isGameLibrary(id, collectionType, name)) {
+    return _gamesDestination(id, name);
+  }
+  if (isKnownLiveTvLibrary(collectionType, name)) {
+    return Destinations.directIptv;
   }
   switch ((collectionType ?? '').toLowerCase()) {
     case 'music':
@@ -96,11 +204,16 @@ String libraryRoute(
         id,
         collectionType: (collectionType ?? '').toLowerCase(),
       );
-    case 'livetv':
-      return Destinations.liveTvGuide;
     default:
       return Destinations.library(id, serverId: serverId);
   }
+}
+
+/// The Games menu destination for this library. The hub and the native
+/// browser are the screens that already exist. Neither is the folder view.
+String _gamesDestination(String id, String name) {
+  if (gamesHubAvailable) return Destinations.games;
+  return '${Destinations.gamesLibrary(id)}?title=${Uri.encodeQueryComponent(name)}';
 }
 
 const IconData gameLibraryIcon = Icons.sports_esports;

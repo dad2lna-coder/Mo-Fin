@@ -1,9 +1,33 @@
 import 'dart:async';
 import 'dart:convert';
 
+import 'package:dio/dio.dart';
+import 'package:get_it/get_it.dart';
+import 'package:server_core/server_core.dart';
+
 import 'direct_iptv_client.dart';
-import 'models.dart';
-import 'playlist_parse.dart';
+
+/// Session header for Moonbase. The value is the signed-in access token,
+/// never a key the user typed.
+Map<String, String> recordingSessionHeaders(MediaServerClient client) {
+  final token = client.accessToken?.trim() ?? '';
+  if (token.isEmpty) return const {};
+  return {
+    'Authorization': buildServerAuthorizationHeader(
+      scheme: client.serverType == ServerType.emby ? 'Emby' : 'MediaBrowser',
+      deviceInfo: client.deviceInfo,
+      accessToken: token,
+    ),
+  };
+}
+
+Uri recordingEndpoint(String? baseUrl, String path) {
+  final base = (baseUrl ?? 'http://moonbase.local')
+      .trim()
+      .replaceAll(RegExp(r'/+$'), '');
+  final root = base.endsWith('/') ? base : '$base/';
+  return Uri.parse(root).resolve(path);
+}
 
 /// A server-side recording. Nothing is written on the device.
 class DirectRecording {
@@ -37,35 +61,50 @@ class DirectIptvRecordingsException implements Exception {
 }
 
 const directRecordingsMissingMessage =
-    "Recordings aren't available on this source";
+    'Recordings need the Moonbase plugin on this server';
 
-/// `POST/GET/DELETE <base>/rec/…` on the IPTV source. A missing route fails
-/// with [DirectIptvRecordingsException] instead of throwing from the network.
+const directRecordingsForbiddenMessage =
+    "Live TV recording isn't allowed for this account";
+
+/// `POST/GET/DELETE /Moonfin/LiveTv/Direct/Recordings` on the signed-in
+/// Jellyfin server. The session token already on the client is the only
+/// credential. A playlist token or API key is never sent.
 class DirectIptvRecordings {
-  DirectIptvRecordings({DirectIptvTransport? transport})
-    : _transport = transport ?? HttpDirectIptvTransport();
+  DirectIptvRecordings({
+    DirectIptvTransport? transport,
+    MediaServerClient? client,
+    String? baseUrl,
+    Map<String, String>? sessionHeaders,
+  }) : _transport = transport,
+       _client = client,
+       _baseUrl = baseUrl,
+       _sessionHeaders = sessionHeaders;
 
-  final DirectIptvTransport _transport;
+  final DirectIptvTransport? _transport;
+  final MediaServerClient? _client;
+  final String? _baseUrl;
+  final Map<String, String>? _sessionHeaders;
+
+  static const recordingsPath = 'Moonfin/LiveTv/Direct/Recordings';
 
   Future<DirectRecording> schedule({
-    required DirectIptvSource source,
     required String tvgId,
     required String title,
     required DateTime start,
     required DateTime end,
+    String? streamUrl,
+    String? recUrl,
   }) async {
     final payload = jsonEncode({
-      'tvg_id': tvgId,
+      'tvgId': tvgId,
       'title': title,
       'start': start.toUtc().toIso8601String(),
       'end': end.toUtc().toIso8601String(),
+      if (streamUrl != null && streamUrl.trim().isNotEmpty)
+        'streamUrl': streamUrl.trim(),
+      if (recUrl != null && recUrl.trim().isNotEmpty) 'recUrl': recUrl.trim(),
     });
-    final result = await _send(
-      'POST',
-      _uri(source, 'schedule'),
-      source,
-      body: payload,
-    );
+    final result = await _send('POST', recordingsPath, body: payload);
     final parsed = _one(result.body, now: DateTime.now());
     final id =
         _responseId(result.body) ??
@@ -82,33 +121,37 @@ class DirectIptvRecordings {
     );
   }
 
-  Future<List<DirectRecording>> list(DirectIptvSource source) async {
-    final result = await _send('GET', _uri(source, 'list'), source);
+  Future<List<DirectRecording>> list() async {
+    final result = await _send('GET', recordingsPath);
     return parseDirectRecordings(result.body);
   }
 
-  Future<void> cancel(DirectIptvSource source, String id) async {
+  Future<void> cancel(String id) async {
     final encoded = Uri.encodeComponent(id);
-    await _send('DELETE', _uri(source, encoded), source);
-  }
-
-  Uri _uri(DirectIptvSource source, String path) {
-    return resolveSourceUri(source.baseUrl, 'rec/$path');
+    await _send('DELETE', '$recordingsPath/$encoded');
   }
 
   Future<DirectIptvHttpResult> _send(
     String method,
-    Uri url,
-    DirectIptvSource source, {
+    String path, {
     String? body,
   }) async {
+    final client = _client ?? (_baseUrl == null ? _registeredClient() : null);
     final headers = <String, String>{
-      ...authHeaders(source),
+      'Accept': 'application/json',
       if (body != null) 'Content-Type': 'application/json',
+      ...?_sessionHeaders,
+      if (client != null) ...recordingSessionHeaders(client),
     };
+    final url = recordingEndpoint(_baseUrl ?? client?.baseUrl, path);
     final DirectIptvHttpResult result;
     try {
-      result = await _transport.send(method, url, headers, body: body);
+      final transport = _transport;
+      if (transport != null) {
+        result = await transport.send(method, url, headers, body: body);
+      } else {
+        result = await _dioSend(method, url, headers, body);
+      }
     } on DirectIptvRecordingsException {
       rethrow;
     } on TimeoutException {
@@ -121,9 +164,51 @@ class DirectIptvRecordings {
     return _require(result);
   }
 
+  MediaServerClient? _registeredClient() {
+    if (!GetIt.instance.isRegistered<MediaServerClient>()) return null;
+    return GetIt.instance<MediaServerClient>();
+  }
+
+  Future<DirectIptvHttpResult> _dioSend(
+    String method,
+    Uri url,
+    Map<String, String> headers, {
+    String? body,
+  }) async {
+    final dio = Dio(
+      BaseOptions(
+        connectTimeout: const Duration(seconds: 15),
+        receiveTimeout: const Duration(seconds: 30),
+        headers: headers,
+        validateStatus: (_) => true,
+      ),
+    );
+    configureServerDio(dio);
+    try {
+      final response = await dio
+          .requestUri<String>(
+            url,
+            data: body,
+            options: Options(method: method, responseType: ResponseType.plain),
+          )
+          .timeout(const Duration(seconds: 30));
+      return DirectIptvHttpResult(
+        response.statusCode ?? 0,
+        response.data ?? '',
+      );
+    } finally {
+      dio.close();
+    }
+  }
+
   DirectIptvHttpResult _require(DirectIptvHttpResult result) {
     final code = result.statusCode;
     if (code >= 200 && code < 300) return result;
+    if (code == 401 || code == 403) {
+      throw const DirectIptvRecordingsException(
+        directRecordingsForbiddenMessage,
+      );
+    }
     if (code == 404 || code == 405 || code == 501) {
       throw const DirectIptvRecordingsException(directRecordingsMissingMessage);
     }

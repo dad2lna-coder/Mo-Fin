@@ -19,7 +19,6 @@ const _addRows = [
   'Address',
   'Username',
   'Password',
-  'Token',
   'M3U path',
   'EPG path',
   'Refresh every (minutes)',

@@ -192,7 +192,6 @@ class _DirectIptvEditorState extends State<_DirectIptvEditor> {
   late final TextEditingController _baseUrl;
   late final TextEditingController _username;
   late final TextEditingController _password;
-  late final TextEditingController _token;
   late final TextEditingController _m3uPath;
   late final TextEditingController _epgPath;
   late final TextEditingController _refreshMinutes;
@@ -213,7 +212,6 @@ class _DirectIptvEditorState extends State<_DirectIptvEditor> {
     _baseUrl = TextEditingController(text: source?.baseUrl ?? '');
     _username = TextEditingController(text: source?.username ?? '');
     _password = TextEditingController(text: source?.password ?? '');
-    _token = TextEditingController(text: source?.token ?? '');
     _m3uPath = TextEditingController(text: source?.m3uPath ?? '');
     _epgPath = TextEditingController(text: source?.epgPath ?? '');
     _refreshMinutes = TextEditingController(
@@ -240,7 +238,6 @@ class _DirectIptvEditorState extends State<_DirectIptvEditor> {
     _baseUrl.dispose();
     _username.dispose();
     _password.dispose();
-    _token.dispose();
     _m3uPath.dispose();
     _epgPath.dispose();
     _refreshMinutes.dispose();
@@ -271,7 +268,7 @@ class _DirectIptvEditorState extends State<_DirectIptvEditor> {
       baseUrl: base,
       username: _username.text,
       password: _password.text,
-      token: _token.text.trim(),
+      token: widget.existing?.token ?? '',
       m3uPath: _m3uPath.text.trim(),
       epgPath: _epgPath.text.trim(),
       refreshMinutes: minutes < 1 ? 30 : minutes,
@@ -443,7 +440,7 @@ class _DirectIptvEditorState extends State<_DirectIptvEditor> {
   @override
   Widget build(BuildContext context) {
     final remove = widget.existing != null;
-    _rowCount = remove ? 15 : 14;
+    _rowCount = remove ? 14 : 13;
     return Scaffold(
       appBar: AppBar(
         title: Text(widget.existing == null ? 'Add source' : 'Edit source'),
@@ -493,7 +490,7 @@ class _DirectIptvEditorState extends State<_DirectIptvEditor> {
                 _editText(
                   controller: _username,
                   title: 'Username',
-                  helper: 'Optional. Used when no token is set.',
+                  helper: 'Optional. Sent with the playlist when it asks for a login.',
                 ),
               ),
             ),
@@ -510,30 +507,15 @@ class _DirectIptvEditorState extends State<_DirectIptvEditor> {
                 ),
               ),
             ),
-            _row(
-              index: 5,
-              label: 'Token',
-              title: const Text('Token'),
-              subtitle: Text(_shownValue(_token.text, secret: true)),
-              onTap: () => unawaited(
-                _editText(
-                  controller: _token,
-                  title: 'Token',
-                  obscure: true,
-                  helper:
-                      'Optional. Sent as a bearer token instead of a password.',
-                ),
-              ),
-            ),
             Padding(
               padding: const EdgeInsets.fromLTRB(28, 4, 28, 8),
               child: Text(
-                'The password and token stay on this device with the other preferences. They are not encrypted.',
+                'The password stays on this device with the other preferences. It is not encrypted.',
                 style: Theme.of(context).textTheme.bodySmall,
               ),
             ),
             _row(
-              index: 6,
+              index: 5,
               label: 'M3U path',
               title: const Text('M3U path'),
               subtitle: Text(_baseUrlSubtitle(_m3uPath.text, _m3uHelper())),
@@ -546,7 +528,7 @@ class _DirectIptvEditorState extends State<_DirectIptvEditor> {
               ),
             ),
             _row(
-              index: 7,
+              index: 6,
               label: 'EPG path',
               title: const Text('EPG path'),
               subtitle: Text(_baseUrlSubtitle(_epgPath.text, _epgHelper())),
@@ -559,7 +541,7 @@ class _DirectIptvEditorState extends State<_DirectIptvEditor> {
               ),
             ),
             _row(
-              index: 8,
+              index: 7,
               label: 'Refresh every (minutes)',
               title: const Text('Refresh every (minutes)'),
               subtitle: Text(_shownValue(_refreshMinutes.text)),
@@ -572,7 +554,7 @@ class _DirectIptvEditorState extends State<_DirectIptvEditor> {
               ),
             ),
             _row(
-              index: 9,
+              index: 8,
               label: 'Preferred subtitle language',
               title: const Text('Preferred subtitle language'),
               subtitle: Text(_shownValue(_subtitleLanguage.text)),
@@ -585,7 +567,7 @@ class _DirectIptvEditorState extends State<_DirectIptvEditor> {
               ),
             ),
             _row(
-              index: 10,
+              index: 9,
               label: 'Preferred audio language',
               title: const Text('Preferred audio language'),
               subtitle: Text(_shownValue(_audioLanguage.text)),
@@ -598,7 +580,7 @@ class _DirectIptvEditorState extends State<_DirectIptvEditor> {
               ),
             ),
             _row(
-              index: 11,
+              index: 10,
               label: 'Captions on by default',
               title: const Text('Captions on by default'),
               subtitle: const Text(
@@ -608,7 +590,7 @@ class _DirectIptvEditorState extends State<_DirectIptvEditor> {
               onTap: () => setState(() => _captionsOn = !_captionsOn),
             ),
             _row(
-              index: 12,
+              index: 11,
               label: 'Enabled',
               title: const Text('Enabled'),
               subtitle: Text(_enabled ? 'On' : 'Off'),
@@ -624,14 +606,14 @@ class _DirectIptvEditorState extends State<_DirectIptvEditor> {
                 ),
               ),
             _row(
-              index: 13,
+              index: 12,
               label: 'Save',
               title: const Text('Save'),
               onTap: () => unawaited(_save()),
             ),
             if (remove)
               _row(
-                index: 14,
+                index: 13,
                 label: 'Remove source',
                 title: const Text('Remove source'),
                 onTap: () => unawaited(_delete()),

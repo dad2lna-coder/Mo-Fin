@@ -69,7 +69,7 @@ class _GamesHubScreenState extends State<GamesHubScreen> {
         if (handled || !mounted) return;
       }
       if (!mounted) return;
-      context.go(Destinations.home);
+      context.popOrHome();
     } finally {
       _handlingBack = false;
     }
