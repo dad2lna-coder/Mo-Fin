@@ -96,10 +96,6 @@ android {
         // installs alongside instead and touches nothing.
         val testIdSuffix = System.getenv("MOONFIN_TEST_ID_SUFFIX").orEmpty()
         val mobileAbis = listOf("arm64-v8a", "armeabi-v7a", "x86_64")
-        // Fire TV sticks this build installs on are 32-bit. arm64-v8a and
-        // x86_64 copies of libmpv and the other .so files do not run there
-        // and were the bulk of the APK.
-        val tvAbis = listOf("armeabi-v7a")
         create("mobile") {
             dimension = "device"
             applicationId = baseAppId
@@ -121,7 +117,10 @@ android {
             applicationId = baseAppId + testIdSuffix
             versionCode = androidTvVersionCode
             versionName = androidTvVersionName
-            ndk { abiFilters += tvAbis }
+            ndk {
+                abiFilters.clear()
+                abiFilters += "armeabi-v7a"
+            }
             manifestPlaceholders["appName"] = baseAppName
             // Impeller off by default on TV: the GLES fallback stutters on
             // TV-box GPUs. MoonfinApplication turns it on for boxes where it
@@ -133,7 +132,10 @@ android {
             applicationId = "$baseAppId.beta"
             versionCode = androidTvVersionCode
             versionName = androidTvVersionName
-            ndk { abiFilters += tvAbis }
+            ndk {
+                abiFilters.clear()
+                abiFilters += "armeabi-v7a"
+            }
             manifestPlaceholders["appName"] = "$baseAppName Beta"
             manifestPlaceholders["enableImpeller"] = "false"
         }
@@ -181,6 +183,22 @@ android {
         }
     }
 
+}
+
+// Flavor abiFilters are not enough: plugin jniLibs folders still merge
+// arm64-v8a and x86_64 into the APK. Strip those trees from the Fire TV
+// variants so the artifact is armeabi-v7a only.
+androidComponents {
+    onVariants { variant ->
+        val device = variant.productFlavors
+            .firstOrNull { it.first == "device" }
+            ?.second
+        if (device != "androidTv" && device != "androidTv-beta") return@onVariants
+        variant.packaging.jniLibs.excludes.add("lib/arm64-v8a/**")
+        variant.packaging.jniLibs.excludes.add("lib/x86_64/**")
+        variant.packaging.jniLibs.excludes.add("lib/x86/**")
+        variant.packaging.jniLibs.excludes.add("lib/armeabi/**")
+    }
 }
 
 kotlin {
