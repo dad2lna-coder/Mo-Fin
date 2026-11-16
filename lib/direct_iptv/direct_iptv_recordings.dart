@@ -6,6 +6,7 @@ import 'package:get_it/get_it.dart';
 import 'package:server_core/server_core.dart';
 
 import 'direct_iptv_client.dart';
+import 'models.dart';
 
 /// Session header for Moonbase. The value is the signed-in access token,
 /// never a key the user typed.
@@ -150,7 +151,7 @@ class DirectIptvRecordings {
       if (transport != null) {
         result = await transport.send(method, url, headers, body: body);
       } else {
-        result = await _dioSend(method, url, headers, body);
+        result = await _dioSend(method, url, headers, body: body);
       }
     } on DirectIptvRecordingsException {
       rethrow;
