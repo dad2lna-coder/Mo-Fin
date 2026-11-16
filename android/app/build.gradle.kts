@@ -172,7 +172,11 @@ android {
     packaging {
         jniLibs {
             useLegacyPackaging = true
-            pickFirsts += setOf("**/libc++_shared.so")
+            pickFirsts += setOf(
+                "lib/armeabi-v7a/libc++_shared.so",
+                "lib/arm64-v8a/libc++_shared.so",
+                "lib/x86_64/libc++_shared.so",
+            )
         }
     }
 
@@ -198,6 +202,24 @@ androidComponents {
         variant.packaging.jniLibs.excludes.add("lib/x86_64/**")
         variant.packaging.jniLibs.excludes.add("lib/x86/**")
         variant.packaging.jniLibs.excludes.add("lib/armeabi/**")
+        variant.packaging.jniLibs.excludes.add("lib/arm64-v8a/libc++_shared.so")
+        variant.packaging.jniLibs.excludes.add("lib/x86_64/libc++_shared.so")
+    }
+}
+
+val droppedTvAbis = setOf("arm64-v8a", "x86_64", "x86", "armeabi")
+tasks.configureEach {
+    val stripsTvJni = name.startsWith("mergeAndroidTv") &&
+        (name.contains("NativeLibs") || name.contains("JniLib"))
+    if (!stripsTvJni) return@configureEach
+    doLast {
+        outputs.files.files.forEach { root ->
+            if (!root.exists()) return@forEach
+            root.walkTopDown()
+                .filter { it.isDirectory && it.name in droppedTvAbis }
+                .toList()
+                .forEach { it.deleteRecursively() }
+        }
     }
 }
 

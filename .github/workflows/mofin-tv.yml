@@ -77,7 +77,12 @@ jobs:
             --split-debug-info=build/app/outputs/symbols
 
       - name: Rename APK
-        run: mv build/app/outputs/flutter-apk/app-androidtv-release.apk Mo-Fin.apk
+        run: |
+          mv build/app/outputs/flutter-apk/app-androidtv-release.apk Mo-Fin.apk
+          if unzip -l Mo-Fin.apk | grep -E 'lib/(arm64-v8a|x86_64|x86)/'; then
+            echo "Fire TV APK still contains a non-v7a library."
+            exit 1
+          fi
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
