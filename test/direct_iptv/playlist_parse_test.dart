@@ -275,7 +275,9 @@ index.m3u8
       pieces.add(xml.substring(i, i + 5 < xml.length ? i + 5 : xml.length));
     }
     expect(whole.channels.length, 50);
-    expect(whole.programmes.length, 50 * 18);
+    // Window is one hour behind now and four ahead, so hour offsets -1..3
+    // overlap it and the rest of the -8..15 span is dropped.
+    expect(whole.programmes.length, 50 * 5);
     expect(pieces.channels.length, 50);
     expect(
       pieces.programmes.map((p) => p.title).toList(),

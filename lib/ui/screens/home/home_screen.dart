@@ -1661,7 +1661,7 @@ class _ContentRowsState extends State<_ContentRows>
     _previewStopTimer?.cancel();
     _previewStopTimer = null;
     _previewRequestId++;
-    if (!kIsWeb) {
+    if (!kIsWeb && !PlatformDetection.isTV) {
       unawaited(_previewPlayer?.setVolume(0));
       _previewPlayer?.stop();
     }
@@ -1675,10 +1675,11 @@ class _ContentRowsState extends State<_ContentRows>
       _previewUsingAppleTv = false;
       appleTvReleased = _releaseAppleTvPreviewPlayer();
     }
-    if (releaseResources || kIsWeb) {
-      _previewPlayer?.dispose();
+    if (releaseResources || kIsWeb || PlatformDetection.isTV) {
+      final player = _previewPlayer;
       _previewPlayer = null;
       _previewController = null;
+      if (player != null) unawaited(player.dispose());
       unawaited(_releaseAppleTvPreviewPlayer());
     }
 

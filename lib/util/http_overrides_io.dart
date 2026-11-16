@@ -22,7 +22,10 @@ class _MoonfinHttpOverrides extends HttpOverrides {
       secContext.allowLegacyUnsafeRenegotiation = true;
     } catch (_) {}
     final client = super.createHttpClient(secContext);
-    client.maxConnectionsPerHost = 12;
+    // Artwork already caps itself at 4. Everything else, including guide and
+    // playlist fetches, shares this pool so a 2 GB box does not open a
+    // connection per tile.
+    client.maxConnectionsPerHost = 6;
     // Only bypass certificate validation when the user has explicitly opted in
     // (self-signed / private-CA servers). The flag is read on every failed
     // handshake, so the toggle applies live without reinstalling the override.

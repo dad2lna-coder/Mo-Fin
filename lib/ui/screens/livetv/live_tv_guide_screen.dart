@@ -249,7 +249,10 @@ class _LiveTvGuideScreenState extends State<LiveTvGuideScreen>
     _guideHorizontalScrollController.addListener(_syncHorizontalFromGuide);
     _scheduleReanchor();
     _displayClockTimer = Timer.periodic(const Duration(seconds: 15), (_) {
-      if (mounted) setState(() {});
+      if (!mounted) return;
+      final route = ModalRoute.of(context);
+      if (route != null && !route.isCurrent) return;
+      setState(() {});
     });
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -280,7 +283,18 @@ class _LiveTvGuideScreenState extends State<LiveTvGuideScreen>
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state != AppLifecycleState.resumed) return;
+    if (state != AppLifecycleState.resumed) {
+      _displayClockTimer?.cancel();
+      _displayClockTimer = null;
+      _vm.cancelBoundaryRefresh();
+      return;
+    }
+    _displayClockTimer ??= Timer.periodic(const Duration(seconds: 15), (_) {
+      if (!mounted) return;
+      final route = ModalRoute.of(context);
+      if (route != null && !route.isCurrent) return;
+      setState(() {});
+    });
     final now = DateTime.now();
     _scheduleReanchor();
     unawaited(_resumeGuide(now));

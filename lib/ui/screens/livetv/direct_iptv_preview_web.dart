@@ -34,6 +34,13 @@ class DirectIptvPreviewPlayer extends StatefulWidget {
     this.headers = const {},
   });
 
+  static Future<void> releaseActive() async {
+    for (final state
+        in _DirectIptvPreviewPlayerState._owners.values.toList()) {
+      state._stopPlayback();
+    }
+  }
+
   @override
   State<DirectIptvPreviewPlayer> createState() =>
       _DirectIptvPreviewPlayerState();
@@ -76,6 +83,9 @@ class _DirectIptvPreviewPlayerState extends State<DirectIptvPreviewPlayer>
         (int _) => (_owners[_viewType] ?? this)._video,
       );
     }
+    for (final other in _owners.values.toList()) {
+      if (!identical(other, this)) other._stopPlayback();
+    }
     _applySource();
   }
 
@@ -101,9 +111,7 @@ class _DirectIptvPreviewPlayerState extends State<DirectIptvPreviewPlayer>
     if (state == AppLifecycleState.paused ||
         state == AppLifecycleState.hidden ||
         state == AppLifecycleState.detached) {
-      try {
-        _video.pause();
-      } catch (_) {}
+      _stopPlayback();
       return;
     }
     if (state == AppLifecycleState.resumed) {
@@ -127,16 +135,21 @@ class _DirectIptvPreviewPlayerState extends State<DirectIptvPreviewPlayer>
     } catch (_) {}
   }
 
+  void _stopPlayback() {
+    _destroyHls();
+    try {
+      _video.pause();
+      _video.removeAttribute('src');
+      _video.load();
+    } catch (_) {}
+  }
+
   void _applySource() {
     if (_disposed) return;
     _destroyHls();
     final url = widget.streamUrl;
     if (url == null || url.isEmpty) {
-      try {
-        _video.pause();
-        _video.removeAttribute('src');
-        _video.load();
-      } catch (_) {}
+      _stopPlayback();
       return;
     }
     final forceHls = url.toLowerCase().contains('m3u8');
@@ -177,12 +190,7 @@ class _DirectIptvPreviewPlayerState extends State<DirectIptvPreviewPlayer>
   void dispose() {
     _disposed = true;
     WidgetsBinding.instance.removeObserver(this);
-    try {
-      _video.pause();
-      _video.removeAttribute('src');
-      _video.load();
-    } catch (_) {}
-    _destroyHls();
+    _stopPlayback();
     if (identical(_owners[_viewType], this)) _owners.remove(_viewType);
     super.dispose();
   }

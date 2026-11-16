@@ -129,7 +129,9 @@ void _configureImageCache() {
   }
 
   if (PlatformDetection.isTV) {
-    apply(500, 96 << 20);
+    // 2 GB Fire TVs decode a grid of posters into this cache. 64 MB is enough
+    // for the tiles on screen without crowding the player out of the heap.
+    apply(250, 64 << 20);
     return;
   }
 
@@ -846,6 +848,9 @@ Future<void> autoDownloadBackgroundMain() =>
     auto_download_bg.autoDownloadBackgroundMain();
 
 void main() async {
+  if (kReleaseMode) {
+    debugPrint = (String? message, {int? wrapWidth}) {};
+  }
   configureHttpOverrides();
   ScrollSensitivityBinding.ensureInitialized();
 

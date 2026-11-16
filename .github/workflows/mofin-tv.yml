@@ -67,7 +67,14 @@ jobs:
           echo "Signing with the fixed release keystore."
 
       - name: Build Android TV release APK
-        run: MOONFIN_TEST_ID_SUFFIX=.captions flutter build apk --flavor androidTv --release --target-platform android-arm,android-arm64
+        run: |
+          mkdir -p build/app/outputs/symbols
+          MOONFIN_TEST_ID_SUFFIX=.captions flutter build apk \
+            --flavor androidTv \
+            --release \
+            --target-platform android-arm \
+            --obfuscate \
+            --split-debug-info=build/app/outputs/symbols
 
       - name: Rename APK
         run: mv build/app/outputs/flutter-apk/app-androidtv-release.apk Mo-Fin.apk
@@ -77,6 +84,13 @@ jobs:
         with:
           name: Mo-Fin
           path: Mo-Fin.apk
+          if-no-files-found: error
+
+      - name: Upload debug symbols
+        uses: actions/upload-artifact@v4
+        with:
+          name: Mo-Fin-symbols
+          path: build/app/outputs/symbols
           if-no-files-found: error
 
       - name: Publish Mo-Fin.apk to the latest release
@@ -90,6 +104,7 @@ jobs:
           make_latest: 'true'
           body: |
             Fire TV APK, ${{ steps.signing.outputs.mode }}-signed. Package `org.moonfin.androidtv.captions`.
+            32-bit only (`armeabi-v7a`), R8 minify and resource shrinking, Dart obfuscation.
             versionCode is `android_tv_build_number` plus this workflow's run number (`${{ github.run_number }}`).
 
             Built from ${{ github.sha }}.

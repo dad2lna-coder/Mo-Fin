@@ -285,7 +285,6 @@ flutter:
     # Bundled so AppBeta can read the beta flag back at runtime, which keeps
     # pubspec the one place the beta number is written.
     - pubspec.yaml
-    - assets/images/
     - assets/icons/
     - assets/icons/ratings/
     - assets/fonts/

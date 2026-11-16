@@ -124,11 +124,11 @@ class ParsedM3uChannel {
 }
 
 /// XMLTV. Programmes are matched to channels by the `channel` attribute,
-/// which Dispatcharr copies from `tvg-id`. Every programme is returned.
+/// which Dispatcharr copies from `tvg-id`. [now] null keeps every programme.
 /// A windowed read goes through [XmltvScan] so a large guide is not kept
 /// as one string.
-List<ParsedXmltvProgramme> parseXmltv(String body) {
-  final scan = XmltvScan();
+List<ParsedXmltvProgramme> parseXmltv(String body, {DateTime? now}) {
+  final scan = XmltvScan(now: now);
   const size = 4096;
   for (var i = 0; i < body.length; i += size) {
     final end = i + size < body.length ? i + size : body.length;
@@ -175,9 +175,10 @@ class ParsedXmltvChannel {
 }
 
 /// How far either side of "now" a streamed guide keeps. The full file is
-/// never stored.
-const xmltvWindowPast = Duration(hours: 6);
-const xmltvWindowFuture = Duration(hours: 12);
+/// never stored. The on-screen grid is three hours, so an hour of overlap
+/// behind now and four hours ahead is the working set for a 2 GB Fire TV.
+const xmltvWindowPast = Duration(hours: 1);
+const xmltvWindowFuture = Duration(hours: 4);
 
 /// Incremental XMLTV reader. Complete `<channel>` and `<programme>` elements
 /// are taken as they arrive. One element is capped so a broken file cannot
@@ -450,11 +451,12 @@ DirectIptvSnapshot assembleSnapshot({
   List<ParsedXmltvProgramme>? programmes,
   List<ParsedXmltvChannel>? xmlChannels,
   required DateTime fetchedAt,
+  DateTime? now,
 }) {
   final parsedProgrammes = programmes ??
       (epg == null || epg.trim().isEmpty
           ? const <ParsedXmltvProgramme>[]
-          : parseXmltv(epg));
+          : parseXmltv(epg, now: now));
   if (source.kind == DirectIptvKind.pluto) {
     var guideChannels = xmlChannels;
     var guideProgrammes = parsedProgrammes;
@@ -462,7 +464,7 @@ DirectIptvSnapshot assembleSnapshot({
         epg != null &&
         epg.trim().isNotEmpty &&
         programmes == null) {
-      final scan = XmltvScan();
+      final scan = XmltvScan(now: now);
       scan.add(epg);
       scan.close();
       guideChannels = scan.channels;
@@ -624,15 +626,18 @@ DirectIptvSnapshot _snapshotFromXmlChannels({
 }
 
 /// Arguments are plain maps and strings so a caller can run this inside an
-/// isolate. The catalog does not: an XMLTV guide is streamed instead.
+/// isolate. [now] is ISO-8601. When it is set, programmes outside the short
+/// guide window are dropped before the snapshot is built.
 DirectIptvSnapshot assembleSnapshotIsolate(Map<String, dynamic> args) {
+  final nowRaw = args['now'];
   return assembleSnapshot(
     source: DirectIptvSource.fromJson(
       Map<String, dynamic>.from(args['source'] as Map),
     ),
-    m3u: args['m3u'] as String,
+    m3u: args['m3u'] as String? ?? '',
     epg: args['epg'] as String?,
     fetchedAt: DateTime.parse(args['fetchedAt'] as String),
+    now: nowRaw is String && nowRaw.isNotEmpty ? DateTime.parse(nowRaw) : null,
   );
 }
 

@@ -546,10 +546,12 @@ class MediaKitPlayerBackend extends PlayerBackend
   static bool get _useLibass =>
       PlatformDetection.isAndroid || PlatformDetection.isIOS;
 
-  // libass needs a font with CJK glyphs bundled or Asian subtitles show as
-  // tofu. The family name has to match the font's internal name.
-  static const String _libassFontAsset = 'assets/fonts/NotoSansCJK-Regular.otf';
-  static const String _libassFontFamily = 'Noto Sans CJK SC';
+  // libass has no Android fontconfig here. Noto Sans covers the scripts the
+  // UI already ships. The 13 MB CJK face is not bundled; a device font is
+  // used when the system provides one, and missing CJK glyphs stay tofu
+  // rather than growing the Fire TV package.
+  static const String _libassFontAsset = 'assets/fonts/NotoSans-Regular.ttf';
+  static const String _libassFontFamily = 'Noto Sans';
 
   static bool get _useNativeSurface => PlatformDetection.useNativeVideoSurface;
 

@@ -96,7 +96,10 @@ android {
         // installs alongside instead and touches nothing.
         val testIdSuffix = System.getenv("MOONFIN_TEST_ID_SUFFIX").orEmpty()
         val mobileAbis = listOf("arm64-v8a", "armeabi-v7a", "x86_64")
-        val tvAbis = listOf("arm64-v8a", "armeabi-v7a", "x86_64")
+        // Fire TV sticks this build installs on are 32-bit. arm64-v8a and
+        // x86_64 copies of libmpv and the other .so files do not run there
+        // and were the bulk of the APK.
+        val tvAbis = listOf("armeabi-v7a")
         create("mobile") {
             dimension = "device"
             applicationId = baseAppId

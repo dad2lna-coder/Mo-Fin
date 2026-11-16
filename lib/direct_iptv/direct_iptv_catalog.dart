@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:typed_data';
 
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -32,8 +33,8 @@ String directGuideRefreshMessage({required int channelCount, String? error}) {
 ///
 /// Source records, including the password or token, live in
 /// [SharedPreferences]. The parsed lineup is a separate snapshot so a large
-/// guide is not rewritten into preferences. Refresh runs the parsers in an
-/// isolate.
+/// guide is not rewritten into preferences. Refresh parses the playlist and
+/// XMLTV guide in an isolate and keeps only the next few hours of programmes.
 class DirectIptvCatalog extends ChangeNotifier {
   static const prefsKey = 'moonfin.direct_iptv.sources';
 
@@ -225,47 +226,49 @@ class DirectIptvCatalog extends ChangeNotifier {
     }
     final headers = authHeaders(source);
     final fetchedAt = DateTime.now().toUtc();
+    final String m3u;
     if (source.kind == DirectIptvKind.pluto) {
-      final guide = await _openGuide(source, headers);
-      if (guide == null) {
-        throw const DirectIptvException('A guide address is required');
+      m3u = '';
+    } else {
+      final m3uUri = resolveSourceUri(base, source.effectiveM3uPath);
+      final playlist = await _transport.get(m3uUri, headers);
+      _throwIfRefused(playlist.statusCode, 'playlist');
+      if (playlist.statusCode == 401) {
+        throw const DirectIptvException(
+          'The playlist rejected the username, password, or token',
+        );
       }
-      return assembleSnapshot(
-        source: source,
-        m3u: '',
-        epg: null,
-        programmes: guide.programmes,
-        xmlChannels: guide.channels,
-        fetchedAt: fetchedAt,
-      );
+      if (playlist.statusCode < 200 || playlist.statusCode >= 300) {
+        throw DirectIptvException(
+          'Playlist request failed (${playlist.statusCode})',
+        );
+      }
+      if (!playlist.body.contains('#EXTM3U') &&
+          !playlist.body.contains('#EXTINF')) {
+        throw const DirectIptvException(
+          'The playlist response was not an M3U',
+        );
+      }
+      m3u = playlist.body;
     }
 
-    final m3uUri = resolveSourceUri(base, source.effectiveM3uPath);
-    final m3u = await _transport.get(m3uUri, headers);
-    _throwIfRefused(m3u.statusCode, 'playlist');
-    if (m3u.statusCode == 401) {
-      throw const DirectIptvException(
-        'The playlist rejected the username, password, or token',
-      );
+    final guide = await _readGuide(source, headers);
+    if (source.kind == DirectIptvKind.pluto &&
+        (guide == null || guide.trim().isEmpty)) {
+      throw const DirectIptvException('A guide address is required');
     }
-    if (m3u.statusCode < 200 || m3u.statusCode >= 300) {
-      throw DirectIptvException('Playlist request failed (${m3u.statusCode})');
-    }
-    if (!m3u.body.contains('#EXTM3U') && !m3u.body.contains('#EXTINF')) {
-      throw const DirectIptvException('The playlist response was not an M3U');
-    }
-
-    final guide = await _openGuide(source, headers);
-    return assembleSnapshot(
-      source: source,
-      m3u: m3u.body,
-      epg: null,
-      programmes: guide?.programmes ?? const [],
-      fetchedAt: fetchedAt,
-    );
+    return compute(assembleSnapshotIsolate, <String, dynamic>{
+      'source': source.toJson(),
+      'm3u': m3u,
+      'epg': guide,
+      'fetchedAt': fetchedAt.toIso8601String(),
+      'now': DateTime.now().toUtc().toIso8601String(),
+    });
   }
 
-  Future<XmltvScan?> _openGuide(
+  /// XMLTV body, capped so a broken guide cannot fill a 2 GB box. Parsing
+  /// happens in [assembleSnapshotIsolate], not on the UI isolate.
+  Future<String?> _readGuide(
     DirectIptvSource source,
     Map<String, String> headers,
   ) async {
@@ -303,19 +306,26 @@ class DirectIptvCatalog extends ChangeNotifier {
       await _drain(opened);
       throw DirectIptvException('Guide request failed (${opened.statusCode})');
     }
-    final scan = XmltvScan(now: DateTime.now());
+    const cap = 8 * 1024 * 1024;
+    final builder = BytesBuilder(copy: false);
     try {
-      var chunks = 0;
-      await for (final chunk in opened.bytes.transform(utf8.decoder)) {
-        scan.add(chunk);
-        if (++chunks % 32 == 0) {
-          await Future<void>.delayed(Duration.zero);
+      await for (final chunk in opened.bytes) {
+        if (builder.length >= cap) break;
+        final room = cap - builder.length;
+        if (chunk.length <= room) {
+          builder.add(chunk);
+        } else {
+          builder.add(
+            Uint8List.sublistView(Uint8List.fromList(chunk), 0, room),
+          );
+          break;
         }
       }
-    } finally {
-      scan.close();
+    } catch (_) {
+      if (builder.isEmpty) rethrow;
     }
-    return scan;
+    if (builder.isEmpty) return '';
+    return utf8.decode(builder.takeBytes(), allowMalformed: true);
   }
 
   Future<void> _drain(DirectIptvByteSource source) async {

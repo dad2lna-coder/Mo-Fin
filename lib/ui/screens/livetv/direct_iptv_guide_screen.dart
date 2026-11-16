@@ -44,7 +44,8 @@ class DirectIptvGuideScreen extends StatefulWidget {
   State<DirectIptvGuideScreen> createState() => _DirectIptvGuideScreenState();
 }
 
-class _DirectIptvGuideScreenState extends State<DirectIptvGuideScreen> {
+class _DirectIptvGuideScreenState extends State<DirectIptvGuideScreen>
+    with WidgetsBindingObserver {
   final _searchNode = FocusNode(debugLabel: 'direct-guide-search');
   final _sourceNode = FocusNode(debugLabel: 'direct-guide-source');
   final _recordingsNode = FocusNode(debugLabel: 'direct-guide-recordings');
@@ -65,8 +66,10 @@ class _DirectIptvGuideScreenState extends State<DirectIptvGuideScreen> {
   Timer? _clock;
   Timer? _previewDebounce;
   String? _previewUrl;
+  String? _previewChannelId;
   Map<String, String> _previewHeaders = const {};
   bool _suspendPreview = false;
+  bool _background = false;
   bool _didAutoFocus = false;
   double _rowExtent = 68;
   List<DirectProgram>? _indexedFrom;
@@ -89,12 +92,11 @@ class _DirectIptvGuideScreenState extends State<DirectIptvGuideScreen> {
       _prefs = GetIt.instance<UserPreferences>();
       _prefs!.addListener(_schedulePreview);
     }
+    WidgetsBinding.instance.addObserver(this);
+    _rowsScroll.addListener(_onRowsScroll);
     if (_catalog.loaded) _selectDefaultSource();
     unawaited(_loadLastSource());
-    _clock = Timer.periodic(const Duration(seconds: 30), (_) {
-      if (!mounted) return;
-      setState(() => _now = DateTime.now());
-    });
+    _startClock();
     unawaited(
       _catalog.ensureLoaded().then((_) async {
         if (!mounted) return;
@@ -109,6 +111,8 @@ class _DirectIptvGuideScreenState extends State<DirectIptvGuideScreen> {
   void dispose() {
     _clock?.cancel();
     _previewDebounce?.cancel();
+    WidgetsBinding.instance.removeObserver(this);
+    _rowsScroll.removeListener(_onRowsScroll);
     _prefs?.removeListener(_schedulePreview);
     _catalog.removeListener(_onCatalog);
     _rowsScroll.dispose();
@@ -313,21 +317,74 @@ class _DirectIptvGuideScreenState extends State<DirectIptvGuideScreen> {
     return KeyEventResult.ignored;
   }
 
+  void _startClock() {
+    _clock?.cancel();
+    _clock = Timer.periodic(const Duration(seconds: 30), (_) {
+      if (!mounted || _background) return;
+      final route = ModalRoute.of(context);
+      if (route != null && !route.isCurrent) return;
+      setState(() => _now = DateTime.now());
+    });
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    final hidden =
+        state == AppLifecycleState.paused ||
+        state == AppLifecycleState.hidden ||
+        state == AppLifecycleState.detached;
+    if (hidden) {
+      _background = true;
+      _clock?.cancel();
+      _clearPreview();
+      return;
+    }
+    if (state == AppLifecycleState.resumed && _background) {
+      _background = false;
+      _startClock();
+      _schedulePreview();
+    }
+  }
+
+  void _onRowsScroll() {
+    if (_background || _suspendPreview) return;
+    _clearPreview();
+    _schedulePreview();
+  }
+
+  void _clearPreview() {
+    _previewDebounce?.cancel();
+    _previewChannelId = null;
+    if (_previewUrl == null) return;
+    if (!mounted) {
+      _previewUrl = null;
+      _previewHeaders = const {};
+      return;
+    }
+    setState(() {
+      _previewUrl = null;
+      _previewHeaders = const {};
+    });
+  }
+
   void _schedulePreview() {
     final channel = _channelAt(_channels, _cursor.row);
     final id = channel?.id;
     _previewDebounce?.cancel();
-    if (_suspendPreview || !_guidePreviewEnabled) {
-      if (_previewUrl != null && mounted) {
-        setState(() {
-          _previewUrl = null;
-          _previewHeaders = const {};
-        });
-      }
+    if (_background ||
+        _suspendPreview ||
+        !_guidePreviewEnabled ||
+        id == null) {
+      _clearPreview();
       return;
     }
+    if (_previewChannelId != id) _clearPreview();
     _previewDebounce = Timer(const Duration(milliseconds: 600), () {
-      if (!mounted || _suspendPreview || !_guidePreviewEnabled) return;
+      if (!mounted || _background || _suspendPreview || !_guidePreviewEnabled) {
+        return;
+      }
+      final route = ModalRoute.of(context);
+      if (route != null && !route.isCurrent) return;
       final current = _channelAt(_channels, _cursor.row);
       if (current?.id != id) return;
       final source = _source;
@@ -339,10 +396,15 @@ class _DirectIptvGuideScreenState extends State<DirectIptvGuideScreen> {
               streamUri: Uri.tryParse(current.streamUrl) ?? Uri(),
               credentialHost: Uri.tryParse(source.baseUrl.trim())?.host,
             );
-      if (url == _previewUrl) return;
+      if (url == null || url.isEmpty) {
+        _clearPreview();
+        return;
+      }
+      if (url == _previewUrl && _previewChannelId == id) return;
       setState(() {
         _previewUrl = url;
         _previewHeaders = headers;
+        _previewChannelId = id;
       });
     });
   }
@@ -353,9 +415,12 @@ class _DirectIptvGuideScreenState extends State<DirectIptvGuideScreen> {
       setState(() {
         _suspendPreview = true;
         _previewUrl = null;
+        _previewChannelId = null;
       });
       await WidgetsBinding.instance.endOfFrame;
     }
+    if (!mounted) return;
+    await DirectIptvPreviewPlayer.releaseActive();
     if (!mounted) return;
     try {
       await action();
@@ -800,30 +865,30 @@ class _DirectIptvGuideScreenState extends State<DirectIptvGuideScreen> {
             ),
             const SizedBox(height: 6),
             Expanded(
-              child: ListView(
+              child: ListView.builder(
                 padding: EdgeInsets.zero,
-                children: [
-                  for (var i = 0; i <= groups.length; i++)
-                    _SidebarTile(
-                      focusNode: _nodeForGroup(i),
-                      scrollOnFocus: true,
-                      selected: i == 0
-                          ? _group == null
-                          : _group == groups[i - 1],
-                      label: i == 0 ? 'All Channels' : groups[i - 1],
-                      onFocused: () =>
-                          _selectGroup(i == 0 ? null : groups[i - 1]),
-                      onSelect: () =>
-                          _selectGroup(i == 0 ? null : groups[i - 1]),
-                      onKey: (event) => _sidebarArrows(
-                        event,
-                        onUp: i == 0 ? _searchNode : _nodeForGroup(i - 1),
-                        onDown: i == lastGroup
-                            ? _recordingsNode
-                            : _nodeForGroup(i + 1),
-                      ),
+                itemCount: groups.length + 1,
+                itemBuilder: (context, i) {
+                  return _SidebarTile(
+                    focusNode: _nodeForGroup(i),
+                    scrollOnFocus: true,
+                    selected: i == 0
+                        ? _group == null
+                        : _group == groups[i - 1],
+                    label: i == 0 ? 'All Channels' : groups[i - 1],
+                    onFocused: () =>
+                        _selectGroup(i == 0 ? null : groups[i - 1]),
+                    onSelect: () =>
+                        _selectGroup(i == 0 ? null : groups[i - 1]),
+                    onKey: (event) => _sidebarArrows(
+                      event,
+                      onUp: i == 0 ? _searchNode : _nodeForGroup(i - 1),
+                      onDown: i == lastGroup
+                          ? _recordingsNode
+                          : _nodeForGroup(i + 1),
                     ),
-                ],
+                  );
+                },
               ),
             ),
             _SidebarTile(
@@ -1074,6 +1139,11 @@ class _DirectIptvGuideScreenState extends State<DirectIptvGuideScreen> {
                           height: 72,
                           width: hit.stillUrl != null ? 128 : 48,
                           fit: BoxFit.cover,
+                          cacheWidth: _decodePx(
+                            context,
+                            hit.stillUrl != null ? 128 : 48,
+                          ),
+                          cacheHeight: _decodePx(context, 72),
                           errorBuilder: (_, _, _) => const SizedBox.shrink(),
                         ),
                       ),
@@ -1829,6 +1899,14 @@ class _ResolutionBadge extends StatelessWidget {
   }
 }
 
+int _decodePx(BuildContext context, double logical) {
+  final ratio = MediaQuery.devicePixelRatioOf(context);
+  final px = (logical * ratio).round();
+  if (px < 1) return 1;
+  if (px > 256) return 256;
+  return px;
+}
+
 class _Logo extends StatelessWidget {
   final String? url;
   final double width;
@@ -1847,6 +1925,8 @@ class _Logo extends StatelessWidget {
           : Image.network(
               logo,
               fit: BoxFit.contain,
+              cacheWidth: _decodePx(context, width),
+              cacheHeight: _decodePx(context, height),
               errorBuilder: (_, _, _) =>
                   Icon(Icons.tv, color: Colors.white38, size: height * 0.8),
             ),
