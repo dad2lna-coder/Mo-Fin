@@ -40,7 +40,6 @@ import '../../../preference/user_preferences.dart';
 import '../../../util/clock_format.dart';
 import '../../../util/subtitle_track_logic.dart';
 import '../../../util/play_method_label.dart';
-import '../../../util/focus/key_event_utils.dart';
 import '../../../util/platform_detection.dart';
 import '../../../util/playback_time_label.dart';
 import '../../../util/player_edge_drag.dart';
@@ -251,7 +250,7 @@ class _LiveTvPlayerScreenState extends State<LiveTvPlayerScreen>
   /// lands so a newly enabled source shows up as a feed.
   DirectFeedIndex? _feedIndex;
   DirectFeedPreference? _feedPreference;
-  final _feedSelect = LongPressSelectKeyHandler();
+  bool _feedPickerOpen = false;
 
   /// Feed channel playing for the lineup row, when it is not that row's own
   /// stream. Session hops live here and are never written as the choice.
@@ -351,7 +350,6 @@ class _LiveTvPlayerScreenState extends State<LiveTvPlayerScreen>
     _mofinResolutionEpoch++;
     _mofinHeightSub?.cancel();
     _feedStallTimer?.cancel();
-    _feedSelect.dispose();
     _directCatalog?.removeListener(_onDirectFeedsChanged);
     _screensaverPlayingSub?.cancel();
     _screensaverController.setPlaybackActive(false);
@@ -973,20 +971,10 @@ class _LiveTvPlayerScreenState extends State<LiveTvPlayerScreen>
     return _playCurrentChannel();
   }
 
-  Future<void> _cycleFeed(int delta) async {
+  Future<void> _chooseFeed(DirectChannelFeed next) async {
     if (_isSwitching || _isStopping) return;
     final lineupId = _currentChannel.id;
-    final feeds = _feedsFor(lineupId);
-    if (feeds.length < 2) return;
-    final index = feeds.indexWhere(
-      (feed) => feed.channelId == (_activeFeedChannelId ?? lineupId),
-    );
-    final next =
-        feeds[cycleDirectFeedIndex(
-          current: index,
-          count: feeds.length,
-          delta: delta,
-        )];
+    if (next.channelId == (_activeFeedChannelId ?? lineupId)) return;
     _isSwitching = true;
     try {
       _feedStallTimer?.cancel();
@@ -1001,9 +989,54 @@ class _LiveTvPlayerScreenState extends State<LiveTvPlayerScreen>
     }
   }
 
+  Future<void> _cycleFeed(int delta) async {
+    final lineupId = _currentChannel.id;
+    final feeds = _feedsFor(lineupId);
+    if (feeds.length < 2) return;
+    final index = feeds.indexWhere(
+      (feed) => feed.channelId == (_activeFeedChannelId ?? lineupId),
+    );
+    final next =
+        feeds[cycleDirectFeedIndex(
+          current: index,
+          count: feeds.length,
+          delta: delta,
+        )];
+    await _chooseFeed(next);
+  }
+
   String _feedLabel(DirectChannelFeed feed) {
     final name = feed.sourceName.trim();
     return name.isEmpty ? 'Feed' : name;
+  }
+
+  String get _feedSwitchLabel {
+    final count = _feedsFor(_currentChannel.id).length;
+    return 'Switch feed ($count)';
+  }
+
+  /// Every feed for the station, with the one playing checked. Choosing a
+  /// row saves it. Left and Right are not involved: those stay on the
+  /// channel changer.
+  Future<void> _showFeedPicker() async {
+    if (_feedPickerOpen || _isStopping || _isGuidePickerOpen) return;
+    final feeds = _feedsFor(_currentChannel.id);
+    if (feeds.length < 2) return;
+    final currentId = _activeFeedChannelId ?? _currentChannel.id;
+    _feedPickerOpen = true;
+    _hideTimer?.cancel();
+    final chosen = await showDialog<DirectChannelFeed>(
+      context: context,
+      builder: (context) =>
+          _FeedPickerDialog(feeds: feeds, currentId: currentId),
+    );
+    _feedPickerOpen = false;
+    if (!mounted || _isStopping) return;
+    if (chosen == null) {
+      _scheduleHide();
+      return;
+    }
+    await _chooseFeed(chosen);
   }
 
   void _armFeedStallWatch(int token, String lineupId) {
@@ -1026,27 +1059,6 @@ class _LiveTvPlayerScreenState extends State<LiveTvPlayerScreen>
       _feedStallTimer?.cancel();
       unawaited(_hopFeed(lineupId: lineupId, token: token));
     });
-  }
-
-  bool get _feedKeysEnabled =>
-      PlatformDetection.isTV &&
-      _hasFeedChoices &&
-      !_osdControlHasFocus &&
-      !_retryFocus.hasFocus &&
-      !_isGuidePickerOpen &&
-      !_isCarouselOpen &&
-      _seekTarget == null;
-
-  void _onRootSelect() {
-    if (!_infoVisible) {
-      _showInfo();
-      return;
-    }
-    if (_seekTarget != null) {
-      unawaited(_commitLiveSeek());
-      return;
-    }
-    _togglePlayback();
   }
 
   /// A failure that arrives once a channel is playing is the manager saying
@@ -2302,20 +2314,11 @@ class _LiveTvPlayerScreenState extends State<LiveTvPlayerScreen>
 
   KeyEventResult _handleKeyEvent(FocusNode node, KeyEvent event) {
     // While either in-player picker is open it owns all navigation keys.
-    // Let them flow to the embedded guide's focus subtree.
-    if (_isGuidePickerOpen || _isCarouselOpen) {
+    // Let them flow to the embedded guide's focus subtree. The channel
+    // changer is one of those: Left and Right move between channels there,
+    // and must not be taken for a feed switch.
+    if (_isGuidePickerOpen || _isCarouselOpen || _feedPickerOpen) {
       return KeyEventResult.ignored;
-    }
-
-    // Root focus only. A focused OSD button keeps Select, and a rewind
-    // window keeps Left/Right. Long-press OK still changes the feed.
-    if (_feedKeysEnabled) {
-      final feedKey = _feedSelect.handleKeyEvent(
-        event,
-        onTap: _onRootSelect,
-        onLongPress: () => unawaited(_cycleFeed(1)),
-      );
-      if (feedKey == KeyEventResult.handled) return feedKey;
     }
 
     if (event is! KeyDownEvent && event is! KeyRepeatEvent) {
@@ -2347,6 +2350,9 @@ class _LiveTvPlayerScreenState extends State<LiveTvPlayerScreen>
         return KeyEventResult.ignored;
       case LogicalKeyboardKey.select:
       case LogicalKeyboardKey.enter:
+        // KeyDown only. A repeat from holding OK must not toggle play again,
+        // and it must not change the feed. A short press still pauses.
+        if (event is! KeyDownEvent) return KeyEventResult.handled;
         if (!_infoVisible) {
           _showInfo();
           return KeyEventResult.handled;
@@ -2370,6 +2376,12 @@ class _LiveTvPlayerScreenState extends State<LiveTvPlayerScreen>
 
         _togglePlayback();
         return KeyEventResult.handled;
+      case LogicalKeyboardKey.contextMenu:
+        if (event is KeyDownEvent && _hasFeedChoices) {
+          unawaited(_showFeedPicker());
+          return KeyEventResult.handled;
+        }
+        return KeyEventResult.ignored;
       case LogicalKeyboardKey.mediaPlayPause:
       case LogicalKeyboardKey.mediaPlay:
       case LogicalKeyboardKey.mediaPause:
@@ -2391,6 +2403,7 @@ class _LiveTvPlayerScreenState extends State<LiveTvPlayerScreen>
         );
         return KeyEventResult.handled;
       // Until the viewer moves down into the buttons, left and right scrub.
+      // They never cycle feeds. The channel changer owns them once it is open.
       case LogicalKeyboardKey.arrowLeft when _arrowsScrub:
       case LogicalKeyboardKey.arrowRight when _arrowsScrub:
         _scrubWithKey(
@@ -2399,10 +2412,6 @@ class _LiveTvPlayerScreenState extends State<LiveTvPlayerScreen>
         );
         return KeyEventResult.handled;
       case LogicalKeyboardKey.arrowLeft:
-        if (_feedKeysEnabled) {
-          if (event is KeyDownEvent) unawaited(_cycleFeed(-1));
-          return KeyEventResult.handled;
-        }
         if (!_infoVisible) {
           _showInfo();
           return KeyEventResult.handled;
@@ -2414,10 +2423,6 @@ class _LiveTvPlayerScreenState extends State<LiveTvPlayerScreen>
         _showInfo();
         return KeyEventResult.handled;
       case LogicalKeyboardKey.arrowRight:
-        if (_feedKeysEnabled) {
-          if (event is KeyDownEvent) unawaited(_cycleFeed(1));
-          return KeyEventResult.handled;
-        }
         if (!_infoVisible) {
           _showInfo();
           return KeyEventResult.handled;
@@ -3005,6 +3010,7 @@ class _LiveTvPlayerScreenState extends State<LiveTvPlayerScreen>
             const SizedBox(width: AppSpacing.spaceSm),
             _LiveTvFeedSwitchButton(
               focusNode: PlatformDetection.isTV ? _tvFeedFocus : null,
+              label: _feedSwitchLabel,
               onPressed: () => unawaited(_cycleFeed(1)),
             ),
           ],
@@ -3830,13 +3836,19 @@ class _LiveTvRetryButtonState extends State<_LiveTvRetryButton> {
   }
 }
 
-/// "Switch feed" for a station that exists on more than one Direct IPTV
-/// source. TV passes the OSD focus node; phone and web use a plain button.
+/// "Switch feed (n)" for a station that exists on more than one Direct IPTV
+/// source. TV passes the OSD focus node so Down then Right can reach it.
+/// Phone and web use a plain button.
 class _LiveTvFeedSwitchButton extends StatelessWidget {
   final FocusNode? focusNode;
+  final String label;
   final VoidCallback onPressed;
 
-  const _LiveTvFeedSwitchButton({required this.onPressed, this.focusNode});
+  const _LiveTvFeedSwitchButton({
+    required this.onPressed,
+    required this.label,
+    this.focusNode,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -3852,13 +3864,90 @@ class _LiveTvFeedSwitchButton extends StatelessWidget {
           textStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700),
         ),
         onPressed: onPressed,
-        child: const Text('Switch feed'),
+        child: Text(label),
       );
     }
     return _LiveTvRetryButton(
       focusNode: node,
       onPressed: onPressed,
-      label: 'Switch feed',
+      label: label,
+    );
+  }
+}
+
+/// Feeds for the station that is playing. The row that matches [currentId]
+/// is checked and takes focus first.
+class _FeedPickerDialog extends StatelessWidget {
+  final List<DirectChannelFeed> feeds;
+  final String currentId;
+
+  const _FeedPickerDialog({required this.feeds, required this.currentId});
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      backgroundColor: const Color(0xF0101822),
+      title: const Text('Feeds', style: TextStyle(color: Colors.white)),
+      content: SizedBox(
+        width: 420,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            for (final feed in feeds)
+              _FeedPickerButton(
+                name: feed.sourceName.trim().isEmpty
+                    ? 'Feed'
+                    : feed.sourceName.trim(),
+                checked: feed.channelId == currentId,
+                onPressed: () => Navigator.of(context).pop(feed),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _FeedPickerButton extends StatelessWidget {
+  final String name;
+  final bool checked;
+  final VoidCallback onPressed;
+
+  const _FeedPickerButton({
+    required this.name,
+    required this.checked,
+    required this.onPressed,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return TextButton(
+      autofocus: checked,
+      onPressed: onPressed,
+      style: TextButton.styleFrom(
+        foregroundColor: Colors.white,
+        alignment: Alignment.centerLeft,
+      ),
+      child: Row(
+        children: [
+          Icon(
+            checked ? Icons.check : Icons.circle_outlined,
+            color: Colors.white,
+            size: 22,
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              name,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 18,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
