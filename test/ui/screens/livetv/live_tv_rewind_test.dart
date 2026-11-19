@@ -51,6 +51,9 @@ class _Backend extends Fake implements PlayerBackend {
   List<EmbeddedCaptionTrack> get embeddedCaptionTracks => const [];
 
   @override
+  List<NativeTextRendition> get nativeTextRenditions => const [];
+
+  @override
   Future<void> configureSubtitleStyle({
     int? textColor,
     int? backgroundColor,

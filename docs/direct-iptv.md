@@ -23,11 +23,13 @@ While watching a channel in the live player, users can report channel status bac
 - Sends a request to the channel server's `/remove` endpoint (`{tvg_id, name?}`).
 - Authorized requests send key tokens via `X-Mofin-Key: <your-key>`, `?key=<your-key>`, or `Authorization: Bearer <your-key>`. Returns `403` when unauthorized or `404` for unknown channels.
 
-### Channel Stacks & Failover
+### Channel stacks and feeds
 - Redundant streams can be grouped into channel stacks using the `x-mofin-stack` (member count) and `x-mofin-members` M3U attributes.
 - Stacks can also be fetched as stack playlists (`s/stack-<slug>.m3u8`).
 - When streaming a stack, the channel server sends the HTTP header `X-Mofin-Member: <member-tvg-id>`, and the app reads it to identify which member channel is serving the stream.
-- If a primary stream in a stack fails during playback, MoFin automatically attempts failover playback across alternative member streams.
+- The same station on more than one enabled source is one group. In the player, **Switch feed** cycles those sources. On a TV remote, Left/Right does the same when the buttons are not focused, and a long-press of OK does it from the video. A short toast shows the source name. The player already running is reused; the previous stream is released first.
+- The choice is saved for that station (the group id) and used the next time the channel opens. It syncs for the signed-in Jellyfin user through Moonbase (`PUT /Moonfin/LiveTv/Direct/Feeds`) when that route answers, and stays on the device when it does not.
+- If the saved feed fails, or does not start within about 8 seconds, the player tries the next feed for that viewing only and does not replace the saved choice.
 
 ### Recording
 - Direct IPTV (M3U) recordings are scheduled on the signed-in server at `POST/GET/DELETE /Moonfin/LiveTv/Direct/Recordings`.

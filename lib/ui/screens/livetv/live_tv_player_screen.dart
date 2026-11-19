@@ -19,9 +19,13 @@ import '../../../playback/system_volume.dart';
 import '../../../data/models/aggregated_item.dart';
 import '../../../data/models/live_tv_recording_state.dart';
 import '../../../data/viewmodels/live_tv_guide_view_model.dart';
+import '../../../direct_iptv/channel_feeds.dart';
 import '../../../direct_iptv/direct_guide.dart';
 import '../../../direct_iptv/direct_iptv_catalog.dart';
+import '../../../direct_iptv/direct_iptv_client.dart';
 import '../../../direct_iptv/direct_iptv_playback.dart';
+import '../../../direct_iptv/direct_iptv_recordings.dart';
+import '../../../direct_iptv/feed_preference.dart';
 import '../../../direct_iptv/guide_tmdb.dart';
 import '../../../direct_iptv/models.dart';
 import '../../../direct_iptv/playlist_parse.dart';
@@ -36,6 +40,7 @@ import '../../../preference/user_preferences.dart';
 import '../../../util/clock_format.dart';
 import '../../../util/subtitle_track_logic.dart';
 import '../../../util/play_method_label.dart';
+import '../../../util/focus/key_event_utils.dart';
 import '../../../util/platform_detection.dart';
 import '../../../util/playback_time_label.dart';
 import '../../../util/player_edge_drag.dart';
@@ -214,6 +219,7 @@ class _LiveTvPlayerScreenState extends State<LiveTvPlayerScreen>
   final _tvMofinUpFocus = FocusNode(debugLabel: 'LiveTvMofinUp');
   final _tvMofinDownFocus = FocusNode(debugLabel: 'LiveTvMofinDown');
   final _tvMofinRemoveFocus = FocusNode(debugLabel: 'LiveTvMofinRemove');
+  final _tvFeedFocus = FocusNode(debugLabel: 'LiveTvSwitchFeed');
   final _tvSkipBackFocus = FocusNode(debugLabel: 'LiveTvSkipBack');
   final _tvSkipForwardFocus = FocusNode(debugLabel: 'LiveTvSkipForward');
   final _tvJumpToLiveFocus = FocusNode(debugLabel: 'LiveTvJumpToLive');
@@ -240,6 +246,21 @@ class _LiveTvPlayerScreenState extends State<LiveTvPlayerScreen>
   bool _mofinRemoveInFlight = false;
   int _mofinResolutionEpoch = 0;
   StreamSubscription<int>? _mofinHeightSub;
+
+  /// Station groups built from the catalog. Dropped when a lineup refresh
+  /// lands so a newly enabled source shows up as a feed.
+  DirectFeedIndex? _feedIndex;
+  DirectFeedPreference? _feedPreference;
+  final _feedSelect = LongPressSelectKeyHandler();
+
+  /// Feed channel playing for the lineup row, when it is not that row's own
+  /// stream. Session hops live here and are never written as the choice.
+  final Map<String, String> _sessionFeedByGroup = {};
+  String? _activeFeedChannelId;
+  bool _feedHopUsed = false;
+  int _feedPlayToken = 0;
+  Timer? _feedStallTimer;
+  DateTime? _feedUnhealthySince;
 
   /// The zap list. A copy so removing a channel does not mutate a lineup
   /// the guide still owns.
@@ -293,6 +314,7 @@ class _LiveTvPlayerScreenState extends State<LiveTvPlayerScreen>
     _tvMofinUpFocus.addListener(_onControlFocusChanged);
     _tvMofinDownFocus.addListener(_onControlFocusChanged);
     _tvMofinRemoveFocus.addListener(_onControlFocusChanged);
+    _tvFeedFocus.addListener(_onControlFocusChanged);
     _tvSkipBackFocus.addListener(_onControlFocusChanged);
     _tvSkipForwardFocus.addListener(_onControlFocusChanged);
     _tvJumpToLiveFocus.addListener(_onControlFocusChanged);
@@ -303,6 +325,7 @@ class _LiveTvPlayerScreenState extends State<LiveTvPlayerScreen>
         setState(() => _canRewind = canRewind);
       }
     });
+    _directCatalog?.addListener(_onDirectFeedsChanged);
     _playCurrentChannel();
     _scheduleHide();
     _startProgramRefresh();
@@ -327,6 +350,9 @@ class _LiveTvPlayerScreenState extends State<LiveTvPlayerScreen>
   void dispose() {
     _mofinResolutionEpoch++;
     _mofinHeightSub?.cancel();
+    _feedStallTimer?.cancel();
+    _feedSelect.dispose();
+    _directCatalog?.removeListener(_onDirectFeedsChanged);
     _screensaverPlayingSub?.cancel();
     _screensaverController.setPlaybackActive(false);
     _carouselPrewarm?.dispose();
@@ -379,6 +405,7 @@ class _LiveTvPlayerScreenState extends State<LiveTvPlayerScreen>
     _tvMofinUpFocus.removeListener(_onControlFocusChanged);
     _tvMofinDownFocus.removeListener(_onControlFocusChanged);
     _tvMofinRemoveFocus.removeListener(_onControlFocusChanged);
+    _tvFeedFocus.removeListener(_onControlFocusChanged);
     _tvSkipBackFocus.removeListener(_onControlFocusChanged);
     _tvSkipForwardFocus.removeListener(_onControlFocusChanged);
     _tvJumpToLiveFocus.removeListener(_onControlFocusChanged);
@@ -394,6 +421,7 @@ class _LiveTvPlayerScreenState extends State<LiveTvPlayerScreen>
     _tvMofinUpFocus.dispose();
     _tvMofinDownFocus.dispose();
     _tvMofinRemoveFocus.dispose();
+    _tvFeedFocus.dispose();
     _tvSkipBackFocus.dispose();
     _tvSkipForwardFocus.dispose();
     _tvJumpToLiveFocus.dispose();
@@ -794,18 +822,32 @@ class _LiveTvPlayerScreenState extends State<LiveTvPlayerScreen>
     _clearChannelFailedCard();
     _seekCommitTimer?.cancel();
     _seekTarget = null;
+    _feedStallTimer?.cancel();
+    _feedUnhealthySince = null;
     final channel = _currentChannel;
+    final token = ++_feedPlayToken;
     unawaited(_prefs.set(UserPreferences.liveTvLastChannelId, channel.id));
+    final feed = await _feedForPlayback(channel.id);
+    if (!mounted || _isStopping || token != _feedPlayToken) return false;
+    if (_currentChannel.id != channel.id) return false;
+    final playingId = feed?.channelId ?? channel.id;
+    _activeFeedChannelId = playingId;
     final item = AggregatedItem(
-      id: channel.id,
+      id: playingId,
       serverId: _client.baseUrl,
-      rawData: channel.rawData,
+      rawData: feed == null
+          ? channel.rawData
+          : playbackRawData(channel: feed.channel, source: feed.source),
     );
+    final feeds = _feedsFor(channel.id);
+    final canHop = feeds.length > 1 && !_feedHopUsed;
     final allowDirect = _prefs.get(UserPreferences.liveTvDirectPlayEnabled);
+    // Same PlaybackManager, which stops the stream it already holds before
+    // opening the next one. A second player is never created.
     final terminalState = await observeChannelTune(
-      channelId: channel.id,
+      channelId: playingId,
       states: _manager.bringupStateStream,
-      timeout: _kChannelTuneTimeout,
+      timeout: canHop ? directFeedStallTimeout : _kChannelTuneTimeout,
       start: () => _manager.playItems(
         [item],
         enableDirectPlay: allowDirect,
@@ -821,12 +863,13 @@ class _LiveTvPlayerScreenState extends State<LiveTvPlayerScreen>
         enableTranscoding: true,
       ),
     );
-    if (!mounted || _isStopping || _currentChannel.id != channel.id) {
-      return false;
-    }
+    if (!mounted || _isStopping || token != _feedPlayToken) return false;
+    if (_currentChannel.id != channel.id) return false;
     final succeeded = terminalState?.phase == PlaybackBringupPhase.ready;
     _channelIsUp = succeeded;
     if (!succeeded) {
+      final hopped = await _hopFeed(lineupId: channel.id, token: token);
+      if (hopped || token != _feedPlayToken) return hopped;
       _showChannelFailedCard(channel.name);
       return false;
     }
@@ -834,7 +877,176 @@ class _LiveTvPlayerScreenState extends State<LiveTvPlayerScreen>
     unawaited(_fetchCurrentProgram());
     _warmChannelCarousel();
     unawaited(_reportMofinResolution(channel.id));
+    if (canHop) _armFeedStallWatch(token, channel.id);
+    if (mounted) setState(() {});
     return true;
+  }
+
+  List<DirectChannelFeed> _feedsFor(String channelId) {
+    final catalog = _directCatalog;
+    if (catalog == null || catalog.channelById(channelId) == null) {
+      return const [];
+    }
+    final index = _feedIndex ??= buildDirectFeedIndex(
+      sources: catalog.sources,
+      snapshotFor: catalog.snapshotFor,
+    );
+    return index.groupForChannel(channelId)?.feeds ?? const [];
+  }
+
+  bool get _hasFeedChoices => _feedsFor(_currentChannel.id).length > 1;
+
+  void _onDirectFeedsChanged() {
+    _feedIndex = null;
+    if (mounted) setState(() {});
+  }
+
+  DirectFeedPreference _feedPrefs() {
+    final existing = _feedPreference;
+    if (existing != null) return existing;
+    String? userId;
+    DirectFeedSync? sync;
+    try {
+      userId = _client.userId;
+      final headers = recordingSessionHeaders(_client);
+      final base = _client.baseUrl;
+      if (headers.isNotEmpty && base.isNotEmpty) {
+        sync = MoonbaseDirectFeedSync(
+          transport: HttpDirectIptvTransport(),
+          endpoint: MoonbaseDirectFeedSync.endpointFor(base),
+          headers: headers,
+        );
+      }
+    } catch (_) {}
+    final created = DirectFeedPreference(userId: userId, sync: sync);
+    _feedPreference = created;
+    return created;
+  }
+
+  /// Saved feed for this station, unless this viewing already had to leave
+  /// it. The opened row is used when nothing is saved or the save is gone.
+  Future<DirectChannelFeed?> _feedForPlayback(String lineupId) async {
+    final feeds = _feedsFor(lineupId);
+    if (feeds.length < 2) return null;
+    final prefs = _feedPrefs();
+    await prefs.ensureLoaded();
+    if (!mounted || _currentChannel.id != lineupId) return null;
+    final groupId = feeds.first.groupId;
+    final saved = savedFeedChannelId(
+      saved: _sessionFeedByGroup[groupId] ?? prefs.choiceFor(groupId),
+      feeds: feeds,
+    );
+    if (saved != null) {
+      for (final feed in feeds) {
+        if (feed.channelId == saved) return feed;
+      }
+    }
+    for (final feed in feeds) {
+      if (feed.channelId == lineupId) return feed;
+    }
+    return null;
+  }
+
+  /// The next feed for this viewing only. The stored choice is not changed.
+  Future<bool> _hopFeed({required String lineupId, required int token}) async {
+    if (_feedHopUsed || token != _feedPlayToken || _isStopping) return false;
+    if (!mounted || _currentChannel.id != lineupId) return false;
+    final feeds = _feedsFor(lineupId);
+    if (feeds.length < 2) return false;
+    final currentId = _activeFeedChannelId ?? lineupId;
+    final index = feeds.indexWhere((feed) => feed.channelId == currentId);
+    final next =
+        feeds[cycleDirectFeedIndex(
+          current: index,
+          count: feeds.length,
+          delta: 1,
+        )];
+    if (next.channelId == currentId) return false;
+    if (index >= 0 &&
+        next.channel.streamUrl == feeds[index].channel.streamUrl) {
+      return false;
+    }
+    _feedHopUsed = true;
+    _sessionFeedByGroup[next.groupId] = next.channelId;
+    if (!mounted) return false;
+    _mofinToast(_feedLabel(next));
+    return _playCurrentChannel();
+  }
+
+  Future<void> _cycleFeed(int delta) async {
+    if (_isSwitching || _isStopping) return;
+    final lineupId = _currentChannel.id;
+    final feeds = _feedsFor(lineupId);
+    if (feeds.length < 2) return;
+    final index = feeds.indexWhere(
+      (feed) => feed.channelId == (_activeFeedChannelId ?? lineupId),
+    );
+    final next =
+        feeds[cycleDirectFeedIndex(
+          current: index,
+          count: feeds.length,
+          delta: delta,
+        )];
+    _isSwitching = true;
+    try {
+      _feedStallTimer?.cancel();
+      _feedHopUsed = false;
+      _sessionFeedByGroup.remove(next.groupId);
+      await _feedPrefs().save(next.groupId, next.channelId);
+      if (!mounted || _isStopping || _currentChannel.id != lineupId) return;
+      _mofinToast(_feedLabel(next));
+      await _playCurrentChannel();
+    } finally {
+      _isSwitching = false;
+    }
+  }
+
+  String _feedLabel(DirectChannelFeed feed) {
+    final name = feed.sourceName.trim();
+    return name.isEmpty ? 'Feed' : name;
+  }
+
+  void _armFeedStallWatch(int token, String lineupId) {
+    _feedStallTimer?.cancel();
+    _feedUnhealthySince = null;
+    _feedStallTimer = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (!mounted || token != _feedPlayToken || _feedHopUsed || _isStopping) {
+        _feedStallTimer?.cancel();
+        return;
+      }
+      final stalled =
+          !_state.isPaused &&
+          (_state.isBuffering || !_state.isPlaying || !_channelIsUp);
+      if (!stalled) {
+        _feedUnhealthySince = null;
+        return;
+      }
+      final since = _feedUnhealthySince ??= DateTime.now();
+      if (DateTime.now().difference(since) < directFeedStallTimeout) return;
+      _feedStallTimer?.cancel();
+      unawaited(_hopFeed(lineupId: lineupId, token: token));
+    });
+  }
+
+  bool get _feedKeysEnabled =>
+      PlatformDetection.isTV &&
+      _hasFeedChoices &&
+      !_osdControlHasFocus &&
+      !_retryFocus.hasFocus &&
+      !_isGuidePickerOpen &&
+      !_isCarouselOpen &&
+      _seekTarget == null;
+
+  void _onRootSelect() {
+    if (!_infoVisible) {
+      _showInfo();
+      return;
+    }
+    if (_seekTarget != null) {
+      unawaited(_commitLiveSeek());
+      return;
+    }
+    _togglePlayback();
   }
 
   /// A failure that arrives once a channel is playing is the manager saying
@@ -844,6 +1056,12 @@ class _LiveTvPlayerScreenState extends State<LiveTvPlayerScreen>
     if (!mounted || _isStopping || !_channelIsUp) return;
     if (state.phase != PlaybackBringupPhase.failed) return;
     _channelIsUp = false;
+    final token = _feedPlayToken;
+    final lineupId = _currentChannel.id;
+    if (!_feedHopUsed && _feedsFor(lineupId).length > 1) {
+      unawaited(_hopFeed(lineupId: lineupId, token: token));
+      return;
+    }
     _showChannelFailedCard(_currentChannel.name);
   }
 
@@ -953,6 +1171,10 @@ class _LiveTvPlayerScreenState extends State<LiveTvPlayerScreen>
     if (_isSwitching) return;
     _isSwitching = true;
     try {
+      _feedHopUsed = false;
+      _sessionFeedByGroup.clear();
+      _feedStallTimer?.cancel();
+      _activeFeedChannelId = null;
       setState(() {
         _currentIndex = newIndex;
         _currentProgram = null;
@@ -1250,6 +1472,7 @@ class _LiveTvPlayerScreenState extends State<LiveTvPlayerScreen>
   List<FocusNode> get _osdFocusOrder => [
     if (_canRewind) _tvSkipBackFocus,
     _tvPlayPauseFocus,
+    if (_hasFeedChoices) _tvFeedFocus,
     if (_canRewind) ...[_tvSkipForwardFocus, _tvJumpToLiveFocus],
     _tvChannelsFocus,
     _tvGuideFocus,
@@ -2078,13 +2301,24 @@ class _LiveTvPlayerScreenState extends State<LiveTvPlayerScreen>
       );
 
   KeyEventResult _handleKeyEvent(FocusNode node, KeyEvent event) {
-    if (event is! KeyDownEvent && event is! KeyRepeatEvent) {
-      return KeyEventResult.ignored;
-    }
-
     // While either in-player picker is open it owns all navigation keys.
     // Let them flow to the embedded guide's focus subtree.
     if (_isGuidePickerOpen || _isCarouselOpen) {
+      return KeyEventResult.ignored;
+    }
+
+    // Root focus only. A focused OSD button keeps Select, and a rewind
+    // window keeps Left/Right. Long-press OK still changes the feed.
+    if (_feedKeysEnabled) {
+      final feedKey = _feedSelect.handleKeyEvent(
+        event,
+        onTap: _onRootSelect,
+        onLongPress: () => unawaited(_cycleFeed(1)),
+      );
+      if (feedKey == KeyEventResult.handled) return feedKey;
+    }
+
+    if (event is! KeyDownEvent && event is! KeyRepeatEvent) {
       return KeyEventResult.ignored;
     }
 
@@ -2165,6 +2399,10 @@ class _LiveTvPlayerScreenState extends State<LiveTvPlayerScreen>
         );
         return KeyEventResult.handled;
       case LogicalKeyboardKey.arrowLeft:
+        if (_feedKeysEnabled) {
+          if (event is KeyDownEvent) unawaited(_cycleFeed(-1));
+          return KeyEventResult.handled;
+        }
         if (!_infoVisible) {
           _showInfo();
           return KeyEventResult.handled;
@@ -2176,6 +2414,10 @@ class _LiveTvPlayerScreenState extends State<LiveTvPlayerScreen>
         _showInfo();
         return KeyEventResult.handled;
       case LogicalKeyboardKey.arrowRight:
+        if (_feedKeysEnabled) {
+          if (event is KeyDownEvent) unawaited(_cycleFeed(1));
+          return KeyEventResult.handled;
+        }
         if (!_infoVisible) {
           _showInfo();
           return KeyEventResult.handled;
@@ -2759,6 +3001,13 @@ class _LiveTvPlayerScreenState extends State<LiveTvPlayerScreen>
               );
             },
           ),
+          if (_hasFeedChoices) ...[
+            const SizedBox(width: AppSpacing.spaceSm),
+            _LiveTvFeedSwitchButton(
+              focusNode: PlatformDetection.isTV ? _tvFeedFocus : null,
+              onPressed: () => unawaited(_cycleFeed(1)),
+            ),
+          ],
           if (_canRewind) ...[
             const SizedBox(width: AppSpacing.spaceSm),
             _buildOverlayControlButton(
@@ -3577,6 +3826,39 @@ class _LiveTvRetryButtonState extends State<_LiveTvRetryButton> {
           ),
         ),
       ),
+    );
+  }
+}
+
+/// "Switch feed" for a station that exists on more than one Direct IPTV
+/// source. TV passes the OSD focus node; phone and web use a plain button.
+class _LiveTvFeedSwitchButton extends StatelessWidget {
+  final FocusNode? focusNode;
+  final VoidCallback onPressed;
+
+  const _LiveTvFeedSwitchButton({required this.onPressed, this.focusNode});
+
+  @override
+  Widget build(BuildContext context) {
+    final node = focusNode;
+    if (node == null) {
+      return TextButton(
+        style: TextButton.styleFrom(
+          foregroundColor: Colors.white,
+          backgroundColor: Colors.white.withValues(alpha: 0.14),
+          minimumSize: const Size(44, 44),
+          padding: const EdgeInsets.symmetric(horizontal: 12),
+          shape: const StadiumBorder(),
+          textStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700),
+        ),
+        onPressed: onPressed,
+        child: const Text('Switch feed'),
+      );
+    }
+    return _LiveTvRetryButton(
+      focusNode: node,
+      onPressed: onPressed,
+      label: 'Switch feed',
     );
   }
 }
