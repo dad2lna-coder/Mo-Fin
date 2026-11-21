@@ -78,6 +78,9 @@ class _Backend extends Fake implements PlayerBackend {
     int? fontWeight,
     double? verticalOffset,
   }) async {}
+
+  @override
+  Future<void> setVolume(double volume) async {}
 }
 
 class _Manager extends PlaybackManager {
@@ -284,7 +287,7 @@ void main() {
     await tester.pump();
   }
 
-  testWidgets('left and right still change the channel, not the feed', (
+  testWidgets('left and right cycle feeds until the channel strip is open', (
     tester,
   ) async {
     await pumpPlayer(tester, [
@@ -294,10 +297,19 @@ void main() {
     expect(manager.played, ['direct:a:cnn']);
     expect(find.text('Switch feed (2)'), findsOneWidget);
 
-    // Strip closed: Left/Right must not leave CNN or hop to the other feed.
     await keyDown(tester, LogicalKeyboardKey.arrowRight);
     await keyUp(tester, LogicalKeyboardKey.arrowRight);
-    expect(manager.played, ['direct:a:cnn']);
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 100));
+    expect(find.text('Backup'), findsOneWidget);
+    expect(manager.played, ['direct:a:cnn', 'direct:b:cnn']);
+
+    await keyDown(tester, LogicalKeyboardKey.arrowLeft);
+    await keyUp(tester, LogicalKeyboardKey.arrowLeft);
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 500));
+    expect(manager.played, ['direct:a:cnn', 'direct:b:cnn', 'direct:a:cnn']);
+    expect(find.text('Mo Fin'), findsWidgets);
 
     await keyDown(tester, LogicalKeyboardKey.arrowUp);
     await keyUp(tester, LogicalKeyboardKey.arrowUp);
@@ -307,7 +319,6 @@ void main() {
       FocusManager.instance.primaryFocus?.debugLabel,
       'DirectChannelStrip',
     );
-    expect(find.text('CNN'), findsOneWidget);
 
     await keyDown(tester, LogicalKeyboardKey.arrowRight);
     expect(find.text('ESPN'), findsOneWidget);
@@ -316,7 +327,7 @@ void main() {
     expect(find.text('ESPN'), findsNothing);
     await keyUp(tester, LogicalKeyboardKey.arrowRight);
     expect(find.text('CNN'), findsOneWidget);
-    expect(manager.played, ['direct:a:cnn']);
+    expect(manager.played, ['direct:a:cnn', 'direct:b:cnn', 'direct:a:cnn']);
 
     await keyDown(tester, LogicalKeyboardKey.arrowRight);
     expect(find.text('ESPN'), findsOneWidget);
@@ -326,8 +337,13 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 100));
 
-    expect(manager.played, ['direct:a:cnn', 'direct:a:espn']);
-    expect(manager.played, isNot(contains('direct:b:cnn')));
+    expect(manager.played, [
+      'direct:a:cnn',
+      'direct:b:cnn',
+      'direct:a:cnn',
+      'direct:a:espn',
+    ]);
+    expect(manager.played, isNot(contains('direct:b:espn')));
 
     await tester.pumpWidget(const SizedBox());
   });
@@ -363,6 +379,29 @@ void main() {
     final stored = prefs.getString(directFeedChoiceKey('alice'));
     expect(stored, contains('tvg:cnn'));
     expect(stored, contains('direct:b:cnn'));
+
+    await tester.pumpWidget(const SizedBox());
+  });
+
+  testWidgets('a tap on Switch feed cycles it off the TV remote', (
+    tester,
+  ) async {
+    PlatformDetection.setTvMode(false);
+    await pumpPlayer(tester, [_guide('direct:a:cnn', 'CNN')]);
+    expect(find.text('Switch feed (2)'), findsOneWidget);
+    expect(manager.played, ['direct:a:cnn']);
+
+    await tester.tap(find.text('Switch feed (2)'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 100));
+
+    expect(find.text('Backup'), findsOneWidget);
+    expect(manager.played, ['direct:a:cnn', 'direct:b:cnn']);
+    final prefs = await SharedPreferences.getInstance();
+    expect(
+      prefs.getString(directFeedChoiceKey('alice')),
+      contains('direct:b:cnn'),
+    );
 
     await tester.pumpWidget(const SizedBox());
   });
@@ -405,7 +444,7 @@ void main() {
     await tester.pumpWidget(const SizedBox());
   });
 
-  testWidgets('a short OK pauses and a repeat does not resume or switch', (
+  testWidgets('a short OK pauses and holding OK switches the feed once', (
     tester,
   ) async {
     await pumpPlayer(tester, [_guide('direct:a:cnn', 'CNN')]);
@@ -413,11 +452,8 @@ void main() {
     expect(manager.played, ['direct:a:cnn']);
 
     await keyDown(tester, LogicalKeyboardKey.select);
-    await tester.pump(const Duration(milliseconds: 600));
-    expect(manager.pauses, 1);
-    expect(manager.state.isPlaying, isFalse);
-
-    await keyRepeat(tester, LogicalKeyboardKey.select);
+    await tester.pump(const Duration(milliseconds: 200));
+    expect(manager.pauses, 0);
     await keyUp(tester, LogicalKeyboardKey.select);
     expect(manager.pauses, 1);
     expect(manager.resumes, 0);
@@ -425,10 +461,23 @@ void main() {
     expect(manager.played, ['direct:a:cnn']);
 
     await keyDown(tester, LogicalKeyboardKey.select);
+    await tester.pump(const Duration(milliseconds: 600));
+    await tester.pump();
+    expect(find.text('Backup'), findsOneWidget);
+    expect(manager.played, ['direct:a:cnn', 'direct:b:cnn']);
+    expect(manager.pauses, 1);
+    expect(manager.resumes, 0);
+
+    await keyRepeat(tester, LogicalKeyboardKey.select);
     await keyUp(tester, LogicalKeyboardKey.select);
-    expect(manager.resumes, 1);
-    expect(manager.state.isPlaying, isTrue);
-    expect(manager.played, ['direct:a:cnn']);
+    expect(manager.pauses, 1);
+    expect(manager.resumes, 0);
+    expect(manager.played, ['direct:a:cnn', 'direct:b:cnn']);
+
+    final prefs = await SharedPreferences.getInstance();
+    final stored = prefs.getString(directFeedChoiceKey('alice'));
+    expect(stored, contains('tvg:cnn'));
+    expect(stored, contains('direct:b:cnn'));
 
     await tester.pumpWidget(const SizedBox());
   });

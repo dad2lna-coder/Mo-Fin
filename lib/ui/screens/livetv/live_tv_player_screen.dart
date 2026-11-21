@@ -40,6 +40,7 @@ import '../../../preference/user_preferences.dart';
 import '../../../util/clock_format.dart';
 import '../../../util/subtitle_track_logic.dart';
 import '../../../util/play_method_label.dart';
+import '../../../util/focus/key_event_utils.dart';
 import '../../../util/platform_detection.dart';
 import '../../../util/playback_time_label.dart';
 import '../../../util/player_edge_drag.dart';
@@ -250,6 +251,7 @@ class _LiveTvPlayerScreenState extends State<LiveTvPlayerScreen>
   /// lands so a newly enabled source shows up as a feed.
   DirectFeedIndex? _feedIndex;
   DirectFeedPreference? _feedPreference;
+  final _feedSelect = LongPressSelectKeyHandler();
   bool _feedPickerOpen = false;
 
   /// Feed channel playing for the lineup row, when it is not that row's own
@@ -350,6 +352,7 @@ class _LiveTvPlayerScreenState extends State<LiveTvPlayerScreen>
     _mofinResolutionEpoch++;
     _mofinHeightSub?.cancel();
     _feedStallTimer?.cancel();
+    _feedSelect.dispose();
     _directCatalog?.removeListener(_onDirectFeedsChanged);
     _screensaverPlayingSub?.cancel();
     _screensaverController.setPlaybackActive(false);
@@ -1016,8 +1019,7 @@ class _LiveTvPlayerScreenState extends State<LiveTvPlayerScreen>
   }
 
   /// Every feed for the station, with the one playing checked. Choosing a
-  /// row saves it. Left and Right are not involved: those stay on the
-  /// channel changer.
+  /// row saves it. The channel strip, once it is open, keeps Left and Right.
   Future<void> _showFeedPicker() async {
     if (_feedPickerOpen || _isStopping || _isGuidePickerOpen) return;
     final feeds = _feedsFor(_currentChannel.id);
@@ -1701,6 +1703,31 @@ class _LiveTvPlayerScreenState extends State<LiveTvPlayerScreen>
 
   bool get _osdControlHasFocus => _osdFocusOrder.any((node) => node.hasFocus);
 
+  /// Root of the player, not a focused button and not the open channel strip.
+  /// Left and Right cycle feeds here. A rewind window still owns those keys.
+  bool get _feedKeysEnabled =>
+      PlatformDetection.isTV &&
+      _hasFeedChoices &&
+      !_osdControlHasFocus &&
+      !_retryFocus.hasFocus &&
+      !_channelFailed &&
+      !_isGuidePickerOpen &&
+      !_isCarouselOpen &&
+      !_feedPickerOpen &&
+      _seekTarget == null;
+
+  void _onRootSelect() {
+    if (!_infoVisible) {
+      _showInfo();
+      return;
+    }
+    if (_seekTarget != null) {
+      unawaited(_commitLiveSeek());
+      return;
+    }
+    _togglePlayback();
+  }
+
   bool get _arrowsScrub =>
       _rewindWindow != null && (!_infoVisible || !_osdControlHasFocus);
 
@@ -2321,6 +2348,27 @@ class _LiveTvPlayerScreenState extends State<LiveTvPlayerScreen>
       return KeyEventResult.ignored;
     }
 
+    // Menu lists every feed. Handled before the long-press helper, which
+    // would otherwise treat the menu key as a feed cycle.
+    if (event.logicalKey == LogicalKeyboardKey.contextMenu) {
+      if (event is KeyDownEvent && _hasFeedChoices) {
+        unawaited(_showFeedPicker());
+        return KeyEventResult.handled;
+      }
+      return KeyEventResult.ignored;
+    }
+
+    // No button focused: Left/Right and a held OK cycle feeds. A short OK
+    // still pauses. Key repeat must not toggle play.
+    if (_feedKeysEnabled) {
+      final feedKey = _feedSelect.handleKeyEvent(
+        event,
+        onTap: _onRootSelect,
+        onLongPress: () => unawaited(_cycleFeed(1)),
+      );
+      if (feedKey == KeyEventResult.handled) return feedKey;
+    }
+
     if (event is! KeyDownEvent && event is! KeyRepeatEvent) {
       return KeyEventResult.ignored;
     }
@@ -2350,8 +2398,8 @@ class _LiveTvPlayerScreenState extends State<LiveTvPlayerScreen>
         return KeyEventResult.ignored;
       case LogicalKeyboardKey.select:
       case LogicalKeyboardKey.enter:
-        // KeyDown only. A repeat from holding OK must not toggle play again,
-        // and it must not change the feed. A short press still pauses.
+        // KeyDown only. A repeat from holding OK must not toggle play again.
+        // Feed cycling for a hold is handled above, and only at root focus.
         if (event is! KeyDownEvent) return KeyEventResult.handled;
         if (!_infoVisible) {
           _showInfo();
@@ -2376,12 +2424,6 @@ class _LiveTvPlayerScreenState extends State<LiveTvPlayerScreen>
 
         _togglePlayback();
         return KeyEventResult.handled;
-      case LogicalKeyboardKey.contextMenu:
-        if (event is KeyDownEvent && _hasFeedChoices) {
-          unawaited(_showFeedPicker());
-          return KeyEventResult.handled;
-        }
-        return KeyEventResult.ignored;
       case LogicalKeyboardKey.mediaPlayPause:
       case LogicalKeyboardKey.mediaPlay:
       case LogicalKeyboardKey.mediaPause:
@@ -2402,8 +2444,9 @@ class _LiveTvPlayerScreenState extends State<LiveTvPlayerScreen>
           forward: event.logicalKey == LogicalKeyboardKey.mediaFastForward,
         );
         return KeyEventResult.handled;
-      // Until the viewer moves down into the buttons, left and right scrub.
-      // They never cycle feeds. The channel changer owns them once it is open.
+      // Until the viewer moves down into the buttons, left and right scrub
+      // when the stream has a window. Otherwise they cycle this station's
+      // feeds. The channel changer owns them once it is open.
       case LogicalKeyboardKey.arrowLeft when _arrowsScrub:
       case LogicalKeyboardKey.arrowRight when _arrowsScrub:
         _scrubWithKey(
@@ -2412,6 +2455,10 @@ class _LiveTvPlayerScreenState extends State<LiveTvPlayerScreen>
         );
         return KeyEventResult.handled;
       case LogicalKeyboardKey.arrowLeft:
+        if (_feedKeysEnabled) {
+          if (event is KeyDownEvent) unawaited(_cycleFeed(-1));
+          return KeyEventResult.handled;
+        }
         if (!_infoVisible) {
           _showInfo();
           return KeyEventResult.handled;
@@ -2423,6 +2470,10 @@ class _LiveTvPlayerScreenState extends State<LiveTvPlayerScreen>
         _showInfo();
         return KeyEventResult.handled;
       case LogicalKeyboardKey.arrowRight:
+        if (_feedKeysEnabled) {
+          if (event is KeyDownEvent) unawaited(_cycleFeed(1));
+          return KeyEventResult.handled;
+        }
         if (!_infoVisible) {
           _showInfo();
           return KeyEventResult.handled;

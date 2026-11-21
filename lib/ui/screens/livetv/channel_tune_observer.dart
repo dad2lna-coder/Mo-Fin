@@ -39,7 +39,14 @@ Future<PlaybackBringupState?> observeChannelTune({
   } catch (_) {
     return null;
   } finally {
-    await subscription.cancel();
+    // The ready event can finish this wait while its own listener is still
+    // on the stack. Awaiting cancel from there never returns, so the player
+    // stays "switching" and the next feed press is ignored.
+    unawaited(
+      Future<void>.delayed(Duration.zero, () {
+        unawaited(subscription.cancel());
+      }),
+    );
   }
   return result;
 }
